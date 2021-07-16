@@ -125,3 +125,7 @@ temp*
 tmp*.py
 docker/*
 *.png
+boilerplate.txt
+
+# Excluded old code, kept locally for reference
+legacy
