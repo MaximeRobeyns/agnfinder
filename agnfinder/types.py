@@ -1,7 +1,6 @@
 # AGNfinder: Detect AGN from photometry in XXL data.
 #
 # Copyright (C) 2021 Maxime Robeyns <maximerobeyns@gmail.com>
-# Copyright (C) 2019-20 Mike Walmsley <walmsleymk1@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -15,8 +14,12 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+""" Some custom types """
 
-from . import config
-from . import types
+from typing import Union
 
-__version__ = "0.0.1"
+# Type for the limits on the free parameters.
+paramspace_t = dict[str, tuple[float, float]]
+
+# Type for sampling configuration
+sparams_t = dict[str, Union[float, bool, str]]

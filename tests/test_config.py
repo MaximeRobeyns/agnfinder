@@ -1,7 +1,6 @@
 # AGNfinder: Detect AGN from photometry in XXL data.
 #
 # Copyright (C) 2021 Maxime Robeyns <maximerobeyns@gmail.com>
-# Copyright (C) 2019-20 Mike Walmsley <walmsleymk1@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -15,8 +14,25 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+"""Tests for the project configuration file"""
 
-from . import config
-from . import types
+import agnfinder.config as config
 
-__version__ = "0.0.1"
+
+def test_FreeParams():
+    assert len(config.free_params) == 9
+
+    fp = config.FreeParams(config.free_params)
+    for p, k in enumerate(fp.raw_params):
+        if k.startswith('log'):
+            assert fp.log[p]
+        else:
+            assert not fp.log[p]
+        assert fp.params[p][0] == fp.raw_params[k][0]
+        assert fp.params[p][1] == fp.raw_params[k][1]
+        assert hasattr(fp, k)
+
+    assert fp.log.shape == (9,)
+    assert fp.params.shape == (9,2)
+
+

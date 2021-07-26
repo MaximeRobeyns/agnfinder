@@ -125,7 +125,11 @@ temp*
 tmp*.py
 docker/*
 *.png
-boilerplate.txt
+license_boilerplate.txt
+
+old_tests
+old_agnfinder
+agnvenv
 
 # Excluded old code, kept locally for reference
 legacy

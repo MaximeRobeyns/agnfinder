@@ -1,33 +1,9 @@
-pandas
-matplotlib
-seaborn
-pytest
 numpy
-pyarrow
-# datashader
-bokeh
-scipy
-emcee
-corner
-pymultinest
-dynesty
-# pydelfi  # not yet used
-pytest
-h5py
-pyfits
-astropy
-dill
-GPy
-scikit-learn>=0.22.1
-tqdm
+torch
 pyDOE2
-tensorflow>=2.1  # the right tf version is important! 
-tensorflow-probability  # TODO so is the right tfp version
-keras
-keras-tuner  # if you want to hyperparameter search
-arviz
-statsmodels  # for lowess for uncertainty calculations
+pytest==6.2.4
 
-git+https://github.com/bd-j/sedpy
-git+https://github.com/bd-j/prospector.git
-git+https://github.com/dfm/python-fsps.git
+# git+https://github.com/bd-j/sedpy
+# git+https://github.com/bd-j/prospector.git
+# git+https://github.com/dfm/python-fsps.git
+
