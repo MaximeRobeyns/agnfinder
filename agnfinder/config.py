@@ -19,8 +19,13 @@
 
 import math
 import torch as t
+import logging
 
-from agnfinder.types import paramspace_t
+from typing import Union
+
+from agnfinder.types import paramspace_t, \
+        MaybeFloat, Free, Just, \
+        Optional, OptionalValue, Nothing
 
 # Configuration Values ========================================================
 # Modify these!
@@ -55,6 +60,94 @@ class SamplingParams():
     noise: bool = False
     filters: str = 'euclid'
 
+
+class CPzModelParams():
+    """Classification-aided photometric-redshift model parameters
+
+    Attributes with type bool can be turned on or off as you please.
+
+    Attributes of type MaybeFloat must either be
+
+        - Just(value), where `value` is a floating point number.
+        - Free
+
+    Attributes of type Optional must either be
+
+        - OptionalValue(<MaybeFloat value>)
+        - Nothing
+
+    (These monads / data types are defined in types.py.)
+
+    # TODO (Maxime): document what these parameters actually mean.
+    """
+
+    # boolean values
+    dust: bool = True
+    model_agn: bool = True
+    igm_absorbtion: bool = True
+
+    # Non-optional values (can be Free though!)
+    agn_mass: MaybeFloat = Free
+    redshift: MaybeFloat = Free
+    inclination: MaybeFloat = Free
+    fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
+
+    # Optional values
+    agn_eb_v: Optional = OptionalValue(Free)  # or Nothing
+    agn_torus_mass: Optional = OptionalValue(Free)
+
+
+# Logging configuration
+logging_config = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'default': {
+            'level': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',  # Default is stderr
+        },
+    },
+    'handlers' : {
+        # only log errors out to the console
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+            'level': 'ERROR',
+            'stream': 'ext://sys.stdout'
+        },
+        # Output more information to a file for post-hoc analysis
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'standard',
+            'level': 'INFO',
+            # TODO place these inside a dedicated directory, and use timestamp to make unique
+            'filename': './logs.txt',
+            'mode': 'a',
+            'encoding': 'utf-8',
+            'maxBytes': 500000,
+            'backupCount': 4
+        }
+    },
+    'loggers': {
+        '': {  # root logger
+            'handlers': ['default'],
+            'level': 'WARNING',
+            'propagate': False
+        },
+        # '__main__': {  # if __name__ == '__main__'
+        #     'handlers': ['default'],
+        #     'level': 'DEBUG',
+        #     'propagate': False
+        # },
+    }
+}
 
 # Utility classes -------------------------------------------------------------
 

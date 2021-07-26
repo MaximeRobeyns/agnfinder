@@ -23,13 +23,15 @@ import argparse
 import torch as t
 
 from agnfinder import config as cfg
+from agnfinder.config import FreeParams
 from agnfinder.simulation import utils
 from agnfinder.types import paramspace_t
+from agnfinder.prospector import Prospector
 
 
 class Simulator(object):
 
-    def __init__(self, args: argparse.Namespace, free_params: cfg.FreeParams):
+    def __init__(self, args: argparse.Namespace, free_params: FreeParams):
         super(Simulator, self).__init__()
 
         # Is this necessary?
@@ -67,12 +69,16 @@ class Simulator(object):
 
         # Transform the unit-sampled point back to their correct ranges in the
         # parameter space (taking logs if needed).
-        galaxy_params = utils.denormalise_theta(hcube, self.free_params)
+        self.galaxy_params = utils.denormalise_theta(hcube, self.free_params)
 
     def create_forward_model(self):
+        # TODO ensure that this class is correctly exported
+        self.forward_model = Prospector()
         raise NotImplementedError
 
     def run(self):
+        if self.galaxy_params is None:
+            self.sample_theta()
         raise NotImplementedError
 
 
@@ -102,7 +108,6 @@ if __name__ == '__main__':
     sim = Simulator(args, fp)
 
     # Latin hypercube sampling for the galaxy parameters.
-    # TODO implement me!
     sim.sample_theta()
 
     # Create the forward model using Prospector
