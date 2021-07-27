@@ -23,7 +23,10 @@ import logging
 import numpy as np
 
 from prospect.sources import CSPSpecBasis
+
+from agnfinder import quasar_templates
 from agnfinder.fsps_emulation import emulate
+import agnfinder.config as cfg
 
 
 class CSPSpecBasisAGN(CSPSpecBasis):
@@ -71,10 +74,31 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         self.update(**kwargs)
 
 
-        # TODO return here once quasar_templates is implemented
+        quasar_params = cfg.QuasarTemplateParams()
         self.quasar_template = quasar_templates.QuasarTemplate(
-            template_loc=quasar_templates.INTERPOLATED_QUASAR_LOC
+            template_loc=quasar_params.interpolated_quasar_loc
         )
+        self.torus_template = quasar_templates.TorusModel(
+            model_loc=quasar_params.torus_model_loc
+        )
+
+        extinction_params = cfg.ExtinctionTemplateParams()
+        self.extinction_template = extinction_models.ExtinctionTemplate(
+            template_loc=extinction_params.interpolated_smc_extinction_loc
+        )
+
+        # TODO: replace this
+        # 1. What type are all of these
+        # 2. Why are we initialising them here as None---what's the point?
+        self.galaxy_flux = None
+        self.unextincted_quasar_flux = None
+        self.quasar_flux = None
+        self.torus_flux = None
+        self.extincted_quasar_flux = None
+
+    def get_galaxy_spectrum(self, **params):
+        pass
+
 
 class CustomSSP():
     """Replicates fsps.StellarPopulation"""

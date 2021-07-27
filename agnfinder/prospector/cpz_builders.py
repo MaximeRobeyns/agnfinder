@@ -180,9 +180,8 @@ def build_cpz_obs(filter_selection: str) -> t:
     return obs
 
 def build_sps(zcontinuous=1):
+
+
     raise NotImplementedError
     pass
 
-
-class CSPSpecBasisAGN(CSPSpecBasis):
-    """Override get_galaxy_spectrum"""

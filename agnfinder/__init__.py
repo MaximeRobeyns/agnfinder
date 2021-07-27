@@ -18,5 +18,8 @@
 
 from . import config
 from . import types
+from . import quasar_templates
+
+from . import fsps_emulation
 
 __version__ = "0.0.1"

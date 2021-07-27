@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Project configuration file """
 
+import os
 import math
 import torch as t
 import logging
@@ -97,6 +98,27 @@ class CPzModelParams():
     agn_eb_v: Optional = OptionalValue(Free)
     agn_torus_mass: Optional = OptionalValue(Free)
 
+# ======================== Quasar Template Parameters ==========================
+
+class QuasarTemplateParams:
+    quasar_data_loc: str = 'data/quasar_template_shang.txt'
+    interpolated_quasar_loc: str = 'data/quasar_template_interpolated.dill'
+    torus_model_loc: str = 'data/torus_model_with_inclination.dill'
+    results_dir: str = 'results'
+
+    def results_path(self, file: str) -> str:
+        return os.path.join(self.results_dir, file)
+
+# ====================== Extinction Template Parameters ========================
+
+class ExtinctionTemplateParams:
+    interpolated_smc_extinction_loc: str \
+        = 'data/interpolated_smc_extinction.dill'
+    smc_data_loc: str = 'data/smc_extinction_prevot_1984.dat'
+    results_dir: str = 'results'
+
+    def results_path(self, file: str) -> str:
+        return os.path.join(self.results_dir, file)
 
 # =========================== Logging Parameters ===============================
 
