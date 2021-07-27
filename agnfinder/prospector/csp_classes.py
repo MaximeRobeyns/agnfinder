@@ -17,9 +17,13 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Composite Stellar Population classes"""
 
+import os
+import fsps
 import logging
+import numpy as np
 
 from prospect.sources import CSPSpecBasis
+from agnfinder.fsps_emulation import emulate
 
 
 class CSPSpecBasisAGN(CSPSpecBasis):
@@ -43,9 +47,104 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         # TODO remove kwargs if at all possible
 
         if emulate_ssp:
+            # This is somewhat outdated but it serves as a good example of how
+            # forward emulation works.
             logging.warning('Using custom FSPS emulator for SSP')
             self.ssp = CustomSSP()
-            # TODO return here after CustomSSP is implemented
+        else:
+            logging.warning('Using standard FSPS for SSP, no emulation')
+            self.ssp = fsps.StellarPopulation(
+                compute_vega_mags=compute_vega_mags,
+                zcontinuous=zcontinuous,
+                vactoair_flag=vactoair_flag)
+
+        self.reserved_params = reserved_params
+
+        self.params = {}
+
+        # Make (unknown) kwargs properties of this class.
+        # This is pretty bad form:
+        # - No indication of types whatsoever
+        # - Could result in attribute / class member conflicts
+        # - Not safe
+        # TODO remove if possible
+        self.update(**kwargs)
+
+
+        # TODO return here once quasar_templates is implemented
+        self.quasar_template = quasar_templates.QuasarTemplate(
+            template_loc=quasar_templates.INTERPOLATED_QUASAR_LOC
+        )
+
+class CustomSSP():
+    """Replicates fsps.StellarPopulation"""
+
+    def __init__(self, careful: bool = True, model_dir: str = 'data'):
+        logging.warning('Using cached SSP.')
+        self.model_dir = model_dir
+
+        num_params = 3
+        num_bases = 10
+        gp_model_loc = self.relative_path(f'gpfit_{num_bases}_{num_params}.zip')
+        pca_model_loc = self.relative_path('pcaModel.pickle')
+        self._spectrum_emulator = emulate.GPEmulator(
+            gp_model_loc=gp_model_loc,
+            pca_model_loc=pca_model_loc
+        )
+
+        mass_model_loc = self.relative_path('mass_emulator.pickle')
+        self._mass_emulator = emulate.SKLearnEmulator(
+            model_loc=mass_model_loc
+        )
+
+        reference_wave_loc = self.relative_path('reference_wave.txt')
+        self.wavelengths = np.loadtxt(reference_wave_loc)
+        self.stellar_mass = None  # already exists
+        self.params = CustomFSPSParams()  # dict of args to mimick FSPS
+        self.careful = careful
+
+    def relative_path(self, path: str) -> str:
+        """Joins the provided path to the model base path.
+        """
+        return os.path.join(self.model_dir, path)
+
+    def get_spectrum(self, tage: int) -> tuple[np.ndarray, np.ndarray]:
+        if self.careful:
+            assert tage is not 0
+            self.check_fixed_params_unchanged()
+        param_vector = np.array([
+            self.params['tau'], tage, self.params['dust2']])
+
+        # emulator doesn't model the first 100 wavelengths (which are ~0)
+        # because of how Nesar made it. Add then back manually
+        spectra = np.hstack([
+            np.ones(100) * 1e-60, self._spectrum_emulator(param_vector)])
+        self.stellar_mass = self._mass_emulator(param_vector)
+        return self.wavelengths, spectra
+
+    def check_fixed_params_unchanged(self):
+        """Does what it says on the tin.
+
+        Raises:
+            ValueError: If one of the fixed parameters was changed.
+        """
+        expected_fixed_args = {
+            'logzsol': 0.0,
+            'sfh': 4,
+            'imf_type': 2,
+            'dust_type': 2,
+            'add_dust_emission': True,
+            'duste_umin': 1.0,
+            'duste_qpah': 4.0,
+            'duste_gamma': 0.001,
+            'add_igm_absorption': True,
+            'igm_factor': 1.0
+        }
+        for k, v in expected_fixed_args.items():
+            if not self.params[k] == v:
+                raise ValueError(
+                    "Expected value {} for fixed parameter {} but got {}"
+                    .format(self.params[k], k, v))
 
 
 class CustomFSPSParams():

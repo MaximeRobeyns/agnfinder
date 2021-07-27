@@ -56,7 +56,7 @@ class Just(MaybeFloat):
         return f'Just({self.value})'
 
 
-# -----------------------------------------------------------------------------
+# Optional ---------------------------------------------------------------------
 # Allows for optional parameters. This is really just another Maybe data type,
 # but I have called it 'Optional' for better clarity
 

@@ -130,12 +130,12 @@ def get_filters(selection: str) -> list[Filter]:
 #     # mags should be apparent AB magnitudes
 #     # The units of the fluxes need to be maggies (Jy/3631)
 #     return 10**(-0.4*mags)
-
-
-def load_galaxy_for_prospector() -> None:
-    # TODO what is a 'galaxy' here?
-    # Is it a DataFrame?
-    raise NotImplementedError
+#
+#
+# def load_galaxy_for_prospector() -> None:
+#     # TODO what is a 'galaxy' here?
+#     # Is it a DataFrame?
+#     raise NotImplementedError
 
 
 def load_dummy_galaxy(filter_selection: str

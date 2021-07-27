@@ -27,7 +27,6 @@ from prospect.utils.obsutils import fix_obs
 from prospect.models import priors
 from prospect.models import templates
 from prospect.models.sedmodel import SedModel
-from prospect.sources import CSPSpecBasis
 
 import agnfinder.config as cfg
 from agnfinder.types import pdict_t

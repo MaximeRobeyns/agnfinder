@@ -21,18 +21,14 @@ import math
 import torch as t
 import logging
 
-from typing import Union
-
 from agnfinder.types import paramspace_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing
 
-# Configuration Values ========================================================
-# Modify these!
 
-
+# ============================= Free Parameters ===============================
 # Keys prefixed by 'log_*' will be exponentiated later.
-# TODO: perhaps save the spectra un-redshifted, then shift it at the end
+
 free_params: paramspace_t = {
     'redshift': (0., 4.),
     # Mass of the galaxy
@@ -48,9 +44,10 @@ free_params: paramspace_t = {
     'inclination': (0., 90.)
 }
 
-
+# =========================== Sampling Parameters ==============================
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
+
 class SamplingParams():
     n_samples: int = 1000
     redshift_min: float = 0.
@@ -60,6 +57,7 @@ class SamplingParams():
     noise: bool = False
     filters: str = 'euclid'
 
+# ============================= CPz Parameters =================================
 
 class CPzModelParams():
     """Classification-aided photometric-redshift model parameters
@@ -82,22 +80,26 @@ class CPzModelParams():
     """
 
     # boolean values
+    # True | False
     dust: bool = True
     model_agn: bool = True
     igm_absorbtion: bool = True
 
-    # Non-optional values (can be Free though!)
+    # Non-optional values:
+    # Free | Just(<float>)
     agn_mass: MaybeFloat = Free
     redshift: MaybeFloat = Free
     inclination: MaybeFloat = Free
     fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
 
-    # Optional values
-    agn_eb_v: Optional = OptionalValue(Free)  # or Nothing
+    # Optional values:
+    # Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
+    agn_eb_v: Optional = OptionalValue(Free)
     agn_torus_mass: Optional = OptionalValue(Free)
 
 
-# Logging configuration
+# =========================== Logging Parameters ===============================
+
 logging_config = {
     'version': 1,
     'disable_existing_loggers': True,
@@ -149,8 +151,8 @@ logging_config = {
     }
 }
 
-# Utility classes -------------------------------------------------------------
 
+# Utility classes -------------------------------------------------------------
 
 class FreeParams():
     def __init__(self, params: paramspace_t):
