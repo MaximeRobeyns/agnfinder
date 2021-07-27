@@ -57,8 +57,8 @@ class Just(MaybeFloat):
 
 
 # -----------------------------------------------------------------------------
-# Allows for optional parameters. It is really just another Maybe data type,
-# but I have called it 'Optional' for greater clarity
+# Allows for optional parameters. This is really just another Maybe data type,
+# but I have called it 'Optional' for better clarity
 
 class Optional():
     def __init__(self):

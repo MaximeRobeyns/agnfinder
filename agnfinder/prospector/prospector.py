@@ -17,12 +17,28 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Main Prospector problem generation class."""
 
+# TODO configure logging
+import logging
+
+from agnfinder.config import CPzModelParams
+from agnfinder.prospector import cpz_builders
+
 
 class Prospector(object):
 
-    # TODO place these problem parameters in a configuration struct (which is typed)?
-    def __init__(self, redshift: bool = True):
-        pass
+    # TODO perhaps place these problem parameters in a configuration struct in
+    # config (which is typed)?
+    def __init__(self, filter_selection: str, redshift: bool = True):
 
-        # this constructor sets the 'run_params', which are just properties of the problem.
+        # TODO log out all the relevant parameters
+        # logging.info("Run Params")
+        self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
+        logging.info(self.obs)
+
+        self.model = cpz_builders.build_model(CPzModelParams)
+        logging.info(self.model)
+
+        self.sps = cpz_builders.build_sps(#TODO determine which parameters to place here
+                )
+        logging.info(self.sps)
 

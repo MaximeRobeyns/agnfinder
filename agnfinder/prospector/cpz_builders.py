@@ -16,15 +16,22 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# TODO configure logging
 import logging
+import numpy as np
 
-from typing import Callable
+from typing import Callable, Union
+from sedpy import observate
+
+from prospect.utils.obsutils import fix_obs
 from prospect.models import priors
 from prospect.models import templates
 from prospect.models.sedmodel import SedModel
+from prospect.sources import CSPSpecBasis
 
 import agnfinder.config as cfg
 from agnfinder.types import pdict_t
+from agnfinder.prospector import load_photometry
 
 # Closures to use either Optional:Nothing, MaybeFloat: Fixed, or
 # MaybeFloat:Just(val) values.
@@ -130,3 +137,53 @@ def build_model(args: cfg.CPzModelParams) -> SedModel:
         break
 
     return SedModel(model_params)
+
+# TODO put this type in the types file
+t = dict[str, Union[np.ndarray, list[observate.Filter]]]
+
+def build_cpz_obs(filter_selection: str) -> t:
+    """Build a dictionary of photometry (and maybe eventually spectra).
+
+    TODO: does this need to be a dict, or could it be a class?
+
+    Args:
+        filter_selection: the SPS filter selection to use
+
+    Returns:
+        None: A dictionary of observational data to use in the fit.
+    """
+
+    obs: t = {}
+    obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
+    obs['maggies'] = np.ones(len(obs['filters']))
+    obs['maggies_unc'] = np.ones(len(obs['filters']))
+
+    # This mask tells us which flux values to consider in the likelihood.
+    # NOTE: the mask is _True_ for values that you _want_ to fit.
+    obs['phot_mask'] = np.array([True for _ in obs['filters']])
+
+    # This is an array of the effective wavelengths for each of the filters.
+    # Unnecessary, but useful for plotting so it's stored here for convenience
+    obs['phot_wave'] = np.array([f.wave_effective for f in obs['filters']])
+
+
+    # We don't have a spectrum, so we set some required elements of the obs
+    # directory to None
+    # (This would be a vector of vacuum wavelengths in angstroms.)
+    # NOTE: Could use the SDSS spectra here for truth label fitting
+    obs['wavelength'] = None
+    obs['spectrum'] = None
+    obs['unc'] = None
+    obs['mask'] = None
+
+    obs = fix_obs(obs)
+
+    return obs
+
+def build_sps(zcontinuous=1):
+    raise NotImplementedError
+    pass
+
+
+class CSPSpecBasisAGN(CSPSpecBasis):
+    """Override get_galaxy_spectrum"""
