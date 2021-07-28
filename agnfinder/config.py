@@ -50,17 +50,17 @@ free_params: paramspace_t = {
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 
 class SamplingParams():
-    n_samples: int = 1000
-    redshift_min: float = 0.
-    redshift_max: float = 4.
-    save_dir: str = './data'
-    emulate_ssp: bool = False
-    noise: bool = False
-    filters: str = 'euclid'
+    n_samples    : int   = 1000
+    redshift_min : float = 0.
+    redshift_max : float = 4.
+    save_dir     : str   = './data'
+    emulate_ssp  : bool  = False
+    noise        : bool  = False
+    filters      : str   = 'euclid'
 
 # ============================= CPz Parameters =================================
 
-class CPzModelParams():
+class CPzParams():
     """Classification-aided photometric-redshift model parameters
 
     Attributes with type bool can be turned on or off as you please.
@@ -82,29 +82,30 @@ class CPzModelParams():
 
     # boolean values
     # True | False
-    dust: bool = True
-    model_agn: bool = True
-    igm_absorbtion: bool = True
+    dust           : bool = True
+    model_agn      : bool = True
+    igm_absorbtion : bool = True
 
     # Non-optional values:
     # Free | Just(<float>)
-    agn_mass: MaybeFloat = Free
-    redshift: MaybeFloat = Free
-    inclination: MaybeFloat = Free
-    fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
+    agn_mass          : MaybeFloat = Free
+    redshift          : MaybeFloat = Free
+    inclination       : MaybeFloat = Free
+    fixed_metallicity : MaybeFloat = Just(0.)  # solar metallicity
 
     # Optional values:
     # Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
-    agn_eb_v: Optional = OptionalValue(Free)
-    agn_torus_mass: Optional = OptionalValue(Free)
+    agn_eb_v       : Optional = OptionalValue(Free)
+    agn_torus_mass : Optional = OptionalValue(Free)
+    agn_torus_mass : Optional = Nothing
 
 # ======================== Quasar Template Parameters ==========================
 
 class QuasarTemplateParams:
-    quasar_data_loc: str = 'data/quasar_template_shang.txt'
-    interpolated_quasar_loc: str = 'data/quasar_template_interpolated.dill'
-    torus_model_loc: str = 'data/torus_model_with_inclination.dill'
-    results_dir: str = 'results'
+    results_dir             : str = 'results'
+    quasar_data_loc         : str = 'data/quasar_template_shang.txt'
+    torus_model_loc         : str = 'data/torus_model_with_inclination.dill'
+    interpolated_quasar_loc : str = 'data/quasar_template_interpolated.dill'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
@@ -113,9 +114,9 @@ class QuasarTemplateParams:
 
 class ExtinctionTemplateParams:
     interpolated_smc_extinction_loc: str \
-        = 'data/interpolated_smc_extinction.dill'
-    smc_data_loc: str = 'data/smc_extinction_prevot_1984.dat'
-    results_dir: str = 'results'
+                       = 'data/interpolated_smc_extinction.dill'
+    smc_data_loc : str = 'data/smc_extinction_prevot_1984.dat'
+    results_dir  : str = 'results'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)

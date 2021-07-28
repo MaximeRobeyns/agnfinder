@@ -20,25 +20,22 @@
 # TODO configure logging
 import logging
 
-from agnfinder.config import CPzModelParams
+from agnfinder.config import CPzParams
 from agnfinder.prospector import cpz_builders
 
 
 class Prospector(object):
 
-    # TODO perhaps place these problem parameters in a configuration struct in
-    # config (which is typed)?
-    def __init__(self, filter_selection: str, redshift: bool = True):
+    def __init__(self, filter_selection: str, emulate_ssp: bool):
 
-        # TODO log out all the relevant parameters
-        # logging.info("Run Params")
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
         logging.info(self.obs)
 
-        self.model = cpz_builders.build_model(CPzModelParams)
+        cpz_params = CPzParams()
+
+        self.model = cpz_builders.build_model(cpz_params)
         logging.info(self.model)
 
-        self.sps = cpz_builders.build_sps(#TODO determine which parameters to place here
-                )
+        self.sps = cpz_builders.build_sps(cpz_params, emulate_ssp, zcontinuous=1)
         logging.info(self.sps)
 

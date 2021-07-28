@@ -23,7 +23,6 @@ import argparse
 import torch as t
 
 from agnfinder import config as cfg
-from agnfinder.config import FreeParams
 from agnfinder.simulation import utils
 from agnfinder.types import paramspace_t
 from agnfinder.prospector import Prospector
@@ -31,12 +30,12 @@ from agnfinder.prospector import Prospector
 
 class Simulator(object):
 
-    def __init__(self, args: argparse.Namespace, free_params: FreeParams):
+    def __init__(self, args: argparse.Namespace, free_params: cfg.FreeParams):
         super(Simulator, self).__init__()
 
         # Is this necessary?
         self.lims: paramspace_t = free_params.raw_params
-        self.free_params = free_params
+        self.free_params = free_params  # TODO verify this line
         self.dims: int = len(self.free_params)
 
         rshift_min_string = f'{args.rshift_min:.4f}'.replace('.', 'p')
@@ -72,8 +71,8 @@ class Simulator(object):
         self.galaxy_params = utils.denormalise_theta(hcube, self.free_params)
 
     def create_forward_model(self):
-        # TODO ensure that this class is correctly exported
-        self.forward_model = Prospector()
+        self.forward_model = Prospector(self.filters, self.emulate_ssp)
+        # TODO come back to this point after Prospector class is implemented
         raise NotImplementedError
 
     def run(self):

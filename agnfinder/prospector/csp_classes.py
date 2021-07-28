@@ -47,7 +47,6 @@ class CSPSpecBasisAGN(CSPSpecBasis):
             compute_vega_mags: bool = False,
             emulate_ssp: bool = False,
             **kwargs):
-        # TODO remove kwargs if at all possible
 
         if emulate_ssp:
             # This is somewhat outdated but it serves as a good example of how
@@ -62,17 +61,8 @@ class CSPSpecBasisAGN(CSPSpecBasis):
                 vactoair_flag=vactoair_flag)
 
         self.reserved_params = reserved_params
-
         self.params = {}
-
-        # Make (unknown) kwargs properties of this class.
-        # This is pretty bad form:
-        # - No indication of types whatsoever
-        # - Could result in attribute / class member conflicts
-        # - Not safe
-        # TODO remove if possible
         self.update(**kwargs)
-
 
         quasar_params = cfg.QuasarTemplateParams()
         self.quasar_template = quasar_templates.QuasarTemplate(
@@ -87,9 +77,6 @@ class CSPSpecBasisAGN(CSPSpecBasis):
             template_loc=extinction_params.interpolated_smc_extinction_loc
         )
 
-        # TODO: replace this
-        # 1. What type are all of these
-        # 2. Why are we initialising them here as None---what's the point?
         self.galaxy_flux = None
         self.unextincted_quasar_flux = None
         self.quasar_flux = None
@@ -97,7 +84,101 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         self.extincted_quasar_flux = None
 
     def get_galaxy_spectrum(self, **params):
-        pass
+        """Update parameters, and then multiply SSP weights by SSP spectra and
+        stellar masses, and then sum.
+        """
+
+        # This pattern is pretty bad, but it's what Prospector uses so we must
+        # too...
+        self.update(**params)
+
+        try:
+            self.params['agn_mass']
+        except KeyError:
+            raise AttributeError('Trying to calculate SED inc. AGN, but no \
+                    agn_mass parameter is set')
+
+        # no idea what this does, but I'm leaving it in.
+        mass = np.atleast_1d(self.params['mass']).copy()
+        mfrac = np.zeros_like(mass)
+        self.update_component(0)
+
+        # Unfortunately we don't control this API:
+        wave, spectrum = self.ssp.get_spectrum(
+                tage=self.ssp.params['tage'])
+        mfrac_sum = self.ssp.stellar_mass
+
+        # rename to match
+        mass_frac = mfrac_sum
+        stellar_spectrum = spectrum
+
+        # Insert blue AGN template here into spectrum
+        # Normalised scale:
+        template_quasar_flux = self.quasar_template(wave, short_only=True)
+        quasar_flux = template_quasar_flux * self.params['agn_mass'] * 1e14
+
+        # Normalised scale:
+        template_torus_flux = self.torus_template(
+                wave, self.params['inclination'], long_only=True)
+        torus_flux = template_torus_flux * self.params['agn_torus_mass'] * 1e14
+
+        # must always be specified, even if None
+        # here float will be truthy; corresponds to OptionalValue(<something>)
+        if self.params['agn_eb_v']:
+            # This should go in the second monad callable
+            extincted_quasar_flux = self.extinction_template(wave, quasar_flux, self.params['agn_eb_v'])
+        else: # don't model
+            extincted_quasar_flux = quasar_flux
+
+        self.unextincted_quasar_flux = quasar_flux
+        self.extincted_quasar_flux = extincted_quasar_flux
+        self.torus_flux = torus_flux
+        self.quasar_flux = extincted_quasar_flux + torus_flux
+        self.galaxy_flux = stellar_spectrum
+
+        # should be spectrum in Lsun/Hz per solar mass formed, restframe
+        return wave, self.galaxy_flux + self.quasar_flux, mass_frac
+
+
+class CSPSpecBasisNoEm(CSPSpecBasis):
+
+    def get_galaxy_spectrum(self, **params):
+        """Update parameters, then loop over each component getting a spectrum
+        for each and sum with appropriate weights.
+
+        Parameters:
+            params: A parameter dictionary that gets passed to the self.update
+                method, and will generally include physical parameters that
+                control the stellar population and output spectrum or SED.
+
+        Returns:
+            wave: Wavelength in angstroms
+            spectrum: Spectrum in units of Lsun/Hz/solar masses formed.
+            mass_fraction: Fraction of the formed stellar mass that still
+                 exists.
+        """
+
+        self.update(**params)
+
+        spectra = []
+        mass = np.atleast_1d(self.params['mass']).copy()
+        mfrac = np.zeros_like(mass)
+
+        # loop over mass components
+        for i, _ in enumerate(mass):
+            self.update_component(i)
+            wave, spec = self.ssp.get_spectrum(tage=self.ssp.params['tage'],
+                                               peraa=False)
+            spectra.append(spec)
+            mfrac[i] = (self.ssp.stellar_mass)
+
+        # Convert normalisation units from per stellar mass to per mass formed
+        if np.all(self.params.get('mass_units', 'mformed') == 'mstar'):
+            mass /= mfrac
+        spectrum = np.dot(mass, np.array(spectra)) / mass.sum()
+        mfrac_sum = np.dot(mass, mfrac) / mass.sum()
+
+        return wave, spectrum, mfrac_sum
 
 
 class CustomSSP():

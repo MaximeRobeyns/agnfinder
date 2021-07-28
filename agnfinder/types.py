@@ -16,11 +16,17 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Some custom types """
 
+import numpy as np
+
+from sedpy import observate
 from typing import Union, Callable
 from prospect.models import priors
 
 # Type for the limits on the free parameters.
 paramspace_t = dict[str, tuple[float, float]]
+
+# Tyep for CPz observation dictionary
+cpz_obs_dict_t = dict[str, Union[np.ndarray, list[observate.Filter]]]
 
 # Type for CPz model parameter description
 pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
@@ -31,7 +37,7 @@ pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 
 class MaybeFloat():
     def __init__(self):
-        self.value = None
+        self.value: Union[float, bool] = False
 
     # kind of inspired by Haskell's bind (>>)
     def use(self, free_action: Callable[[], pdict_t],
@@ -43,6 +49,9 @@ class MaybeFloat():
             return just_action(self.value)
 
 class _Maybe__Free(MaybeFloat):
+    def __init__(self):
+        self.value: bool = True
+
     def __repr__(self):
         return "Free"
 
@@ -50,6 +59,7 @@ Free = _Maybe__Free()
 
 class Just(MaybeFloat):
     def __init__(self, v: float):
+        assert isinstance(v, float)  # type annotations aren't enforced :(
         self.value: float = v
 
     def __repr__(self):

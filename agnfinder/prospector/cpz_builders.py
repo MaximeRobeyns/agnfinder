@@ -16,21 +16,58 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# TODO configure logging
 import logging
 import numpy as np
 
-from typing import Callable, Union
-from sedpy import observate
+from typing import Callable
 
 from prospect.utils.obsutils import fix_obs
 from prospect.models import priors
 from prospect.models import templates
 from prospect.models.sedmodel import SedModel
+from prospect.sources import CSPSpecBasis
 
 import agnfinder.config as cfg
-from agnfinder.types import pdict_t
+from agnfinder.types import cpz_obs_dict_t, pdict_t
 from agnfinder.prospector import load_photometry
+from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
+
+def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
+    """Build a dictionary of photometry (and maybe eventually spectra).
+
+    Args:
+        filter_selection: the SPS filter selection to use
+
+    Returns:
+        None: A dictionary of observational data to use in the fit.
+    """
+
+    obs: cpz_obs_dict_t = {}
+    obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
+    obs['maggies'] = np.ones(len(obs['filters']))
+    obs['maggies_unc'] = np.ones(len(obs['filters']))
+
+    # This mask tells us which flux values to consider in the likelihood.
+    # NOTE: the mask is _True_ for values that you _want_ to fit.
+    obs['phot_mask'] = np.array([True for _ in obs['filters']])
+
+    # This is an array of the effective wavelengths for each of the filters.
+    # Unnecessary, but useful for plotting so it's stored here for convenience
+    obs['phot_wave'] = np.array([f.wave_effective for f in obs['filters']])
+
+    # Since we don't have a spectrum, we set some required elements of the obs
+    # directory to empty lists (falsy, equivalent to None).
+    # (This would be a vector of vacuum wavelengths in angstroms.)
+    # NOTE: Could use the SDSS spectra here for truth label fitting
+    obs['wavelength'] = []
+    obs['spectrum'] = []
+    obs['unc'] = []
+    obs['mask'] = []
+
+    obs = fix_obs(obs)
+
+    return obs
+
 
 # Closures to use either Optional:Nothing, MaybeFloat: Fixed, or
 # MaybeFloat:Just(val) values.
@@ -39,11 +76,13 @@ def _use_nothing(name: str) -> Callable[[], None]:
         logging.warning(f'Not modelling {name}')
     return f
 
+
 def _use_free(name: str, defaults: pdict_t = {}) -> Callable[[], pdict_t]:
     def f() -> pdict_t:
         logging.info(f'Using free {name}')
         return defaults | {'isfree': True}
     return f
+
 
 def _use_float(name: str, defaults: pdict_t = {}) -> Callable[[float], pdict_t]:
     def f(val: float) -> pdict_t:
@@ -52,7 +91,7 @@ def _use_float(name: str, defaults: pdict_t = {}) -> Callable[[float], pdict_t]:
     return f
 
 
-def build_model(args: cfg.CPzModelParams) -> SedModel:
+def build_model(args: cfg.CPzParams) -> SedModel:
     """Build a SedModel object using the provided parameters.
 
     Args:
@@ -137,51 +176,33 @@ def build_model(args: cfg.CPzModelParams) -> SedModel:
 
     return SedModel(model_params)
 
-# TODO put this type in the types file
-t = dict[str, Union[np.ndarray, list[observate.Filter]]]
 
-def build_cpz_obs(filter_selection: str) -> t:
-    """Build a dictionary of photometry (and maybe eventually spectra).
+def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
+              zcontinuous: int = 1) -> CSPSpecBasis:
+    """Build stellar population synthesis model
 
-    TODO: does this need to be a dict, or could it be a class?
+    Required 'extra' parameters are:
+        - 'agn_mass', 'agn_eb_v', 'agn_torus_mass', 'inclination', 'emulate_ssp'
 
     Args:
-        filter_selection: the SPS filter selection to use
-
-    Returns:
-        None: A dictionary of observational data to use in the fit.
+        zcontinuous: A value of 1 ensures that we use interpolation between
+        SSPs to have a continuous metallicity parameter (`logzsol`). See
+        python-FSPS documentation for more details.
     """
 
-    obs: t = {}
-    obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
-    obs['maggies'] = np.ones(len(obs['filters']))
-    obs['maggies_unc'] = np.ones(len(obs['filters']))
+    if args.model_agn:
+        logging.warning('Building custom CSPSpecBasisAGN.')
 
-    # This mask tells us which flux values to consider in the likelihood.
-    # NOTE: the mask is _True_ for values that you _want_ to fit.
-    obs['phot_mask'] = np.array([True for _ in obs['filters']])
-
-    # This is an array of the effective wavelengths for each of the filters.
-    # Unnecessary, but useful for plotting so it's stored here for convenience
-    obs['phot_wave'] = np.array([f.wave_effective for f in obs['filters']])
-
-
-    # We don't have a spectrum, so we set some required elements of the obs
-    # directory to None
-    # (This would be a vector of vacuum wavelengths in angstroms.)
-    # NOTE: Could use the SDSS spectra here for truth label fitting
-    obs['wavelength'] = None
-    obs['spectrum'] = None
-    obs['unc'] = None
-    obs['mask'] = None
-
-    obs = fix_obs(obs)
-
-    return obs
-
-def build_sps(zcontinuous=1):
-
-
-    raise NotImplementedError
-    pass
-
+        # TODO ensure that the correct values are being passed in here
+        sps = CSPSpecBasisAGN(
+            zcontinuous=zcontinuous,  # this is also a separate param
+            emulate_ssp=emulate_ssp,  # this is a bool (separate param)
+            agn_mass=args.agn_mass.value,
+            agn_eb_v=args.agn_eb_v.value,
+            agn_torus_mass=args.agn_torus_mass.value,
+            inclination=args.inclination.value,
+        )
+    else:
+        logging.warning('Building standard CSPSpec')
+        sps = CSPSpecBasisNoEm(zcontinuous=zcontinuous)
+    return sps
