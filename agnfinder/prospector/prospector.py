@@ -18,7 +18,8 @@
 """Main Prospector problem generation class."""
 
 import logging
-from typing import Union
+import numpy as np
+from typing import Union, Callable
 
 from agnfinder.config import CPzParams
 from agnfinder.prospector import cpz_builders
@@ -29,7 +30,6 @@ class Prospector(object):
     run_params_t = tuple[str, Union[int, bool, float]]
 
     def __init__(self, filter_selection: str, emulate_ssp: bool):
-
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
         logging.info(self.obs)
 
@@ -41,7 +41,7 @@ class Prospector(object):
         self.sps = cpz_builders.build_sps(cpz_params, emulate_ssp, zcontinuous=1)
         logging.info(self.sps)
 
-        self.run_params = _cpz_params_to_run_params(cpz_params, emulate_ssp)
+        self.run_params = self._cpz_params_to_run_params(cpz_params, emulate_ssp)
 
     def _cpz_params_to_run_params(self, params: CPzParams, emulate_ssp: bool
                                   ) -> run_params_t:
@@ -72,6 +72,41 @@ class Prospector(object):
         run_params['redshift'] = None
         raise NotImplementedError
 
+    def calculate_sed(self):
+        self.model_spectra, self.model_photometry, _ = self.model.sed(
+            self.model.theta, obs=self.obs, sps=self.sps)
+
+        # cosmological redshifting w_new = w_old * (1+z)
+        a = 1.0 + self.model.params.get('zred', 0.)
+
+        # redshift the *restframe* sps spectral wavelengths
+        # wavelengths of source frame fluxes
+        source_wavelengths = self.sps.wavelengths
+        # redshift them via w_observed = w_source * (1+z); using z of model
+        self.observer_wavelengths = source_wavelengths * a
 
 
+    def forward_model(self) -> Callable[[np.ndarray], np.ndarray]:
+        # TODO determine what the output of the forward model is?
+        # Are these numpy arrays, or floating point values
+        def f(theta: np.ndarray) -> np.ndarray:
+            """Generate photometry from model parameters.
 
+            Args:
+                theta: The forward model parameters; must be denormalised.
+
+            Returns:
+                np.ndarray: photometry
+            """
+            if theta.ndim > 1:
+                theta = theta.squeeze()
+                assert theta.ndim == 1
+
+            # Check mass is properly large
+            if 'zred' in model.free_params:
+                mass_index = 1
+            else:
+                mass_index = 0
+            asert theta[mass_index] > 1e7
+
+            self.calculate_sed()

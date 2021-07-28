@@ -33,6 +33,9 @@ class Simulator(object):
     def __init__(self, args: argparse.Namespace, free_params: cfg.FreeParams):
         super(Simulator, self).__init__()
 
+        self.hcube_sampled: bool = False
+        self.has_forward_model: bool = False
+
         # Is this necessary?
         self.lims: paramspace_t = free_params.raw_params
         self.free_params = free_params  # TODO verify this line
@@ -69,16 +72,38 @@ class Simulator(object):
         # Transform the unit-sampled point back to their correct ranges in the
         # parameter space (taking logs if needed).
         self.galaxy_params = utils.denormalise_theta(hcube, self.free_params)
+        self.hcube_sampled = True
 
     def create_forward_model(self):
-        self.forward_model = Prospector(self.filters, self.emulate_ssp)
-        # TODO come back to this point after Prospector class is implemented
+
+        # TODO this is terrible form. Refactor?
+
+        problem = Prospector(self.filters, self.emulate_ssp)
+
+        # why is the result of this not used? Can we get rid of it?
+        problem.calculate_sed()
+
+        phot_wavelengths = problem.obs['phot_wave']
+
+        self.forward_model = problem.forward_model
+
+        self.has_forward_model = True
         raise NotImplementedError
 
     def run(self):
-        if self.galaxy_params is None:
+        """Run the sampling over all the galaxy parameters.
+        """
+
+        # Verify that we have all the required data / objects
+        if not self.hcube_sampled:
             self.sample_theta()
-        raise NotImplementedError
+        if not self.has_forward_model:
+            self.create_forward_model()
+
+        Y = np.zeros((n_samples, output_dim))
+        for n in tqdm(range(len(self.galaxy_params))):
+            Y[n] = self.forward_model(self.galaxy_params[n])
+        return Y
 
 
 if __name__ == '__main__':
@@ -110,9 +135,7 @@ if __name__ == '__main__':
     sim.sample_theta()
 
     # Create the forward model using Prospector
-    # TODO implement me!
     sim.create_forward_model()
 
     # Simulate the photometry (automatically saves results to disk)
-    # TODO implement me!
     sim.run()

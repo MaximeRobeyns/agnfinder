@@ -97,7 +97,7 @@ class CPzParams():
     # Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
     agn_eb_v       : Optional = OptionalValue(Free)
     agn_torus_mass : Optional = OptionalValue(Free)
-    agn_torus_mass : Optional = Nothing
+
 
 # ======================== Quasar Template Parameters ==========================
 
