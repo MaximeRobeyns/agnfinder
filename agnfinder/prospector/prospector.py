@@ -43,6 +43,68 @@ class Prospector(object):
 
         self.run_params = self._cpz_params_to_run_params(cpz_params, emulate_ssp)
 
+    def calculate_sed(self):
+        self.model_spectra, self.model_photometry, _ = self.model.sed(
+            self.model.theta, obs=self.obs, sps=self.sps)
+
+        # cosmological redshifting w_new = w_old * (1+z)
+        a = 1.0 + self.model.params.get('zred', 0.)
+
+        # redshift the *restframe* sps spectral wavelengths
+        # wavelengths of source frame fluxes
+        source_wavelengths = self.sps.wavelengths
+        # redshift them via w_observed = w_source * (1+z); using z of model
+        self.observer_wavelengths = source_wavelengths * a
+
+    def _calculate_photometry(self, theta: np.ndarray) -> np.ndarray:
+        """Private method, returning only the photometry resulting from the
+        provided galaxy parameters.
+
+        Args:
+            theta: physical galaxy parameters
+
+        Returns:
+            np.ndarray: photometry
+        """
+        _, photometry, _ = self.model.sed(theta, obs=self.obs, sps=self.sps)
+        return photometry
+
+    def get_forward_model(self) -> Callable[[np.ndarray], np.ndarray]:
+        """Closure to return a callable forward model, taking galaxy parameters
+        (theta), and returning the corresponding photometry.
+
+        Wraps the model, obs and sps properties from this class.
+
+        Returns:
+            Callable[[np.ndarray], np.ndarray]: The forward model function.
+        """
+        def f(theta: np.ndarray) -> np.ndarray:
+            """Generate photometry from model parameters.
+
+            Args:
+                theta: The forward model parameters; must be denormalised.
+
+            Returns:
+                np.ndarray: photometry
+            """
+            # should be a single row of parameters
+            if theta.ndim > 1:
+                theta = theta.squeeze()
+                assert theta.ndim == 1
+
+            # Check mass is of correct order
+            if 'zred' in self.model.free_params:
+                mass_index = 1
+            else:
+                mass_index = 0
+            assert theta[mass_index] > 1e7
+
+            model_photometry = self._calculate_photometry(theta)
+
+            return model_photometry
+
+        return f
+
     def _cpz_params_to_run_params(self, params: CPzParams, emulate_ssp: bool
                                   ) -> run_params_t:
         """Casts the type-safe CPz Params (from config.py) to the parameter
@@ -54,6 +116,7 @@ class Prospector(object):
         Returns:
             run_params_t: the parameter dictionary (e.g. passed to prospector classes)
         """
+
         run_params = {}
         run_params['object_redshift'] = None
         run_params['fixed_metallicity'] = params.fixed_metallicity.value
@@ -68,45 +131,6 @@ class Prospector(object):
         run_params['inclination'] = params.inclination.value
         run_params['emulate_ssp'] = emulate_ssp
 
-        # TODO get redshift value before using this function
+        # TODO get redshift value from somewhere before using this function
         run_params['redshift'] = None
         raise NotImplementedError
-
-    def calculate_sed(self):
-        self.model_spectra, self.model_photometry, _ = self.model.sed(
-            self.model.theta, obs=self.obs, sps=self.sps)
-
-        # cosmological redshifting w_new = w_old * (1+z)
-        a = 1.0 + self.model.params.get('zred', 0.)
-
-        # redshift the *restframe* sps spectral wavelengths
-        # wavelengths of source frame fluxes
-        source_wavelengths = self.sps.wavelengths
-        # redshift them via w_observed = w_source * (1+z); using z of model
-        self.observer_wavelengths = source_wavelengths * a
-
-
-    def forward_model(self) -> Callable[[np.ndarray], np.ndarray]:
-        # TODO determine what the output of the forward model is?
-        # Are these numpy arrays, or floating point values
-        def f(theta: np.ndarray) -> np.ndarray:
-            """Generate photometry from model parameters.
-
-            Args:
-                theta: The forward model parameters; must be denormalised.
-
-            Returns:
-                np.ndarray: photometry
-            """
-            if theta.ndim > 1:
-                theta = theta.squeeze()
-                assert theta.ndim == 1
-
-            # Check mass is properly large
-            if 'zred' in model.free_params:
-                mass_index = 1
-            else:
-                mass_index = 0
-            asert theta[mass_index] > 1e7
-
-            self.calculate_sed()

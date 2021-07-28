@@ -15,12 +15,17 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
-""" The main simulation class, containing methods to map from SPS parameters,
+"""The main simulation class, containing methods to map from SPS parameters,
 to photometry.
 """
 
+import os
+import tqdm
+import h5py
+import logging
 import argparse
 import torch as t
+import numpy as np
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
@@ -35,19 +40,23 @@ class Simulator(object):
 
         self.hcube_sampled: bool = False
         self.has_forward_model: bool = False
+        self.has_run: bool = False
 
         # Is this necessary?
         self.lims: paramspace_t = free_params.raw_params
         self.free_params = free_params  # TODO verify this line
         self.dims: int = len(self.free_params)
 
+        # Saving information
         rshift_min_string = f'{args.rshift_min:.4f}'.replace('.', 'p')
         rshift_max_string = f'{args.rshift_max:.4f}'.replace('.', 'p')
         self.save_name = 'photometry_simulation_{}n_z_{}_to_{}.hdf5'.format(
             args.n_samples, rshift_min_string, rshift_max_string
         )
-        self.n_samples: int = args.n_samples
         self.save_dir: str = args.save_dir
+        self.save_loc: str = os.path.join(self.save_dir, self.save_name)
+
+        self.n_samples: int = args.n_samples
         self.emulate_ssp: bool = args.emulate_ssp
         self.noise: bool = args.noise
         self.filters: str = args.filters
@@ -57,42 +66,42 @@ class Simulator(object):
         self.theta: t.Tensor
 
     def sample_theta(self) -> None:
-        """ Generates a dataset via latin hypercube sampling. """
+        """Generates a dataset via latin hypercube sampling."""
         # Use latin hypercube sampling to generate photometry from across the
         # parameter space.
-        hcube = utils.get_unit_latin_hypercube(
+        self.hcube = utils.get_unit_latin_hypercube(
             self.dims, self.n_samples
         )
 
         # Shift normalised redshift parameter to lie within the desired range.
-        hcube[:, 0] = utils.shift_redshift_theta(
-            hcube[:, 0], self.free_params.redshift, self.rshift_range
+        self.hcube[:, 0] = utils.shift_redshift_theta(
+            self.hcube[:, 0], self.free_params.redshift, self.rshift_range
         )
 
         # Transform the unit-sampled point back to their correct ranges in the
         # parameter space (taking logs if needed).
-        self.galaxy_params = utils.denormalise_theta(hcube, self.free_params)
+        self.galaxy_params = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
 
     def create_forward_model(self):
-
-        # TODO this is terrible form. Refactor?
+        """Initialises a Prospector problem, and obtains the forward model."""
 
         problem = Prospector(self.filters, self.emulate_ssp)
 
-        # why is the result of this not used? Can we get rid of it?
+        # TODO find more direct way of returning phot_wavelengths
         problem.calculate_sed()
+        self.phot_wavelengths = problem.obs['phot_wave']
 
-        phot_wavelengths = problem.obs['phot_wave']
+        if self.filters == 'euclid':
+            self.output_dim = 8
+        else:
+            self.output_dim = 12
 
-        self.forward_model = problem.forward_model
-
+        self.forward_model = problem.get_forward_model()
         self.has_forward_model = True
-        raise NotImplementedError
 
     def run(self):
-        """Run the sampling over all the galaxy parameters.
-        """
+        """Run the sampling over all the galaxy parameters."""
 
         # Verify that we have all the required data / objects
         if not self.hcube_sampled:
@@ -100,10 +109,46 @@ class Simulator(object):
         if not self.has_forward_model:
             self.create_forward_model()
 
-        Y = np.zeros((n_samples, output_dim))
+        Y = np.zeros((self.n_samples, self.output_dim))
         for n in tqdm(range(len(self.galaxy_params))):
-            Y[n] = self.forward_model(self.galaxy_params[n])
-        return Y
+            Y[n] = self.forward_model(self.galaxy_params[n].numpy())
+        self.galaxy_photometry = Y
+        self.has_run = True
+
+    def save_samples(self):
+        """Save the sampled parameter hypercube, and resulting photometry to
+        disk as hdf5.
+
+        Raises:
+            RuntimeError: If sampling has not yet been run (nothing to save).
+        """
+
+        # If sampling has run, then we also have hcube and forward_model
+        if not self.has_run:
+            raise RuntimeError('Nothing to save')
+
+        with h5py.File(self.save_loc, 'w') as f:
+            grp = f.create_group('samples')
+            ds_x = grp.create_dataset('theta', data=self.galaxy_params)
+            # TODO does order matter?
+            # If so, are free_params in the correct order?
+            ds_x.attrs['columns'] = list(self.free_params.raw_params.keys())
+            ds_x.attrs['description'] = 'Parameters used by simulator'
+
+            ds_x_norm = grp.create_dataset('normalised_theta', data=self.hcube)
+            ds_x_norm.attrs['description'] = \
+                    'Normalised parameters used by simulator'
+
+            ds_y = grp.create_dataset('simulated_y', data=self.galaxy_photometry)
+            ds_y.attrs['description'] = 'Response of simulator'
+
+            if self.phot_wavelengths is not None:
+                ds_wavelengths = grp.create_dataset(
+                    'wavelengths', data=self.phot_wavelengths)
+                ds_wavelengths.attrs['description'] = \
+                    'Observer wavelengths to visualise simulator photometry'
+
+        logging.info(f'Saved samples to {self.save_loc}')
 
 
 if __name__ == '__main__':
@@ -139,3 +184,6 @@ if __name__ == '__main__':
 
     # Simulate the photometry (automatically saves results to disk)
     sim.run()
+
+    # Save the sample results to disk
+    sim.save_samples()

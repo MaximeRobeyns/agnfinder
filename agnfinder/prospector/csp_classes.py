@@ -24,9 +24,9 @@ import numpy as np
 
 from prospect.sources import CSPSpecBasis
 
-from agnfinder import quasar_templates
-from agnfinder.fsps_emulation import emulate
 import agnfinder.config as cfg
+from agnfinder.fsps_emulation import emulate
+from agnfinder import quasar_templates, extinction_models
 
 
 class CSPSpecBasisAGN(CSPSpecBasis):
@@ -99,7 +99,7 @@ class CSPSpecBasisAGN(CSPSpecBasis):
             raise AttributeError('Trying to calculate SED inc. AGN, but no \
                     agn_mass parameter is set')
 
-        # no idea what this does, but I'm leaving it in.
+        # no idea what this does (mfrac not accessed), but I'm leaving it in.
         mass = np.atleast_1d(self.params['mass']).copy()
         mfrac = np.zeros_like(mass)
         self.update_component(0)
@@ -287,4 +287,3 @@ class CustomFSPSParams():
     def __setitem__(self, k: str, v):
         # TODO no clue what types v will be...
         self._params[k] = v
-
