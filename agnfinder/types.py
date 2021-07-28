@@ -68,22 +68,28 @@ class Just(MaybeFloat):
 
 # Optional ---------------------------------------------------------------------
 # Allows for optional parameters. This is really just another Maybe data type,
-# but I have called it 'Optional' for better clarity
+# but I have called it 'Optional' for ease of use
 
 class Optional():
     def __init__(self):
         self.value = None
+        self.maybefloatvalue = None
 
     def use(self, nothing_action: Callable[[], None],
                   free_action: Callable[[], pdict_t],
                   just_action: Callable[[float], pdict_t]):
+
         if self.__class__ == _Optional__Left:
             return nothing_action()
         elif self.__class__ == OptionalValue:
-            assert isinstance(self.value, MaybeFloat)
-            return self.value.use(free_action, just_action)
+            assert isinstance(self.maybefloatvalue, MaybeFloat)
+            return self.maybefloatvalue.use(free_action, just_action)
 
 class _Optional__Left(Optional):
+    def __init__(self):
+        super().__init__()
+        self.value = False
+
     def __repr__(self):
         return "Nothing"
 
@@ -92,7 +98,8 @@ Nothing = _Optional__Left()
 # The _Optional__Right value; called OptionalValue for syntactic simplicity
 class OptionalValue(Optional):
     def __init__(self, v: MaybeFloat):
-        self.value = v
+        self.value: Union[bool, float] = v.value
+        self.maybefloatvalue: MaybeFloat = v
 
     def __repr__(self):
-        return f'OptionalValue({repr(self.value)})'
+        return f'OptionalValue({repr(self.maybefloatvalue)})'

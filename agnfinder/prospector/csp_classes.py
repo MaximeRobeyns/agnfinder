@@ -41,6 +41,7 @@ class CSPSpecBasisAGN(CSPSpecBasis):
     """
 
     def __init__(self,
+            # CPzParams go here as args
             zcontinuous: int = 1,
             reserved_params: list[str] = ['zred', 'sigma_smooth'],
             vactoair_flag: bool = False,

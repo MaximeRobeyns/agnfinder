@@ -32,6 +32,7 @@ from agnfinder.types import cpz_obs_dict_t, pdict_t
 from agnfinder.prospector import load_photometry
 from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
 
+
 def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
     """Build a dictionary of photometry (and maybe eventually spectra).
 
@@ -181,22 +182,23 @@ def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
               zcontinuous: int = 1) -> CSPSpecBasis:
     """Build stellar population synthesis model
 
-    Required 'extra' parameters are:
-        - 'agn_mass', 'agn_eb_v', 'agn_torus_mass', 'inclination', 'emulate_ssp'
-
     Args:
+        args: CPz parameter configuration object
+        emulate_ssp: Whether to emulate the ssp
         zcontinuous: A value of 1 ensures that we use interpolation between
-        SSPs to have a continuous metallicity parameter (`logzsol`). See
-        python-FSPS documentation for more details.
+        SSPs to have a continuous metallicity parameter (`logzsol`). See pyFSPS
+        documentation for more details.
+
+    Returns:
+        CSPSpecBasis: Instance of a CSPSpecBasis class
     """
 
     if args.model_agn:
         logging.warning('Building custom CSPSpecBasisAGN.')
 
-        # TODO ensure that the correct values are being passed in here
         sps = CSPSpecBasisAGN(
-            zcontinuous=zcontinuous,  # this is also a separate param
-            emulate_ssp=emulate_ssp,  # this is a bool (separate param)
+            zcontinuous=zcontinuous,
+            emulate_ssp=emulate_ssp,
             agn_mass=args.agn_mass.value,
             agn_eb_v=args.agn_eb_v.value,
             agn_torus_mass=args.agn_torus_mass.value,
@@ -205,4 +207,5 @@ def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
     else:
         logging.warning('Building standard CSPSpec')
         sps = CSPSpecBasisNoEm(zcontinuous=zcontinuous)
+
     return sps
