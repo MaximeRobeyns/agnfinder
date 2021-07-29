@@ -3,7 +3,6 @@
 # AGNfinder: Detect AGN from photometry in XXL data.
 #
 # Copyright (C) 2021 Maxime Robeyns <maximerobeyns@gmail.com>
-# Copyright (C) 2019-20 Mike Walmsley <walmsleymk1@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +18,6 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # This file should be sourced to begin development.
-export SPS_HOME=${HOME}/Dropbox/Research/agnfinder/fsps
+export SPS_HOME=$(pwd)/deps/fsps
 
 source agnvenv/bin/activate

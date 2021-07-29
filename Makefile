@@ -25,39 +25,35 @@ MAKEFLAGS += -j8
 
 # Ensure Python 3.9 is present ------------------------------------------------
 
-ifeq (, $(shell which python ))
-  $(error "PYTHON=$(PYTHON) not found in $(PATH)")
-endif
-
+PYTHON = $(shell which python3.9)
 PYTHON_VERSION_MIN=3.9
-PYTHON_VERSION=$(shell $(PYTHON) \
-			   -c 'import sys; print("%d.%d"% sys.version_info[0:2])' )
-PYTHON_VERSION_OK=$(shell $(PYTHON) -c 'import sys; \
+PYTHON_VERSION=$(shell $(PYTHON) -c 'import sys; print("%d.%d"% sys.version_info[0:2])' )
+PYTHON_VERSION_OK=$(shell $(PYTHON) -c 'import sys;\
   print(int(float("%d.%d"% sys.version_info[0:2]) >= $(PYTHON_VERSION_MIN)))' )
 
 ifeq ($(PYTHON_VERSION_OK),0)
   $(error "Need python $(PYTHON_VERSION) >= $(PYTHON_VERSION_MIN)")
 endif
 
-PYTHON 			= $(shell which python3)
-
 # Targets ---------------------------------------------------------------------
 
 # Generic 'run' target for development
 run:
-	${PYTHON} agnfinder/simulation/simulation.py
+	$(PYTHON) agnfinder/simulation/simulation.py
 
 test:
-	pytest tests
+	$(PYTHON) -m pytest tests
+
+docs:
+	./docs/writedocs.sh
 
 # Install agnfinder project locally
 install:
-	${PYTHON} -m pip install -e .
+	./bin/install_with_venv.sh ${PYTHON}
 
 # ipython kernel setup to run notebooks in venv
 kernel:
 	python -m ipykernel install --user --name agnvenv \
 		--display-name "agnvenv (Python 3.9)"
 
-.PHONY: kernel install
-
+.PHONY: kernel install docs

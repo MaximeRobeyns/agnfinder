@@ -24,6 +24,7 @@ wd = pathlib.Path(__file__).parent.resolve()
 
 with open('requirements.txt', 'r') as f:
     install_requires = f.read().splitlines()
+    install_requires = list(filter(lambda s: '=' in s, install_requires))
 
 with open("README.md", "r") as f:
     long_description = f.read()
@@ -38,7 +39,7 @@ setup(
     url='https://github.com/MaximeRobeyns/agnfinder',
     license='GPLv3',
     install_requires=install_requires,
-    packages=find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests', 'old_agnfinder', 'old_tests']),
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU GPLv3 License',

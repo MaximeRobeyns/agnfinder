@@ -3,4 +3,7 @@
 Photometry Sampling
 ###################
 
-..todo:: Write this page
+.. todo::
+
+   Write this page
+
