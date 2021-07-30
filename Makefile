@@ -25,7 +25,9 @@ MAKEFLAGS += -j8
 
 # Ensure Python 3.9 is present ------------------------------------------------
 
+# Specify the path to your Python>=3.9 executable here.
 PYTHON = $(shell which python3.9)
+
 PYTHON_VERSION_MIN=3.9
 PYTHON_VERSION=$(shell $(PYTHON) -c 'import sys; print("%d.%d"% sys.version_info[0:2])' )
 PYTHON_VERSION_OK=$(shell $(PYTHON) -c 'import sys;\

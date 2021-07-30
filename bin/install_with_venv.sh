@@ -46,8 +46,8 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 # copy custom sedpy filters to sedpy install location
-SEDPY=$(echo -e "import sedpy\nprint(sedpy.__file__)\n" | $PYTHON | xargs dirname)
-cp -n ./filters/* $SEDPY
+SEDPY=$(echo -e "import sedpy\nprint(sedpy.__file__)\n" | python | xargs dirname)
+cp -n ./filters/* $SEDPY/data/filters/
 
 # install agnfinder itself
 pip install -e .

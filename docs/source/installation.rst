@@ -10,37 +10,116 @@ the following sections.
 Quickstart
 ----------
 
-Begin by cloning the repository::
+1. **Python 3.9**
+
+   Please ensure that you have Python 3.9 or later installed on your system.
+
+   You can check your version by running::
+
+       python --version
+
+   Please follow the instructions in the `Building Python 3.9`_ section for help if
+   you have an older version.
+
+2. **Standard Installation**
+
+   If the result of ``which python`` returns a Python 3.9 executable that you
+   are happy to use, then proceed with the standard installation procedure::
 
     git clone https://github.com/maximerobeyns/agnfinder
+    cd agnfinder
+    make install
 
-I recommend that you install the packages using a virtual environment. If you
-use the native python virtual environments, then you can run::
+   The above will only modify files within the ``agnfinder`` directory (and therefore
+   doesn't require root privileges).
 
-    python -m venv agnvenv
+       If you want to use a specific Python 3.9 executable, modify the ``Makefile``
+       before running ``make install``, by updating the ``PYTHON`` variable defined
+       near the top::
 
-This will create a virtual environment called ``agnvenv`` in your current
-directory.
+        # Makefile, around line 28
+        PYTHON = /path/to/your/python3.9
 
-.. warning:: This project uses ``Python>=3.9``.
+   If you encounter an error during the ``make install`` step, please see the
+   `Manual Installation`_ section for guidance.
 
-    This is because of features released in this version relating to union
-    operators on dictionaries and writing type hints, which we make extensive
-    use of.
+3. **Shell Setup**
 
-    You may not have Python 3.9 (or later) available on the machine you intend
-    to run ``agnfinder`` on---particularly if you are running on a HPC cluster.
+   Every time you run or work on the project, you should setup your shell to use
+   the ``agnvenv`` virtual environment that was created for you in the step
+   above, as well as other environment variables.
 
-    See the `Building Python3.9`_ section for help.
+   To do this, simply run the following every time::
 
+    source setup.sh
 
-Installing Development Dependencies
------------------------------------
+   To deactivate the virtual environment, either exit your terminal, or type
+   ``deactivate``.
 
-FSPS
-~~~~
+4. **(optional)**
 
-pyFSPS is used to generate the photometric measurements.
+   You can test whether the installation was successful by running::
+
+     make test
+
+Manual Installation
+-------------------
+
+You can look at the contents of ``./bin/install_with_venv.sh`` to see what the
+installation procedure above does.
+
+We first install `FSPS <https://github.com/cconroy20/fsps/blob/master/doc/INSTALL>`_, by downloading the ``v3.2`` release in a ``./deps`` directory, and extracting it there::
+
+    wget -O ./deps/fsps.tar.gz \
+        https://github.com/cconroy20/fsps/archive/refs/tags/v3.2.tar.gz
+    tar xzf ./deps/fsps.tar.gz -C ./deps
+    mv ./deps/fsps-3.2 ./deps/fsps
+    rm ./deps/fsps.tar.gz
+
+In order to install ``python-fsps`` (which the project uses), we need to export
+a ``SPS_HOME`` environment variable to point to the ``fsps`` directory that we
+just extracted (the directory containing FSPS's ``src`` directory)::
+
+    export SPS_HOME=$(pwd)/deps/fsps
+
+We then create virtual environment called ``agnvenv``::
+
+    python3.9 -m venv agnvenv
+
+If you prefer to use conda, or install the dependencies somewhere else (for
+instance if the current directory is mounted on an NFS), then you can make this
+change here.
+
+We then activate the virtual environment, upgrade pip, and install the
+dependencies in ``requirements.txt``::
+
+    source agnvenv/bin/activate
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+
+Note that the ``python`` executable above should be the one in the virtual
+environment.
+
+We now need to copy some custom sedpy filters into sedpy's filter directory
+(which should be a subdirectory of the ``agnvenv``). To find the location of
+this filter directory, drop into a python shell (with the venv activated), and
+run::
+
+    >>> import sedpy
+    >>> print(sedpy.__file__)
+    /path/to/agnfinder/agnvenv/lib/python3.9/site-packages/sedpy/__init__.py
+
+This points us to sedpy's installation directory; we want to copy the filters in
+``./filters`` to the ``<sedpy-base>/data/filters/`` directory. That is::
+
+    cp -n ./filters/* \
+        /path/to/agnfinder/agnvenv/lib/python3.9/site-packages/sedpy/data/filters/
+
+Now we can install ``agnfinder`` itself, by running the following from the root
+of the repository::
+
+    pip install -e .
+
 
 Writing Documentation
 ---------------------
@@ -70,8 +149,8 @@ which will start watching the soruce files in ``./docs/source`` for changes,
 compiling the HTML documentation and serving it on ``http://localhost:8081/``.
 
 
-Building Python3.9
-------------------
+Building Python 3.9
+-------------------
 
 This is an optional step if you do not have Python 3.9 available on the system
 you intend to run ``agnfinder`` on. Here we will assume that you do not have
