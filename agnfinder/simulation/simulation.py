@@ -19,6 +19,9 @@
 to photometry.
 """
 
+# TODO remove
+import sys
+
 import os
 import tqdm
 import h5py
@@ -44,10 +47,10 @@ class Simulator(object):
 
         # Is this necessary?
         self.lims: paramspace_t = free_params.raw_params
-        self.free_params = free_params  # TODO verify this line
+        self.free_params = free_params
         self.dims: int = len(self.free_params)
 
-        # Saving information
+        # Variables for saving results.
         rshift_min_string = f'{args.rshift_min:.4f}'.replace('.', 'p')
         rshift_max_string = f'{args.rshift_max:.4f}'.replace('.', 'p')
         self.save_name = 'photometry_simulation_{}n_z_{}_to_{}.hdf5'.format(
@@ -60,9 +63,10 @@ class Simulator(object):
         self.emulate_ssp: bool = args.emulate_ssp
         self.noise: bool = args.noise
         self.filters: str = args.filters
-        self.rshift_range: tuple[float, float] = (
-            args.rshift_min, args.rshift_max)
+        self.rshift_range: tuple[float, float] = \
+            (args.rshift_min, args.rshift_max)
 
+        # The hypercube of (denormalised) galaxy parameters
         self.theta: t.Tensor
 
     def sample_theta(self) -> None:
@@ -80,13 +84,16 @@ class Simulator(object):
 
         # Transform the unit-sampled point back to their correct ranges in the
         # parameter space (taking logs if needed).
-        self.galaxy_params = utils.denormalise_theta(self.hcube, self.free_params)
+        self.theta = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
 
     def create_forward_model(self):
         """Initialises a Prospector problem, and obtains the forward model."""
 
         problem = Prospector(self.filters, self.emulate_ssp)
+
+        self.has_forward_model = True
+        return
 
         # TODO find more direct way of returning phot_wavelengths
         problem.calculate_sed()
@@ -110,8 +117,8 @@ class Simulator(object):
             self.create_forward_model()
 
         Y = np.zeros((self.n_samples, self.output_dim))
-        for n in tqdm(range(len(self.galaxy_params))):
-            Y[n] = self.forward_model(self.galaxy_params[n].numpy())
+        for n in tqdm(range(len(self.theta))):
+            Y[n] = self.forward_model(self.theta[n].numpy())
         self.galaxy_photometry = Y
         self.has_run = True
 
@@ -129,7 +136,7 @@ class Simulator(object):
 
         with h5py.File(self.save_loc, 'w') as f:
             grp = f.create_group('samples')
-            ds_x = grp.create_dataset('theta', data=self.galaxy_params)
+            ds_x = grp.create_dataset('theta', data=self.theta.numpy())
             # TODO does order matter?
             # If so, are free_params in the correct order?
             ds_x.attrs['columns'] = list(self.free_params.raw_params.keys())
@@ -137,9 +144,10 @@ class Simulator(object):
 
             ds_x_norm = grp.create_dataset('normalised_theta', data=self.hcube)
             ds_x_norm.attrs['description'] = \
-                    'Normalised parameters used by simulator'
+                'Normalised parameters used by simulator'
 
-            ds_y = grp.create_dataset('simulated_y', data=self.galaxy_photometry)
+            ds_y = grp.create_dataset(
+                'simulated_y', data=self.galaxy_photometry)
             ds_y.attrs['description'] = 'Response of simulator'
 
             if self.phot_wavelengths is not None:
@@ -155,11 +163,11 @@ if __name__ == '__main__':
 
     # Get the defaults from config.py
     sp = cfg.SamplingParams()
-    fp = cfg.FreeParams
+    fp = cfg.FreeParams(cfg.free_params)
 
     parser = argparse.ArgumentParser(description='Find AGN')
     parser.add_argument(
-            'n_samples', default=sp.n_samples, type=int)
+            '--n_samples', default=sp.n_samples, type=int)
     parser.add_argument(
             '--z-min', dest='rshift_min', default=sp.redshift_min, type=float)
     parser.add_argument(

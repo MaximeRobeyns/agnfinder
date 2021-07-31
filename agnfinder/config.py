@@ -20,7 +20,6 @@
 import os
 import math
 import torch as t
-import logging
 
 from agnfinder.types import paramspace_t, \
         MaybeFloat, Free, Just, \

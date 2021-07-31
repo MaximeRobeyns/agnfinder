@@ -17,21 +17,17 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Loads filters and other data."""
 
-import tqdm
-import logging
-import pandas as pd
-
 from sedpy import observate
 
 
 class Filter(object):
-    def __init__(self, bandpass_file:str, mag_col:str, error_col:str):
-        """TODO document me
+    def __init__(self, bandpass_file: str, mag_col:str, error_col:str):
+        """Encapsulates a sedpy filter.
 
         Args:
-            bandpass_file: [TODO:description]
-            mag_col: [TODO:description]
-            error_col: [TODO:description]
+            bandpass_file: Location of the bandpass_file
+            mag_col: Name of the maggies column in the dataframe.
+            error_col: Name of the errors column.
         """
         self.bandpass_file = bandpass_file
         self.mag_col = mag_col

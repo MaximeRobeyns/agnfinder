@@ -18,7 +18,6 @@
 
 import abc
 
-
 class AGNInference(metaclass=abc.ABCMeta):
     """AGNInference is a class implemeting standard methods for inferring
     galaxy parameters from photometric observations.

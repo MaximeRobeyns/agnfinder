@@ -44,6 +44,7 @@ def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
     """
 
     obs: cpz_obs_dict_t = {}
+    # type: list[sedpy.observate.Filter]
     obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
     obs['maggies'] = np.ones(len(obs['filters']))
     obs['maggies_unc'] = np.ones(len(obs['filters']))
@@ -96,7 +97,7 @@ def build_model(args: cfg.CPzParams) -> SedModel:
     """Build a SedModel object using the provided parameters.
 
     Args:
-        args: Defined in config.py
+        args: CPz parameters, defined in config.py
 
     Returns:
         SedModel: The prospector SED model.
