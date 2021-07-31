@@ -15,6 +15,8 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
+"""Builders for 'classification-aided photometric redshfit' estimation
+module"""
 
 import logging
 import numpy as np
@@ -58,13 +60,14 @@ def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
     obs['phot_wave'] = np.array([f.wave_effective for f in obs['filters']])
 
     # Since we don't have a spectrum, we set some required elements of the obs
-    # directory to empty lists (falsy, equivalent to None).
-    # (This would be a vector of vacuum wavelengths in angstroms.)
-    # NOTE: Could use the SDSS spectra here for truth label fitting
-    obs['wavelength'] = []
-    obs['spectrum'] = []
-    obs['unc'] = []
-    obs['mask'] = []
+    # directory to None. (This would be a vector of vacuum wavelengths in
+    # angstroms.) NOTE: Could use the SDSS spectra here for truth label fitting
+    # This is inelegant wrt. the types of cpz_obs_dict_t but since this is a
+    # Prospector API, it's not trivial to get aroud...
+    obs['wavelength'] = None
+    obs['spectrum'] = None
+    obs['unc'] = None
+    obs['mask'] = None
 
     obs = fix_obs(obs)
 
@@ -150,26 +153,26 @@ def build_model(args: cfg.CPzParams) -> SedModel:
         # AGN parameters -------------------------------------------------------
 
         # agn mass parameter
-        model_params['agn_mass'] |= args.agn_mass.use(
+        model_params['agn_mass'] = args.agn_mass.use(
                 _use_free('agn mass', {'N': 1, 'init': 1,
                           'prior': priors.LogUniform(mini=1e-7, maxi=15)}),
                 _use_float('agn_mass', {'N': 1}))
 
-        model_params['agn_eb_v'] |= args.agn_eb_v.use(
-                _use_nothing('AGN distk'),
+        model_params['agn_eb_v'] = args.agn_eb_v.use(
+                _use_nothing('AGN disk'),
                 _use_free('agn_eb_v', {'N': 1, 'init': 0.1, 'units': '',
                           'prior': priors.TopHat(mini=0., maxi=0.5)}),
                 _use_float('agn_eb_v', {'N': 1, 'units': '',
                           'prior': priors.TopHat(mini=0., maxi=0.5)}))
 
-        model_params['agn_torus_mass'] |= args.agn_torus_mass.use(
+        model_params['agn_torus_mass'] = args.agn_torus_mass.use(
                 _use_nothing('AGN torus'),
                 _use_free('obscured torus', {'N': 1, 'init': .1, 'units': '',
                           'prior': priors.LogUniform(mini=1e-7, maxi=15)}),
                 _use_float('obscured torus', {'N': 1, 'units': '',
                           'prior': priors.LogUniform(mini=1e-7, maxi=15)}))
 
-        model_params['inclination'] |= args.inclination.use(
+        model_params['inclination'] = args.inclination.use(
                 _use_free('inclination', {'N': 1, 'init': 60, 'units': '',
                           'prior': priors.TopHat(mini=0., maxi=90.)}),
                 _use_float('inclination', {'N': 1, 'units': '',

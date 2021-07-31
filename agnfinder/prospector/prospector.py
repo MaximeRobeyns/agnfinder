@@ -31,18 +31,16 @@ class Prospector(object):
 
     def __init__(self, filter_selection: str, emulate_ssp: bool):
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
-
-        # DEBUGGING:
-        # TODO come back to here and delete the following:
-        print(self.obs)
-        return
-
         logging.info(self.obs)
 
         cpz_params = CPzParams()
 
         self.model = cpz_builders.build_model(cpz_params)
         logging.info(self.model)
+
+        # DEBUGGING:
+        # TODO return here after build_model code paths have been tested.
+        return
 
         self.sps = cpz_builders.build_sps(cpz_params, emulate_ssp, zcontinuous=1)
         logging.info(self.sps)

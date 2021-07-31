@@ -65,17 +65,7 @@ def test_create_hypercube():
     # range in test_utils.py
 
 def test_create_forward_model():
-
-    # TODO return here once you have tested other code paths
-    return
-
     sim = _create_test_sim()
     assert not sim.has_forward_model
     sim.create_forward_model()
     assert sim.has_forward_model
-
-
-
-
-
-

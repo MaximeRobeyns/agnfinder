@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Loads filters and other data."""
 
+import pandas as pd
 from sedpy import observate
 
 
@@ -60,7 +61,9 @@ def get_filters(selection: str) -> list[Filter]:
     # cfht is awkward due to i filter renaming. For now, we use i = i_new
     cfht = [
         Filter(
-            bandpass_file=f'{b}_cfhtl',
+            bandpass_file='{}_cfhtl{}'.format(
+                b, '_new' if b == 'i' else ''
+            ),
             mag_col=f'mag_auto_cfhtwide_{b}_dr7',
             error_col=f'magerr_auto_cfhtwide_{b}_dr7')
         for b in ['g', 'i', 'r', 'u', 'z']]
@@ -112,26 +115,32 @@ def get_filters(selection: str) -> list[Filter]:
     else:
         raise ValueError(f'Filter selection {selection} not recognized')
 
-# TODO add other functions as required
-# def add_maggies_cols(input_df: pd.DataFrame) -> pd.DataFrame:
-#     df = input_df.copy()
-#     filters = get_filters('reliable')
-#     for f in tqdm.tqdm(filters):
-#         df[f.maggie_col] = df[f.mag_col].apply(mags_to_maggies)
-#         df[f.maggie_error_col] = df[[f.mag_error_col, f.maggie_col]].apply(
-#                 lambda x: calculate_maggie_uncertainty(*x), axis=1)
-#     return df
-#
-# def mags_to_maggies(mags):
-#     # mags should be apparent AB magnitudes
-#     # The units of the fluxes need to be maggies (Jy/3631)
-#     return 10**(-0.4*mags)
-#
-#
-# def load_galaxy_for_prospector() -> None:
-#     # TODO what is a 'galaxy' here?
-#     # Is it a DataFrame?
-#     raise NotImplementedError
+
+def add_maggies_cols(input_df: pd.DataFrame) -> pd.DataFrame:
+    """Add maggies column to calalogue of real galaxies.
+
+    Args:
+        input_df: galaxy catalogue
+    """
+    df = input_df.copy()  # we don't modify the df inplace
+    # Assume filled values for all 'reliable' filters
+    filters = get_filters('reliable')
+    for f in tqdm.tqdm(filters):
+        df[f.maggie_col] = df[f.mag_col].apply(mags_to_maggies)
+        df[f.maggie_error_col] = df[[f.mag_error_col, f.maggie_col]].apply(
+                lambda x: calculate_maggie_uncertainty(*x), axis=1)
+    return df
+
+
+def mags_to_maggies(mags):
+    # mags should be apparent AB magnitudes
+    # The units of the fluxes need to be maggies (Jy/3631)
+    return 10**(-0.4*mags)
+
+
+def calculate_maggie_uncertainty(mag_error, maggie):
+    # http://slittlefair.staff.shef.ac.uk/teaching/phy217/lectures/stats/L18/index.html#magnitudes
+    return maggie * mag_error / 1.09
 
 
 def load_dummy_galaxy(filter_selection: str

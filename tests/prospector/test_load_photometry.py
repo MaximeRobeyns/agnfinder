@@ -19,6 +19,8 @@
 import pytest
 import collections
 
+from sedpy import observate
+
 from agnfinder.prospector import load_photometry
 
 def test_Filter():
@@ -63,8 +65,26 @@ def test_get_filters():
     assert collections.Counter(bp_euclid) == \
         collections.Counter(euclid_filters)
 
-    # fs_all = load_photometry.get_filters('all')
+    fs_all = load_photometry.get_filters('all')
+    all_filters = reliable_filters + \
+                  [ f'{f}_galex' for f in ['NUV', 'FUV']] + \
+                  [ f'{f}_cfhtl' for f in ['g', 'r', 'u', 'z']] + \
+                  [ 'i_cfhtl_new' ] + \
+                  [ f'{f}_kids' for f in ['i', 'r'] ]
+    bp_all = [f.bandpass_file for f in fs_all]
+    assert collections.Counter(bp_all) == \
+        collections.Counter(all_filters)
 
+#
+# TODO test load_galaxy here once (if?) implemented
+#
 
 def test_load_dummy_galaxy():
-    assert True
+    filters = load_photometry.load_dummy_galaxy('euclid')
+    assert all([isinstance(f, observate.Filter) for f in filters])
+
+    filters = load_photometry.load_dummy_galaxy('reliable')
+    assert all([isinstance(f, observate.Filter) for f in filters])
+
+    filters = load_photometry.load_dummy_galaxy('all')
+    assert all([isinstance(f, observate.Filter) for f in filters])
