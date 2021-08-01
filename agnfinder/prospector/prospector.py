@@ -19,33 +19,29 @@
 
 import logging
 import numpy as np
-from typing import Union, Callable
+from typing import Callable
 
 from agnfinder.config import CPzParams
+from agnfinder.types import prun_params_t
 from agnfinder.prospector import cpz_builders
 
-
 class Prospector(object):
-
-    run_params_t = tuple[str, Union[int, bool, float]]
 
     def __init__(self, filter_selection: str, emulate_ssp: bool):
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
         logging.info(self.obs)
 
-        cpz_params = CPzParams()
+        self.emulate_ssp = emulate_ssp
+        self.cpz_params = CPzParams()
 
-        self.model = cpz_builders.build_model(cpz_params)
+        self.model = cpz_builders.build_model(self.cpz_params)
         logging.info(self.model)
 
-        # DEBUGGING:
-        # TODO return here after build_model code paths have been tested.
-        return
-
-        self.sps = cpz_builders.build_sps(cpz_params, emulate_ssp, zcontinuous=1)
+        self.sps = cpz_builders.build_sps(
+            self.cpz_params, emulate_ssp, zcontinuous=1)
         logging.info(self.sps)
 
-        self.run_params = self._cpz_params_to_run_params(cpz_params, emulate_ssp)
+        self.run_params = self._cpz_params_to_run_params()
 
     def calculate_sed(self):
         self.model_spectra, self.model_photometry, _ = self.model.sed(
@@ -109,32 +105,27 @@ class Prospector(object):
 
         return f
 
-    def _cpz_params_to_run_params(self, params: CPzParams, emulate_ssp: bool
-                                  ) -> run_params_t:
+    def _cpz_params_to_run_params(self) -> prun_params_t:
         """Casts the type-safe CPz Params (from config.py) to the parameter
         dictionary used by Prospector.
 
-        Args:
-            params: the CPz parameter object
-
         Returns:
-            run_params_t: the parameter dictionary (e.g. passed to prospector classes)
+            prun_params_t: the parameter dictionary (e.g. passed to prospector classes)
         """
 
         run_params = {}
         run_params['object_redshift'] = None
-        run_params['fixed_metallicity'] = params.fixed_metallicity.value
+        run_params['fixed_metallicity'] = self.cpz_params.fixed_metallicity.value
         run_params['add_duste'] = True
         run_params['dust'] = True
         run_params['verbose'] = False
         run_params['zcontinuous'] = 1
-        run_params['agn_mass'] = params.agn_mass.value
-        run_params['agn_eb_v'] = params.agn_eb_v.value
-        run_params['agn_torus_mass'] = params.agn_torus_mass.value
-        run_params['igm_absorbtion'] = params.igm_absorbtion  # is this always a bool?
-        run_params['inclination'] = params.inclination.value
-        run_params['emulate_ssp'] = emulate_ssp
+        run_params['agn_mass'] = self.cpz_params.agn_mass.value
+        run_params['agn_eb_v'] = self.cpz_params.agn_eb_v.value
+        run_params['agn_torus_mass'] = self.cpz_params.agn_torus_mass.value
+        run_params['igm_absorbtion'] = self.cpz_params.igm_absorbtion  # should this be bool?
+        run_params['inclination'] = self.cpz_params.inclination.value
+        run_params['emulate_ssp'] = self.emulate_ssp
+        run_params['redshift'] = self.cpz_params.redshift.value
 
-        # TODO get redshift value from somewhere before using this function
-        run_params['redshift'] = None
-        raise NotImplementedError
+        return run_params

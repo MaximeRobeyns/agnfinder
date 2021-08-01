@@ -31,6 +31,9 @@ cpz_obs_dict_t = dict[str, Union[np.ndarray, list[observate.Filter]]]
 # Type for CPz model parameter description
 pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 
+# Type for prospector run parameters
+prun_params_t = dict[str, Union[int, bool, float]]
+
 
 # Maybe 'monad' ---------------------------------------------------------------
 # Monad for safer and more explicit CPz model parameter definitions.

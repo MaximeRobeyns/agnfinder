@@ -19,9 +19,6 @@
 to photometry.
 """
 
-# TODO remove
-import sys
-
 import os
 import tqdm
 import h5py

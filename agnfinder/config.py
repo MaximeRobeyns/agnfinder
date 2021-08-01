@@ -49,13 +49,13 @@ free_params: paramspace_t = {
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 
 class SamplingParams():
-    n_samples    : int   = 1000
-    redshift_min : float = 0.
-    redshift_max : float = 4.
-    save_dir     : str   = './data'
-    emulate_ssp  : bool  = False
-    noise        : bool  = False
-    filters      : str   = 'euclid'
+    n_samples    : int      = 1000
+    redshift_min : float    = 0.
+    redshift_max : float    = 4.
+    save_dir     : str      = './data'
+    emulate_ssp  : bool     = False
+    noise        : bool     = False
+    filters      : str      = 'euclid'
 
 # ============================= CPz Parameters =================================
 
@@ -88,7 +88,7 @@ class CPzParams():
     # Non-optional values:
     # Free | Just(<float>)
     agn_mass          : MaybeFloat = Free
-    redshift          : MaybeFloat = Free
+    redshift          : MaybeFloat = Free  # this could be optional
     inclination       : MaybeFloat = Free
     fixed_metallicity : MaybeFloat = Just(0.)  # solar metallicity
 
