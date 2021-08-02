@@ -19,6 +19,9 @@
 to photometry.
 """
 
+# TODO remove this
+import sys
+
 import os
 import tqdm
 import h5py
@@ -65,6 +68,7 @@ class Simulator(object):
 
         # The hypercube of (denormalised) galaxy parameters
         self.theta: t.Tensor
+        logging.debug('Successfully initialised Simulator object')
 
     def sample_theta(self) -> None:
         """Generates a dataset via latin hypercube sampling."""
@@ -83,6 +87,7 @@ class Simulator(object):
         # parameter space (taking logs if needed).
         self.theta = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
+        logging.debug('Sampled galaxy parameters')
 
     def create_forward_model(self):
         """Initialises a Prospector problem, and obtains the forward model."""
@@ -158,6 +163,9 @@ class Simulator(object):
 
 if __name__ == '__main__':
 
+    # Configure the root logger using the values in config.py:logging_config
+    cfg.configure_logging()
+
     # Get the defaults from config.py
     sp = cfg.SamplingParams()
     fp = cfg.FreeParams(cfg.free_params)
@@ -179,10 +187,14 @@ if __name__ == '__main__':
             '--filters', dest='filters', type=str, default=sp.filters)
     args = parser.parse_args()
 
+    logging.info(f'Free parameters are: {cfg.free_params}')
+    logging.info(f'Simulation arguments are: {args}')
+
     sim = Simulator(args, fp)
 
     # Latin hypercube sampling for the galaxy parameters.
     sim.sample_theta()
+    sys.exit()
 
     # Create the forward model using Prospector
     sim.create_forward_model()

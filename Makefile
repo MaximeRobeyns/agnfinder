@@ -41,19 +41,23 @@ endif
 
 # Generic 'run' target for development
 run:
-	# source setup.sh
-	python agnfinder/simulation/simulation.py
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/simulation/simulation.py
 
 test:
-	source setup.sh
-	python -m pytest tests
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python -m pytest tests
 
 docs:
-	./docs/writedocs.sh
+	@./docs/writedocs.sh
 
 # Install agnfinder project locally
 install:
-	./bin/install_with_venv.sh $(PYTHON)
+	@./bin/install_with_venv.sh $(PYTHON)
 
 # ipython kernel setup to run notebooks in venv
 kernel:

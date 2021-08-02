@@ -132,6 +132,7 @@ deps
 old_tests
 old_agnfinder
 agnvenv
+logs.txt
 
 # Excluded old code, kept locally for reference
 legacy

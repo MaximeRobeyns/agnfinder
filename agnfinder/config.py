@@ -20,6 +20,8 @@
 import os
 import math
 import torch as t
+import logging
+from logging.config import dictConfig
 
 from agnfinder.types import paramspace_t, \
         MaybeFloat, Free, Just, \
@@ -27,8 +29,8 @@ from agnfinder.types import paramspace_t, \
 
 
 # ============================= Free Parameters ===============================
-# Keys prefixed by 'log_*' will be exponentiated later.
 
+# Keys prefixed by 'log_*' will be exponentiated later.
 free_params: paramspace_t = {
     'redshift': (0., 4.),
     # Mass of the galaxy
@@ -44,20 +46,23 @@ free_params: paramspace_t = {
     'inclination': (0., 90.)
 }
 
-# =========================== Sampling Parameters ==============================
+
+# =========================== Sampling Parameters =============================
+
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
-
 class SamplingParams():
-    n_samples    : int      = 1000
-    redshift_min : float    = 0.
-    redshift_max : float    = 4.
-    save_dir     : str      = './data'
-    emulate_ssp  : bool     = False
-    noise        : bool     = False
-    filters      : str      = 'euclid'
+    n_samples: int = 1000
+    redshift_min: float = 0.
+    redshift_max: float = 4.
+    save_dir: str = './data'
+    emulate_ssp: bool = False
+    noise: bool = False
+    filters: str = 'euclid'
 
-# ============================= CPz Parameters =================================
+
+# ============================= CPz Parameters ================================
+
 
 class CPzParams():
     """Classification-aided photometric-redshift model parameters
@@ -74,76 +79,85 @@ class CPzParams():
         - OptionalValue(<MaybeFloat value>)
         - Nothing
 
-    (These monads / data types are defined in types.py.)
-
-    # TODO (Maxime): document what these parameters actually mean.
+    (These monadic data types are defined in types.py.)
     """
+    # TODO (Maxime): document what these parameters actually mean.
 
     # boolean values
-    # True | False
-    dust           : bool = True
-    model_agn      : bool = True
-    igm_absorbtion : bool = True
+    # either True | False
+    dust: bool = True
+    model_agn: bool = True
+    igm_absorbtion: bool = True
 
     # Non-optional values:
-    # Free | Just(<float>)
-    agn_mass          : MaybeFloat = Free
-    redshift          : MaybeFloat = Free  # this could be optional
-    inclination       : MaybeFloat = Free
-    fixed_metallicity : MaybeFloat = Just(0.)  # solar metallicity
+    # either Free | Just(<float>)
+    agn_mass: MaybeFloat = Free
+    redshift: MaybeFloat = Free  # this could be optional
+    inclination: MaybeFloat = Free
+    fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
 
     # Optional values:
-    # Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
-    agn_eb_v       : Optional = OptionalValue(Free)
-    agn_torus_mass : Optional = OptionalValue(Free)
+    # either Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
+    agn_eb_v: Optional = OptionalValue(Free)
+    agn_torus_mass: Optional = OptionalValue(Free)
 
 
-# ======================== Quasar Template Parameters ==========================
+# ======================== Quasar Template Parameters =========================
+
 
 class QuasarTemplateParams:
-    results_dir             : str = 'results'
-    quasar_data_loc         : str = 'data/quasar_template_shang.txt'
-    torus_model_loc         : str = 'data/torus_model_with_inclination.dill'
-    interpolated_quasar_loc : str = 'data/quasar_template_interpolated.dill'
+    results_dir: str = 'results'
+    quasar_data_loc: str = 'data/quasar_template_shang.txt'
+    torus_model_loc: str = 'data/torus_model_with_inclination.dill'
+    interpolated_quasar_loc: str = 'data/quasar_template_interpolated.dill'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
 
-# ====================== Extinction Template Parameters ========================
+
+# ====================== Extinction Template Parameters =======================
+
 
 class ExtinctionTemplateParams:
     interpolated_smc_extinction_loc: str \
                        = 'data/interpolated_smc_extinction.dill'
-    smc_data_loc : str = 'data/smc_extinction_prevot_1984.dat'
-    results_dir  : str = 'results'
+    smc_data_loc: str = 'data/smc_extinction_prevot_1984.dat'
+    results_dir: str = 'results'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
 
-# =========================== Logging Parameters ===============================
+
+# =========================== Logging Parameters ==============================
+
+# logging levels:
+# CRITICAL (50) > ERROR (40) > WARNING (30) > INFO (20) > DEBUG (10) > NOTSET
 
 logging_config = {
     'version': 1,
-    'disable_existing_loggers': True,
+    'disable_existing_loggers': False,
+    # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
     'formatters': {
         'standard': {
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            'format': '%(asctime)s [%(levelname)s] %(module)s: %(message)s'
+        },
+        'debug': {
+            'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(processName)s:%(filename)s:%(funcName)s:%(lineno)d: %(message)s'
         },
     },
     'handlers': {
-        'default': {
-            'level': 'INFO',
-            'formatter': 'standard',
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout',  # Default is stderr
-        },
-    },
-    'handlers' : {
         # only log errors out to the console
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'standard',
-            'level': 'ERROR',
+            'level': 'WARNING',
+            'stream': 'ext://sys.stderr'
+        },
+        'console_debug': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'debug',
+            'level': 'DEBUG',
+            # print everything to stdout
             'stream': 'ext://sys.stdout'
         },
         # Output more information to a file for post-hoc analysis
@@ -151,7 +165,6 @@ logging_config = {
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'standard',
             'level': 'INFO',
-            # TODO place these inside a dedicated directory, and use timestamp to make unique
             'filename': './logs.txt',
             'mode': 'a',
             'encoding': 'utf-8',
@@ -161,27 +174,38 @@ logging_config = {
     },
     'loggers': {
         '': {  # root logger
-            'handlers': ['default'],
-            'level': 'WARNING',
-            'propagate': False
-        },
+            'handlers': ['console', 'file', 'console_debug'],
+            'level': 'NOTSET',
+            'propagate': True
+        }
+        # ,
         # '__main__': {  # if __name__ == '__main__'
-        #     'handlers': ['default'],
-        #     'level': 'DEBUG',
-        #     'propagate': False
+        #     'handlers': ['file', 'console_debug'],
+        #     'level': 'NOTSET',
+        #     'propagate': True
         # },
     }
 }
 
 
+def configure_logging() -> None:
+    """Performs one-time configuration of the root logger for the program.
+    """
+    dictConfig(logging_config)
+    for _ in range(5):
+        logging.info('')
+    logging.info('==================== New Run ===================\n\n')
+
+
 # Utility classes -------------------------------------------------------------
+
 
 class FreeParams():
     def __init__(self, params: paramspace_t):
         self.raw_params: paramspace_t = params
 
-        self.params: t.Tensor = t.empty((0,2), dtype=t.float64)
-        self.log: t.Tensor = t.empty((0,1), dtype=t.bool)
+        self.params: t.Tensor = t.empty((0, 2), dtype=t.float64)
+        self.log: t.Tensor = t.empty((0, 1), dtype=t.bool)
 
         for p in params:
             setattr(self, p, params[p])

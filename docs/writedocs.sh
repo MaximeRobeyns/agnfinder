@@ -2,6 +2,8 @@
 set -euo pipefail
 
 # This is a helper script for writing documentation locally.
+# This is intended to be run from the parent directory (e.g. either through the
+# provided Makefile `make docs` or as ./docs/writedocs.sh)
 #
 # If you are running this for the first time, please ensure that you have built
 # the docker image.
@@ -21,6 +23,6 @@ set -euo pipefail
 # or
 # >>> docker stop $(docker ps -aq)
 
-docker run --rm -v $(pwd)/source:/docs/source -v $(pwd)/build:/docs/build \
+docker run --rm -v $(pwd)/docs/source:/docs/source -v $(pwd)/docs/build:/docs/build \
     --name agnfinderdocs \
     -p 8081:8080 agnfinderdocs watch
