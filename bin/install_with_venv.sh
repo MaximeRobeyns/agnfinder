@@ -24,29 +24,26 @@ if [[ ! -d ./deps ]]; then
     mkdir deps
 fi
 
-# verify that wget is installed
-command -v wget >/dev/null 2>&1 || {
-    echo >&2 "wget is required to download fsps but was not found. Aborting."
-    exit 1
-}
-
 # verify that GNU unzip is installed to extract FSPS
 command -v tar >/dev/null 2>&1 || {
     echo >&2 "tar is required to extract fsps but was not found. Aborting."
     exit 1
 }
 
-# Clone FSPS source code to dependencies
-if [[ ! -d ./deps/fsps ]]; then
-    wget -O ./deps/fsps.tar.gz \
-        https://github.com/cconroy20/fsps/archive/refs/tags/v3.2.tar.gz
-    tar xzf ./deps/fsps.tar.gz -C ./deps
-    mv ./deps/fsps-3.2 ./deps/fsps
-    rm ./deps/fsps.tar.gz
-fi
-
 # This is required before installing fsps
 export SPS_HOME=$(pwd)/deps/fsps
+
+# Clone FSPS source code to dependencies
+if [[ ! -d ./deps/fsps ]]; then
+    git clone https://github.com/cconroy20/fsps.git $SPS_HOME
+
+    # Alternative: might be better to download a stable release...
+    # wget -O ./deps/fsps.tar.gz \
+    #     https://github.com/cconroy20/fsps/archive/refs/tags/v3.2.tar.gz
+    # tar xzf ./deps/fsps.tar.gz -C ./deps
+    # mv ./deps/fsps-3.2 ./deps/fsps
+    # rm ./deps/fsps.tar.gz
+fi
 
 # Create virtual environment if it doesn't exist
 if [[ ! -d ./agnvenv ]]; then

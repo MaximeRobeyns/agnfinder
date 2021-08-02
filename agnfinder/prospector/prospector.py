@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Main Prospector problem generation class."""
 
+import sys
 import logging
 import numpy as np
 from typing import Callable
@@ -28,18 +29,20 @@ from agnfinder.prospector import cpz_builders
 class Prospector(object):
 
     def __init__(self, filter_selection: str, emulate_ssp: bool):
+        logging.debug('initialising prospector class')
+
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
-        logging.info(self.obs)
+        logging.info(f'Created obs dict: {self.obs}')
 
         self.emulate_ssp = emulate_ssp
         self.cpz_params = CPzParams()
-
         self.model = cpz_builders.build_model(self.cpz_params)
-        logging.info(self.model)
+        logging.info(f'Created CPz model {self.model}')
 
         self.sps = cpz_builders.build_sps(
             self.cpz_params, emulate_ssp, zcontinuous=1)
         logging.info(self.sps)
+        sys.exit()
 
         self.run_params = self._cpz_params_to_run_params()
 

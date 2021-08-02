@@ -9,8 +9,9 @@ pytest>=6.2.4
 scipy>=1.7.0
 torch>=1.9.0
 tqdm>=4.61.2
+fsps
 
 git+https://github.com/bd-j/sedpy
 git+https://github.com/bd-j/prospector.git
-git+https://github.com/dfm/python-fsps.git
+# git+https://github.com/dfm/python-fsps.git
 

@@ -94,9 +94,6 @@ class Simulator(object):
 
         problem = Prospector(self.filters, self.emulate_ssp)
 
-        self.has_forward_model = True
-        return
-
         # TODO find more direct way of returning phot_wavelengths
         problem.calculate_sed()
         self.phot_wavelengths = problem.obs['phot_wave']
@@ -194,7 +191,6 @@ if __name__ == '__main__':
 
     # Latin hypercube sampling for the galaxy parameters.
     sim.sample_theta()
-    sys.exit()
 
     # Create the forward model using Prospector
     sim.create_forward_model()

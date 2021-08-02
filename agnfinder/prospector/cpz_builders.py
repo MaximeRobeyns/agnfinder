@@ -106,14 +106,13 @@ def build_model(args: cfg.CPzParams) -> SedModel:
         SedModel: The prospector SED model.
     """
 
-    logging.debug("redshift: ",
-            "free" if args.redshift is None else args.redshift)
-    logging.debug("fixed_metallicity: ", args.fixed_metallicity)
-    logging.debug("dust", args.dust)
-    logging.debug("agn_mass", args.agn_mass)
-    logging.debug("agn_eb_v", args.agn_eb_v)
-    logging.debug("agn_torus_mass", args.agn_torus_mass)
-    logging.debug("igm_absorbtion", args.igm_absorbtion)
+    logging.debug(f'redshift: {args.redshift}')
+    logging.debug(f'fixed_metallicity: {args.fixed_metallicity}')
+    logging.debug(f'dust: {args.dust}')
+    logging.debug(f'agn_mass: {args.agn_mass}')
+    logging.debug(f'agn_eb_v: {args.agn_eb_v}')
+    logging.debug(f'agn_torus_mass: {args.agn_torus_mass}')
+    logging.debug(f'igm_absorbtion: {args.igm_absorbtion}')
 
     # Get a copy of one of the pre-packaged model set dictionaries.
     model_params = templates.TemplateLibrary['parametric_sfh']
@@ -198,8 +197,7 @@ def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
     """
 
     if args.model_agn:
-        logging.warning('Building custom CSPSpecBasisAGN.')
-
+        logging.info('Building custom CSPSpecBasisAGN.')
         sps = CSPSpecBasisAGN(
             zcontinuous=zcontinuous,
             emulate_ssp=emulate_ssp,
@@ -209,7 +207,7 @@ def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
             inclination=args.inclination.value,
         )
     else:
-        logging.warning('Building standard CSPSpec')
+        logging.info('Building standard CSPSpec')
         sps = CSPSpecBasisNoEm(zcontinuous=zcontinuous)
 
     return sps

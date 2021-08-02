@@ -142,7 +142,7 @@ logging_config = {
             'format': '%(asctime)s [%(levelname)s] %(module)s: %(message)s'
         },
         'debug': {
-            'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(processName)s:%(filename)s:%(funcName)s:%(lineno)d: %(message)s'
+            'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(filename)s:%(funcName)s:%(lineno)d: %(message)s'
         },
     },
     'handlers': {
