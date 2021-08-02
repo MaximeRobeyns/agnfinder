@@ -184,7 +184,8 @@ if __name__ == '__main__':
             '--filters', dest='filters', type=str, default=sp.filters)
     args = parser.parse_args()
 
-    logging.info(f'Free parameters are: {cfg.free_params}')
+    logging.info(f'Free parameters are: {fp}')
+    logging.info(f'Default sampling params are: {sp}')
     logging.info(f'Simulation arguments are: {args}')
 
     sim = Simulator(args, fp)

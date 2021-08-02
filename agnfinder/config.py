@@ -23,7 +23,7 @@ import torch as t
 import logging
 from logging.config import dictConfig
 
-from agnfinder.types import paramspace_t, \
+from agnfinder.types import ConfigClass, paramspace_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing
 
@@ -51,7 +51,7 @@ free_params: paramspace_t = {
 
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
-class SamplingParams():
+class SamplingParams(ConfigClass):
     n_samples: int = 1000
     redshift_min: float = 0.
     redshift_max: float = 4.
@@ -64,7 +64,7 @@ class SamplingParams():
 # ============================= CPz Parameters ================================
 
 
-class CPzParams():
+class CPzParams(ConfigClass):
     """Classification-aided photometric-redshift model parameters
 
     Attributes with type bool can be turned on or off as you please.
@@ -83,21 +83,19 @@ class CPzParams():
     """
     # TODO (Maxime): document what these parameters actually mean.
 
-    # boolean values
-    # either True | False
+    # boolean values {True | False}
     dust: bool = True
     model_agn: bool = True
     igm_absorbtion: bool = True
 
-    # Non-optional values:
-    # either Free | Just(<float>)
+    # Non-optional values {Free | Just(<float>)}
     agn_mass: MaybeFloat = Free
     redshift: MaybeFloat = Free  # this could be optional
     inclination: MaybeFloat = Free
     fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
 
-    # Optional values:
-    # either Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))
+    # Optional values
+    # {Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))}
     agn_eb_v: Optional = OptionalValue(Free)
     agn_torus_mass: Optional = OptionalValue(Free)
 
@@ -105,11 +103,11 @@ class CPzParams():
 # ======================== Quasar Template Parameters =========================
 
 
-class QuasarTemplateParams:
+class QuasarTemplateParams(ConfigClass):
     results_dir: str = 'results'
-    quasar_data_loc: str = 'data/quasar_template_shang.txt'
-    torus_model_loc: str = 'data/torus_model_with_inclination.dill'
-    interpolated_quasar_loc: str = 'data/quasar_template_interpolated.dill'
+    quasar_data_loc: str = './data/quasar_template_shang.txt'
+    torus_model_loc: str = './data/torus_model_with_inclination.dill'
+    interpolated_quasar_loc: str = './data/quasar_template_interpolated.dill'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
@@ -118,10 +116,10 @@ class QuasarTemplateParams:
 # ====================== Extinction Template Parameters =======================
 
 
-class ExtinctionTemplateParams:
+class ExtinctionTemplateParams(ConfigClass):
     interpolated_smc_extinction_loc: str \
-                       = 'data/interpolated_smc_extinction.dill'
-    smc_data_loc: str = 'data/smc_extinction_prevot_1984.dat'
+                       = './data/interpolated_smc_extinction.dill'
+    smc_data_loc: str = './data/smc_extinction_prevot_1984.dat'
     results_dir: str = 'results'
 
     def results_path(self, file: str) -> str:
@@ -192,15 +190,14 @@ def configure_logging() -> None:
     """Performs one-time configuration of the root logger for the program.
     """
     dictConfig(logging_config)
-    for _ in range(5):
-        logging.info('')
-    logging.info('==================== New Run ===================\n\n')
+    logging.info(
+        '\n\n\n\n\n==================== New Run ===================\n\n')
 
 
 # Utility classes -------------------------------------------------------------
 
 
-class FreeParams():
+class FreeParams(ConfigClass):
     def __init__(self, params: paramspace_t):
         self.raw_params: paramspace_t = params
 

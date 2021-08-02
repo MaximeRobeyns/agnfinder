@@ -43,6 +43,7 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
             self._interpolated_template = self._create_template()
             self._save_template()
         else:
+            logging.debug(f'Opening quasar template: {self.template_loc}')
             self._interpolated_template = self._load_template()
 
     @abc.abstractmethod
@@ -59,6 +60,7 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
 
     def _load_template(self):
         with open(self.template_loc, 'rb') as f:
+            logging.debug(f'loading template with file handle {f}')
             return dill.load(f)
 
     def __call__(self, *args, **kwargs):

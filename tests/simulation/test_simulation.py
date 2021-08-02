@@ -67,7 +67,7 @@ def test_create_hypercube():
 def test_create_forward_model():
     sim = _create_test_sim()
     assert not sim.has_forward_model
-    # Running this test is too slow and expensive, since it makes calles to
+    # Running this test is too slow and expensive, since it makes calls to
     # SPS codes.
     # sim.create_forward_model()
     # assert sim.has_forward_model

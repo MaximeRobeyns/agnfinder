@@ -106,3 +106,23 @@ class OptionalValue(Optional):
 
     def __repr__(self):
         return f'OptionalValue({repr(self.maybefloatvalue)})'
+
+
+# Type for class-based configuration objects ---------------------------------
+
+
+class ConfigClass(object):
+    """The point of this class is to allow class-based configuration objects to
+    be printed for logging and debugging in a clean way.
+    """
+
+    def __repr__(self) -> str:
+        r = f'\n\nConfiguration class `{type(self).__name__}`:'
+        n = len(r)-2  # remove the 2 newlines
+        r += '\n' + n * '~' + '\n\n'
+        members = [a for a in dir(self) if not callable(getattr(self, a))\
+                   and not a.startswith("__")]
+        for m in members:
+            r += f'{m}: {getattr(self, m)}\n'
+        r += '\n' + n * '~' + '\n\n'
+        return r

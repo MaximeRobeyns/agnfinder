@@ -1,4 +1,4 @@
-#Title: The Next Generation Atlas of Quasar Spectral Energy 
+#Title: The Next Generation Atlas of Quasar Spectral Energy
 #       Distributions from Radio to X-rays
 #Authors: Zhaohui Shang, Michael S. Brotherton, Beverley J. Wills,
 #         D. Wills, Sabrina L. Cales, Daniel A. Dale, Richard F.  Green,

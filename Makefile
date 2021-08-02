@@ -61,6 +61,9 @@ install:
 
 # ipython kernel setup to run notebooks in venv
 kernel:
+ifndef SPS_HOME
+		@source setup.sh
+endif
 	python -m ipykernel install --user --name agnvenv \
 		--display-name "agnvenv (Python 3.9)"
 

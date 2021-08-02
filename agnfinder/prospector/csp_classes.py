@@ -51,7 +51,7 @@ class CSPSpecBasisAGN(CSPSpecBasis):
 
         if emulate_ssp:
             # This is somewhat outdated but it serves as a good example of how
-            # forward emulation works.
+            # forward emulation would work.
             logging.warning('Using custom FSPS emulator for SSP')
             self.ssp = CustomSSP()
         else:
@@ -60,20 +60,25 @@ class CSPSpecBasisAGN(CSPSpecBasis):
                 compute_vega_mags=compute_vega_mags,
                 zcontinuous=zcontinuous,
                 vactoair_flag=vactoair_flag)
+            logging.debug('Successfully created fsps StellarPopulation model')
 
         self.reserved_params = reserved_params
         self.params = {}
         self.update(**kwargs)
 
         quasar_params = cfg.QuasarTemplateParams()
+        logging.info(f'quasar parameters: {quasar_params}')
         self.quasar_template = quasar_templates.QuasarTemplate(
             template_loc=quasar_params.interpolated_quasar_loc
         )
+        logging.debug(f'successfully initialised quasar template')
         self.torus_template = quasar_templates.TorusModel(
             model_loc=quasar_params.torus_model_loc
         )
+        logging.debug(f'successfully initialised torus template')
 
         extinction_params = cfg.ExtinctionTemplateParams()
+        logging.info(f'extinction template parameters: {extinction_params}')
         self.extinction_template = extinction_models.ExtinctionTemplate(
             template_loc=extinction_params.interpolated_smc_extinction_loc
         )
