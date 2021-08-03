@@ -1,9 +1,11 @@
-# Global Project Documentation
+# Sphinx documentation
 
-The point of these docs is to act as an index which unifies all the
-sub-repositories' documentation, acting as a _fountain of truth_ for the
-project.
+The Sphinx documentation for this project is mainly intended to be compiled to HTML.
 
-You can also write any documentation that concerns the project globally in
-here.
+To improve the editing workflow, a nice Docker image with live-reload is provided. To set this up, please ensure that you have Docker installed.
+
+First build the docker image by running the following from this directory
+```
+make img
+```
 

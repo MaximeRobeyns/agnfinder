@@ -187,12 +187,6 @@ logging_config = {
             'level': 'NOTSET',
             'propagate': True
         }
-        # ,
-        # '__main__': {  # if __name__ == '__main__'
-        #     'handlers': ['file', 'console_debug'],
-        #     'level': 'NOTSET',
-        #     'propagate': True
-        # },
     }
 }
 

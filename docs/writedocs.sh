@@ -23,6 +23,30 @@ set -euo pipefail
 # or
 # >>> docker stop $(docker ps -aq)
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS=mac
+else
+    OS=other
+fi
+
+# does what it says on the tin
+openUrl() {
+    if [[ $OS == mac ]]; then
+        open $1
+    else
+        # [[ -x $BROWSER ]] && exec "$BROWSER" "$1"
+        path=$(which xdg-open || which gnome-open) && exec "$path" "$1" > /dev/null 2>&1 &
+    fi
+}
+
+# First check whether the docker image exists
+if [[ -z $(docker images | grep agnfinderdocs) ]]; then
+    docker build -f Dockerfile -t agnfinderdocs .
+fi
+
+openUrl http://localhost:8081
+
 docker run --rm -v $(pwd)/docs/source:/docs/source -v $(pwd)/docs/build:/docs/build \
+    -v $(pwd)/Makefile.writing:/docs/Makefile \
     --name agnfinderdocs \
     -p 8081:8080 agnfinderdocs watch

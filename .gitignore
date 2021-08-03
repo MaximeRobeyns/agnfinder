@@ -132,6 +132,7 @@ license_boilerplate.txt
 deps
 old_tests
 old_agnfinder
+old_notebooks
 agnvenv
 logs.txt
 
