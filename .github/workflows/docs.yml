@@ -1,0 +1,30 @@
+name: Compile and re-deploy AGNFinder documentation
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  docs:
+    name: Compile and deploys the docs
+    runs-on: ubuntu-latest
+    container:
+      image: python:latest
+      volumes:
+        - docs:docs
+    steps:
+    - uses: actions/checkout@master
+    - name: setup
+      run: pip install sphinx sphinx_rtd_theme
+    - name: build docs
+      run: make html
+    - name: deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/build/html
+        publish_branch: docs
