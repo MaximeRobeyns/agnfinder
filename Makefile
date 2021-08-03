@@ -55,11 +55,16 @@ endif
 docs:
 	@./docs/writedocs.sh
 
+./data/clumpy_models_201410_tvavg.hdf5:
+	wget -O $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
+
 # Install agnfinder project locally
-install:
+install: ./data/clumpy_models_201410_tvavg.hdf5
 	@./bin/install_with_venv.sh $(PYTHON)
 
-quasartemplate:
+# Runs the main entrypoint for visualising the quasar templates
+# Will re-build the models, and output visualisations
+qt:
 ifndef SPS_HOME
 		@source setup.sh
 endif
@@ -79,4 +84,7 @@ ifndef SPS_HOME
 endif
 	jupyter lab --notebook-dir=.
 
-.PHONY: run test kernel lab install docs quasartemplate
+help:
+	@./bin/help.sh
+
+.PHONY: run test kernel lab install docs qt help

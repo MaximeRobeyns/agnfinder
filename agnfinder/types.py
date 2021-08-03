@@ -117,12 +117,14 @@ class ConfigClass(object):
     """
 
     def __repr__(self) -> str:
-        r = f'\n\nConfiguration class `{type(self).__name__}`:'
-        n = len(r)-2  # remove the 2 newlines
-        r += '\n' + n * '~' + '\n\n'
+        r = f'\n\n{79*"="}\n'
+        c = f'Configuration class `{type(self).__name__}`'
+        n = len(c)
+        nn = int((79 - n) / 2)
+        r += nn * ' ' + c + f'\n{79*"-"}\n\n'
         members = [a for a in dir(self) if not callable(getattr(self, a))\
                    and not a.startswith("__")]
         for m in members:
             r += f'{m}: {getattr(self, m)}\n'
-        r += '\n' + n * '~' + '\n\n'
+        r += '\n' + 79 * '=' + '\n\n'
         return r

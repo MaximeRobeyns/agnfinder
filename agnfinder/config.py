@@ -65,23 +65,20 @@ class SamplingParams(ConfigClass):
 
 
 class CPzParams(ConfigClass):
-    """Classification-aided photometric-redshift model parameters
+    """CPz model parameters
 
-    Attributes with type bool can be turned on or off as you please.
+    Boolean attributes can be be turned on or off as you please.
 
     Attributes of type MaybeFloat must either be
-
         - Just(value), where `value` is a floating point number.
         - Free
 
     Attributes of type Optional must either be
-
         - OptionalValue(<MaybeFloat value>)
         - Nothing
 
     (These monadic data types are defined in types.py.)
     """
-    # TODO (Maxime): document what these parameters actually mean.
 
     # boolean values {True | False}
     dust: bool = True
@@ -90,7 +87,7 @@ class CPzParams(ConfigClass):
 
     # Non-optional values {Free | Just(<float>)}
     agn_mass: MaybeFloat = Free
-    redshift: MaybeFloat = Free  # this could be optional
+    redshift: MaybeFloat = Free  # this could be Optional
     inclination: MaybeFloat = Free
     fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
 
@@ -115,6 +112,13 @@ class QuasarTemplateParams(ConfigClass):
     recreate_torus_template: bool = True
     torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
     interpolated_torus_loc = './data/normalised_torus_model.dill'
+
+    # -> assumptions (fixed parameters) for torus model
+    torus_n0: int = 5
+    torus_opening_angle:int = 30  # in degrees
+    torus_q: int = 2
+    torus_y: int = 30
+    torus_tv: int = 60
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
@@ -201,7 +205,7 @@ def configure_logging() -> None:
     """
     dictConfig(logging_config)
     logging.info(
-        '\n\n\n\n\n==================== New Run ===================\n\n')
+        f'\n\n\n\n\n{35*"~"} New Run {35*"~"}\n\n')
 
 
 class FreeParams(ConfigClass):

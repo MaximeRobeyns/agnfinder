@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Create and load quasar templates."""
 
+import os
 import abc
 import dill
 import h5py
@@ -50,7 +51,7 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
         self.data_loc: str = data_loc
         self.template_loc: str = template_loc
 
-        load_error = False
+        self._load_error = False
 
         if not recreate_template:
             try:
@@ -58,15 +59,17 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
                 self._interpolated_template = self._load_template()
             except Exception as e:
                 logging.error(f'Error opening template: {e}')
-                load_error = True
+                self._load_error = True
 
-        if recreate_template or load_error:
+        if recreate_template or self._load_error:
             if data_loc == "":
                 e = f'No data location specified for template {template_loc}'
                 logging.error(e)
                 raise RuntimeError(e)
+            if not os.path.exists(data_loc):
+                raise ValueError(f'Data location {data_loc} does not exist')
             logging.warning(
-                'Creating new template {template_loc} from data {data_loc}')
+                f'Creating new template {template_loc} from data {data_loc}')
             self._interpolated_template = self._create_template()
             self._save_template()
 
@@ -130,10 +133,17 @@ class QuasarTemplate(InterpolatedTemplate):
 
 class TorusModel(InterpolatedTemplate):
 
+    def __init__(self, params: cfg.QuasarTemplateParams, template_loc: str,
+                 data_loc: str = "", recreate_template: bool = False):
+        self._params = params
+        super().__init__(template_loc, data_loc, recreate_template)
+
     def _create_template(self) -> Callable[[np.ndarray, int], np.ndarray]:
 
         # Data from, saved to self.data_loc
         # https://www.clumpy.org/pages/seds.html
+        # Also see https://iopscience.iop.org/article/10.1086/590483/pdf
+        # (https://arxiv.org/abs/0806.0511)
 
         with h5py.File(self.data_loc, 'r') as f:
             keys = ['wave', 'sig', 'i', 'N0', 'q', 'Y', 'tv', 'flux_toragn']
@@ -150,9 +160,12 @@ class TorusModel(InterpolatedTemplate):
             tv = arrs[6]
             seds = arrs[7]
 
-        # TODO expose these (somewhat arbitrary) parameter values in configuration file
-        suggested_fixed_params = (n0 == 5) & (opening_angle == 30) & (q == 2) & \
-                                 (y == 30) & (tv == 60)
+        suggested_fixed_params = \
+            (n0 == self._params.torus_n0) & \
+            (opening_angle == self._params.torus_opening_angle) & \
+            (q == self._params.torus_q) & \
+            (y == self._params.torus_y) & \
+            (tv == self._params.torus_tv)
 
         func = interp2d(x=np.log10(wavelengths),
                y=inclination[suggested_fixed_params],
@@ -228,6 +241,7 @@ if __name__ == '__main__':
         recreate_template=True)
 
     torus = TorusModel(
+        params,
         template_loc=params.interpolated_torus_loc,
         data_loc=params.torus_data_loc,
         recreate_template=True)
@@ -285,7 +299,7 @@ if __name__ == '__main__':
     quasar_only = quasar(eval_wavelengths, short_only=True)
     torus_only = torus(eval_wavelengths, inclination=80, long_only=True)
     net = quasar_only + torus_only
-    plt.loglog(eval_wavelengths, quasar_only, labels='Quasar only')
+    plt.loglog(eval_wavelengths, quasar_only, label='Quasar only')
     plt.loglog(eval_wavelengths, torus_only, label='Torus Only')
     plt.loglog(eval_wavelengths, net, label='Net')
     plt.xlabel('Wavelength (A)')

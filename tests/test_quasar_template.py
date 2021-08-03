@@ -16,19 +16,56 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Tests for the quasar templates."""
 
+import os
+import time
+import pytest
 import agnfinder.config as cfg
 from agnfinder.quasar_templates import QuasarTemplate, TorusModel
 
 
-# Unfortunately don't test the _create_template functions here since this
-# requires the user to have access to the original data, which they may not
-# have.
+# This test assumes that the user has carried out the full installation
+# procedure, and that they have the 1.2Gb clumpy model available.
 
-def test_QuasarTemplate():
-
+def test_create_QuasarTemplate():
     params = cfg.QuasarTemplateParams()
 
-    qt = QuasarTemplate(template_loc=params.interpolated_torus_loc)
+    qt = QuasarTemplate(
+        template_loc=params.interpolated_quasar_loc,
+        data_loc=params.quasar_data_loc,
+        recreate_template=True)
 
+    assert not qt._load_error
+    assert qt._interpolated_template is not None
 
+    with pytest.raises(ValueError) as re:
+        qt = QuasarTemplate(
+            template_loc=params.interpolated_quasar_loc,
+            data_loc="./data/asdf",
+            recreate_template=True)
+        assert re == "Data location ./data/asdf does not exist"
 
+def test_load_QuasarTemplate():
+    params = cfg.QuasarTemplateParams()
+    qt = QuasarTemplate(template_loc=params.interpolated_quasar_loc)
+    assert not qt._load_error
+    assert qt._interpolated_template is not None
+
+def test_create_TorusModel():
+    now = time.time()
+    params = cfg.QuasarTemplateParams()
+    print(params)
+    tm = TorusModel(
+        params=params,
+        template_loc=params.interpolated_torus_loc,
+        data_loc=params.torus_data_loc,
+        recreate_template=True)
+    assert not tm._load_error
+    assert tm._interpolated_template is not None
+    assert os.path.exists(params.interpolated_torus_loc)
+    assert os.path.getmtime(params.interpolated_torus_loc) - now > 0
+
+def test_load_TorusModel():
+    params = cfg.QuasarTemplateParams()
+    assert os.path.exists(params.interpolated_torus_loc)
+    tm = TorusModel(params, template_loc=params.interpolated_torus_loc)
+    assert tm._interpolated_template is not None
