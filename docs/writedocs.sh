@@ -23,6 +23,10 @@ set -euo pipefail
 # or
 # >>> docker stop $(docker ps -aq)
 
+if [[ -z $(docker images | grep agnfinderdocs) ]]; then
+    docker build -f ./docs/Dockerfile -t agnfinderdocs ./docs
+fi
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS=mac
 else
@@ -44,9 +48,9 @@ if [[ -z $(docker images | grep agnfinderdocs) ]]; then
     docker build -f Dockerfile -t agnfinderdocs .
 fi
 
-openUrl http://localhost:8081
+sleep 3 && openUrl http://localhost:8081 &
 
-docker run --rm -v $(pwd)/docs/source:/docs/source -v $(pwd)/docs/build:/docs/build \
-    -v $(pwd)/Makefile.writing:/docs/Makefile \
+docker run --rm -it -v $(pwd)/docs/source:/docs/source \
+    -v $(pwd)/docs/build:/docs/build \
     --name agnfinderdocs \
     -p 8081:8080 agnfinderdocs watch

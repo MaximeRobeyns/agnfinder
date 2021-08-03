@@ -55,6 +55,9 @@ endif
 docs:
 	@./docs/writedocs.sh
 
+docsimg:
+	@docker build -f ./docs/Dockerfile -t agnfinderdocs ./docs
+
 ./data/clumpy_models_201410_tvavg.hdf5:
 	wget -O $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
 
@@ -87,4 +90,4 @@ endif
 help:
 	@./bin/help.sh
 
-.PHONY: run test kernel lab install docs qt help
+.PHONY: run test kernel lab install docs docsimg qt help

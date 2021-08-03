@@ -29,6 +29,7 @@ Please use 'make target' where 'target' is one of:
     test        To run the program's tests (and verify the installation)
     run         To run the main sampling program
     docs        To compile the documentation (requires Docker)
+    docsimg     To explicitly build the documentation writing image
     qt          To re-create the quasar templates (quasar and torus models)
     kernel      To setup a Jupyter kernel
     lab         To start a Jupyter Lab server

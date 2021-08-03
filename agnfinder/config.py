@@ -86,10 +86,10 @@ class CPzParams(ConfigClass):
     igm_absorbtion: bool = True
 
     # Non-optional values {Free | Just(<float>)}
-    agn_mass: MaybeFloat = Free
-    redshift: MaybeFloat = Free  # this could be Optional
-    inclination: MaybeFloat = Free
-    fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
+    agn_mass          : MaybeFloat = None
+    redshift          : MaybeFloat = Free  # this could be Optional
+    inclination       : MaybeFloat = Free
+    fixed_metallicity : MaybeFloat = Just(0.)  # solar metallicity
 
     # Optional values
     # {Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))}

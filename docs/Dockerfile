@@ -20,7 +20,7 @@ WORKDIR /docs
 RUN apk update && apk add --no-cache bash make libffi-dev openssl-dev inotify-tools
 RUN pip install sphinx sphinx_rtd_theme live-server
 RUN mkdir -p ./build/html ./build/doctrees ./source
-COPY Makefile Makefile
+COPY Makefile.docker Makefile
 COPY make.bat make.bat
 COPY docs.sh /usr/local/bin/docs.sh
 ENV PORT=8080
