@@ -14,19 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: python:latest
-      volumes:
-        - docs:/docs
     steps:
     - uses: actions/checkout@master
     - name: setup
       run: pip install sphinx sphinx_rtd_theme
-    - name: debug
-      run: echo $(pwd) && cd /docs && ls
     - name: build docs
-      run: cd /docs && make html
+      run: cd ./docs && make html
     - name: deploy
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/build/html
+        publish_dir: ./build/html
         publish_branch: docs
