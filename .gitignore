@@ -111,6 +111,7 @@ out/*
 *.h5py
 results
 data/*.hdf5
+data/old_data
 results/*.png
 data/*.png
 *.parquet

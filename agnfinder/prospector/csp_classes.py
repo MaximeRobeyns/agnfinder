@@ -67,21 +67,28 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         self.update(**kwargs)
 
         quasar_params = cfg.QuasarTemplateParams()
-        logging.info(f'quasar parameters: {quasar_params}')
+        logging.info(f'quasar template parameters: {quasar_params}')
+
         self.quasar_template = quasar_templates.QuasarTemplate(
-            template_loc=quasar_params.interpolated_quasar_loc
+            template_loc=quasar_params.interpolated_quasar_loc,
+            data_loc=quasar_params.quasar_data_loc,
+            recreate_template=quasar_params.recreate_template
         )
         logging.debug(f'successfully initialised quasar template')
+
         self.torus_template = quasar_templates.TorusModel(
-            model_loc=quasar_params.torus_model_loc
+            recreate_template=quasar_params.recreate_torus_template,
+            data_loc=quasar_params.torus_data_loc,
+            model_loc=quasar_params.interpolated_torus_loc
         )
-        logging.debug(f'successfully initialised torus template')
+        logging.debug(f'successfully initialised torus model')
 
         extinction_params = cfg.ExtinctionTemplateParams()
         logging.info(f'extinction template parameters: {extinction_params}')
         self.extinction_template = extinction_models.ExtinctionTemplate(
             template_loc=extinction_params.interpolated_smc_extinction_loc
         )
+        logging.debug(f'successfully initialised extinction template')
 
         self.galaxy_flux = None
         self.unextincted_quasar_flux = None

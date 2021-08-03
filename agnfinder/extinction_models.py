@@ -34,6 +34,7 @@ class ExtinctionTemplate(quasar_templates.InterpolatedTemplate):
         return interp1d(df['wavelength'], df['k_l'], kind='linear',
                         fill_value=0, bounds_error=False)
 
+    # TODO update this class to implement __call__ rather than _eval_template
     def _eval_template(self, wavelength: np.ndarray, flux: np.ndarray,
                        eb_v: float) -> np.ndarray:
         return flux * 10**(-0.4 * self._interpolated_template(wavelength) * eb_v)

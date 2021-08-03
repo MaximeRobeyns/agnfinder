@@ -105,9 +105,16 @@ class CPzParams(ConfigClass):
 
 class QuasarTemplateParams(ConfigClass):
     results_dir: str = 'results'
+
+    # quasar parameters
+    recreate_quasar_template: bool = True
     quasar_data_loc: str = './data/quasar_template_shang.txt'
-    torus_model_loc: str = './data/torus_model_with_inclination.dill'
     interpolated_quasar_loc: str = './data/quasar_template_interpolated.dill'
+
+    # dusty torus model paramteres
+    recreate_torus_template: bool = True
+    torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
+    interpolated_torus_loc = './data/normalised_torus_model.dill'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
@@ -186,15 +193,15 @@ logging_config = {
 }
 
 
+# Utility -------------------------------------------------------------
+
+
 def configure_logging() -> None:
     """Performs one-time configuration of the root logger for the program.
     """
     dictConfig(logging_config)
     logging.info(
         '\n\n\n\n\n==================== New Run ===================\n\n')
-
-
-# Utility classes -------------------------------------------------------------
 
 
 class FreeParams(ConfigClass):

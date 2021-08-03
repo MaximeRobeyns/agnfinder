@@ -59,6 +59,12 @@ docs:
 install:
 	@./bin/install_with_venv.sh $(PYTHON)
 
+quasartemplate:
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python ./agnfinder/quasar_templates.py
+
 # ipython kernel setup to run notebooks in venv
 kernel:
 ifndef SPS_HOME
@@ -67,4 +73,10 @@ endif
 	python -m ipykernel install --user --name agnvenv \
 		--display-name "agnvenv (Python 3.9)"
 
-.PHONY: kernel install docs
+lab:
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	jupyter lab --notebook-dir=.
+
+.PHONY: run test kernel lab install docs quasartemplate
