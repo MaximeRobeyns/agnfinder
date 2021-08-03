@@ -116,7 +116,7 @@ class Prospector(object):
             prun_params_t: the parameter dictionary (e.g. passed to prospector classes)
         """
 
-        run_params = {}
+        run_params: prun_params_t = {}
         run_params['object_redshift'] = None
         run_params['fixed_metallicity'] = self.cpz_params.fixed_metallicity.value
         run_params['add_duste'] = True

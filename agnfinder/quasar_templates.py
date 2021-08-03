@@ -63,9 +63,9 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
 
         if recreate_template or self._load_error:
             if data_loc == "":
-                e = f'No data location specified for template {template_loc}'
-                logging.error(e)
-                raise RuntimeError(e)
+                err = f'No data location specified for template {template_loc}'
+                logging.error(err)
+                raise RuntimeError(err)
             if not os.path.exists(data_loc):
                 raise ValueError(f'Data location {data_loc} does not exist')
             logging.warning(
@@ -74,18 +74,18 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
             self._save_template()
 
     @abc.abstractmethod
-    def _create_template(self):
+    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
         """Create the template from data"""
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def __call__(self, wavelengths: np.ndarray, **kwargs) -> np.ndarray:
-        """Evalaute the template for some wavelengths (in angstroms), returning
-        fluxes.
+    # @abc.abstractmethod
+    # def __call__(self, wavelengths: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
+    #     """Evalaute the template for some wavelengths (in angstroms), returning
+    #     fluxes.
 
-        Note: _not_ in log space.
-        """
-        raise NotImplementedError
+    #     Note: arguments and returned values are _not_ in log space.
+    #     """
+    #     raise NotImplementedError
 
     def _save_template(self):
         """Saves a newly created template to disk for faster loading later"""
@@ -101,7 +101,7 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
 
 class QuasarTemplate(InterpolatedTemplate):
 
-    def _create_template(self) -> Callable[[np.ndarray], np.ndarray]:
+    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
 
         # radio-quiet mean quasar template from
         # https://iopscience.iop.org/article/10.1088/0067-0049/196/1/2#apjs400220f6.tar.gz
@@ -125,7 +125,7 @@ class QuasarTemplate(InterpolatedTemplate):
 
     def __call__(self, wavelengths: np.ndarray,
                        short_only: bool = False) -> np.ndarray:
-        fluxes = 10**self._interpolated_template(np.log10(wavelengths))
+        fluxes = 10**self._interpolated_template(np.log10(wavelengths), None)
         if short_only:
             fluxes *= get_damping_multiplier(wavelengths, 'long')
         return fluxes
@@ -138,7 +138,7 @@ class TorusModel(InterpolatedTemplate):
         self._params = params
         super().__init__(template_loc, data_loc, recreate_template)
 
-    def _create_template(self) -> Callable[[np.ndarray, int], np.ndarray]:
+    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
 
         # Data from, saved to self.data_loc
         # https://www.clumpy.org/pages/seds.html

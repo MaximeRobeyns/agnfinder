@@ -39,7 +39,7 @@ def test_shift_redshift_theta():
     zs = hcube[:, 0]
     assert zs.shape == t.Size((10,))
 
-    # comes from config.py:free_params
+    # comes from config.py:FreeParameters
     fixed_theta_range = (0., 4.)
 
     # comes from config.py:SamplingParams or CLI arguments
@@ -62,7 +62,7 @@ def test_shift_redshift_theta():
 
 def test_denormalise_theta():
 
-    fp = cfg.FreeParams(cfg.free_params)
+    fp = cfg.FreeParams()
     dims = len(fp)
     hcube = utils.get_unit_latin_hypercube(dims, 10)
 
@@ -83,7 +83,7 @@ def test_denormalise_theta():
 
 def test_normalise_theta():
 
-    fp = cfg.FreeParams(cfg.free_params)
+    fp = cfg.FreeParams()
     dims = len(fp)
     hcube = utils.get_unit_latin_hypercube(dims, 10)
 

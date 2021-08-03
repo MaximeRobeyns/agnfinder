@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Loads filters and other data."""
 
+import tqdm
 import pandas as pd
 from sedpy import observate
 

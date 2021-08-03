@@ -22,6 +22,7 @@ import fsps
 import logging
 import numpy as np
 
+from typing import Any, Callable
 from prospect.sources import CSPSpecBasis
 
 import agnfinder.config as cfg
@@ -63,7 +64,7 @@ class CSPSpecBasisAGN(CSPSpecBasis):
             logging.debug('Successfully created fsps StellarPopulation model')
 
         self.reserved_params = reserved_params
-        self.params = {}
+        self.params: dict[str, Any] = {}
         self.update(**kwargs)
 
         quasar_params = cfg.QuasarTemplateParams()
@@ -72,14 +73,15 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         self.quasar_template = quasar_templates.QuasarTemplate(
             template_loc=quasar_params.interpolated_quasar_loc,
             data_loc=quasar_params.quasar_data_loc,
-            recreate_template=quasar_params.recreate_template
+            recreate_template=quasar_params.recreate_quasar_template
         )
         logging.debug(f'successfully initialised quasar template')
 
         self.torus_template = quasar_templates.TorusModel(
-            recreate_template=quasar_params.recreate_torus_template,
+            quasar_params,
+            template_loc=quasar_params.interpolated_torus_loc,
             data_loc=quasar_params.torus_data_loc,
-            model_loc=quasar_params.interpolated_torus_loc
+            recreate_template=quasar_params.recreate_torus_template
         )
         logging.debug(f'successfully initialised torus model')
 
@@ -217,7 +219,9 @@ class CustomSSP():
 
         reference_wave_loc = self.relative_path('reference_wave.txt')
         self.wavelengths = np.loadtxt(reference_wave_loc)
-        self.stellar_mass = None  # already exists
+
+        # This this is unfortunate, but unfortunately we don't control the API
+        self.stellar_mass: Any = None  # already exists
         self.params = CustomFSPSParams()  # dict of args to mimick FSPS
         self.careful = careful
 

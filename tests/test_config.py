@@ -20,9 +20,9 @@ import agnfinder.config as config
 
 
 def test_FreeParams():
-    assert len(config.free_params) == 9
+    assert len(config.FreeParams()) == 9
 
-    fp = config.FreeParams(config.free_params)
+    fp = config.FreeParams()
     for p, k in enumerate(fp.raw_params):
         if k.startswith('log'):
             assert fp.log[p]

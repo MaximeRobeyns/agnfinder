@@ -46,7 +46,14 @@ ifndef SPS_HOME
 endif
 	@python agnfinder/simulation/simulation.py
 
-test:
+
+mypy:
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@mypy
+
+test: mypy
 ifndef SPS_HOME
 		@source setup.sh
 endif
@@ -90,4 +97,4 @@ endif
 help:
 	@./bin/help.sh
 
-.PHONY: run test kernel lab install docs docsimg qt help
+.PHONY: run test kernel lab install docs docsimg qt help mypy

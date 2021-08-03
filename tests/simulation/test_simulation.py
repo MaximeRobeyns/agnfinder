@@ -20,7 +20,7 @@ import argparse
 import torch as t
 
 from agnfinder.simulation import Simulator
-from agnfinder.config import free_params, FreeParams
+from agnfinder.config import FreeParams
 
 def _create_test_sim() -> Simulator:
     kwargs = {
@@ -33,7 +33,7 @@ def _create_test_sim() -> Simulator:
         'filters': 'euclid'
     }
     testargs = argparse.Namespace(**kwargs)
-    fp = FreeParams(free_params)
+    fp = FreeParams()
 
     return Simulator(testargs, fp)
 
@@ -53,7 +53,7 @@ def test_simulation():
 def test_create_hypercube():
 
     sim = _create_test_sim()
-    fp = FreeParams(free_params)
+    fp = FreeParams()
     n_free = len(fp)
 
     sim.sample_theta()

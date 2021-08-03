@@ -34,10 +34,10 @@ class ExtinctionTemplate(quasar_templates.InterpolatedTemplate):
         return interp1d(df['wavelength'], df['k_l'], kind='linear',
                         fill_value=0, bounds_error=False)
 
-    # TODO update this class to implement __call__ rather than _eval_template
-    def _eval_template(self, wavelength: np.ndarray, flux: np.ndarray,
-                       eb_v: float) -> np.ndarray:
-        return flux * 10**(-0.4 * self._interpolated_template(wavelength) * eb_v)
+    def __call__(self, wavelength: np.ndarray, flux: np.ndarray,
+                 eb_v: float) -> np.ndarray:
+        return flux * \
+            10**(-0.4 * self._interpolated_template(wavelength, None) * eb_v)
 
 
 if __name__ == '__main__':
@@ -46,7 +46,8 @@ if __name__ == '__main__':
 
     smc_extinction = ExtinctionTemplate(
         template_loc=params.interpolated_smc_extinction_loc,
-        data_loc=params.smc_data_loc
+        data_loc=params.smc_data_loc,
+        recreate_template=True
     )
     eb_v_values = list(np.linspace(0.1, 0.5, 5))
     eval_wavelengths = np.logspace(

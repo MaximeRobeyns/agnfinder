@@ -30,21 +30,23 @@ from agnfinder.types import ConfigClass, paramspace_t, \
 
 # ============================= Free Parameters ===============================
 
-# Keys prefixed by 'log_*' will be exponentiated later.
-free_params: paramspace_t = {
-    'redshift': (0., 4.),
+
+class FreeParameters(ConfigClass):
+    # Keys prefixed by 'log_*' will be exponentiated later.
+    redshift: tuple[float, float] = (0., 4.)
     # Mass of the galaxy
-    'log_mass': (8, 12),
-    # Brightness of the galaxy
-    'log_agn_mass': (-7, math.log10(15)),  # from 10**-7 to 15
+    log_mass: tuple[float, float] = (8, 12)
+    # Brightness of the galaxy, from 10**-7 to 15
+    log_agn_mass: tuple[float, float] = (-7, math.log10(15))
     # Scale of the agn torus
-    'log_agn_torus_mass': (-7, math.log10(15)),
-    'dust2': (0., 2.),
-    'tage': (0.001, 13.8),  # bounds on this could be made tighter.
-    'log_tau': (math.log10(.1), math.log10(30)),  # >2, has little effect
-    'agn_eb_v': (0., 0.5),
-    'inclination': (0., 90.)
-}
+    log_agn_torus_mass: tuple[float, float] = (-7, math.log10(15))
+    dust2: tuple[float, float] = (0., 2.)
+    # bounds on this could be made tighter.
+    tage: tuple[float, float] = (0.001, 13.8)
+    # log_tau > 2, has little effect
+    log_tau: tuple[float, float] = (math.log10(.1), math.log10(30))
+    agn_eb_v: tuple[float, float] = (0., 0.5)
+    inclination: tuple[float, float] = (0., 90.)
 
 
 # =========================== Sampling Parameters =============================
@@ -86,10 +88,10 @@ class CPzParams(ConfigClass):
     igm_absorbtion: bool = True
 
     # Non-optional values {Free | Just(<float>)}
-    agn_mass          : MaybeFloat = None
-    redshift          : MaybeFloat = Free  # this could be Optional
-    inclination       : MaybeFloat = Free
-    fixed_metallicity : MaybeFloat = Just(0.)  # solar metallicity
+    agn_mass: MaybeFloat = Free
+    redshift: MaybeFloat = Free  # this could be Optional
+    inclination: MaybeFloat = Free
+    fixed_metallicity: MaybeFloat = Just(0.)  # solar metallicity
 
     # Optional values
     # {Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))}
@@ -202,20 +204,25 @@ def configure_logging() -> None:
         f'\n\n\n\n\n{35*"~"} New Run {35*"~"}\n\n')
 
 
-class FreeParams(ConfigClass):
-    def __init__(self, params: paramspace_t):
-        self.raw_params: paramspace_t = params
+class FreeParams(FreeParameters):
+    def __init__(self):
 
+        raw_members = [
+            a for a in dir(self)
+            if not callable(getattr(self, a))
+            and not a.startswith("__")]
+
+        self.raw_params: paramspace_t = {}
         self.params: t.Tensor = t.empty((0, 2), dtype=t.float64)
         self.log: t.Tensor = t.empty((0, 1), dtype=t.bool)
 
-        for p in params:
-            setattr(self, p, params[p])
+        for m in raw_members:
+            self.raw_params[m] = getattr(self, m)
             self.log = t.cat(
-                (self.log, t.tensor([[1 if p.startswith('log') else 0]],
+                (self.log, t.tensor([[1 if m.startswith('log') else 0]],
                                     dtype=t.bool)))
             self.params = t.cat(
-                (self.params, t.tensor([params[p]], dtype=t.float64)))
+                (self.params, t.tensor([getattr(self, m)], dtype=t.float64)))
 
         # Remove unnecessary singleton dimension in mask
         self.log = self.log.squeeze(-1)

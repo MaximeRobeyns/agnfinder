@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
     # Get the defaults from config.py
     sp = cfg.SamplingParams()
-    fp = cfg.FreeParams(cfg.free_params)
+    fp = cfg.FreeParams()
 
     parser = argparse.ArgumentParser(description='Find AGN')
     parser.add_argument(

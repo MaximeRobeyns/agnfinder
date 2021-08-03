@@ -19,20 +19,22 @@
 import numpy as np
 
 from sedpy import observate
-from typing import Union, Callable
 from prospect.models import priors
+from typing import Union, Callable, Any
 
 # Type for the limits on the free parameters.
 paramspace_t = dict[str, tuple[float, float]]
 
 # Tyep for CPz observation dictionary
-cpz_obs_dict_t = dict[str, Union[np.ndarray, list[observate.Filter]]]
+# - Shame that we have to use `Any` here, but this is due to Prospector using
+#   an arbitrary dictionary of params.
+cpz_obs_dict_t = dict[str, Union[np.ndarray, list[observate.Filter], Any]]
 
 # Type for CPz model parameter description
 pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 
 # Type for prospector run parameters
-prun_params_t = dict[str, Union[int, bool, float]]
+prun_params_t = dict[str, Union[int, bool, float, None]]
 
 
 # Maybe 'monad' ---------------------------------------------------------------

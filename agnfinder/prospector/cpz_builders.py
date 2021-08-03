@@ -46,7 +46,7 @@ def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
     """
 
     obs: cpz_obs_dict_t = {}
-    # type: list[sedpy.observate.Filter]
+    # this is a list[sedpy.observate.Filter]
     obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
     obs['maggies'] = np.ones(len(obs['filters']))
     obs['maggies_unc'] = np.ones(len(obs['filters']))
