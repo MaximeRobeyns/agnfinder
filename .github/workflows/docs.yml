@@ -15,11 +15,13 @@ jobs:
     container:
       image: python:latest
       volumes:
-        - docs:/docs
+        - ./docs:/docs
     steps:
     - uses: actions/checkout@master
     - name: setup
       run: pip install sphinx sphinx_rtd_theme
+    - name: debug
+      run: echo $(pwd) && cd /docs && ls
     - name: build docs
       run: cd /docs && make html
     - name: deploy
