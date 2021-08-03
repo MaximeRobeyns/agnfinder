@@ -15,7 +15,7 @@ jobs:
     container:
       image: python:latest
       volumes:
-        - ./docs:/docs
+        - docs:/docs
     steps:
     - uses: actions/checkout@master
     - name: setup

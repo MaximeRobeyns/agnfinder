@@ -1,4 +1,6 @@
-![AGNFinder Logo](https://github.com/MaximeRobeyns/agnfinder/raw/master/docs/source/_static/base_logo.png | height=150)
+<div align="center">
+  <img src="https://github.com/MaximeRobeyns/agnfinder/raw/master/docs/source/_static/base_logo.png" height="150px">
+</div>
 
 # AGNFinder
 
