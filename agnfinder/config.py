@@ -113,7 +113,7 @@ class QuasarTemplateParams(ConfigClass):
     # dusty torus model paramteres
     recreate_torus_template: bool = True
     torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
-    interpolated_torus_loc = './data/normalised_torus_model.dill'
+    interpolated_torus_loc: str = './data/normalised_torus_model.dill'
 
     # -> assumptions (fixed parameters) for torus model
     torus_n0: int = 5
@@ -130,10 +130,11 @@ class QuasarTemplateParams(ConfigClass):
 
 
 class ExtinctionTemplateParams(ConfigClass):
+    results_dir: str = 'results'
+    recreate_extinction_template: bool = True
     interpolated_smc_extinction_loc: str \
                        = './data/interpolated_smc_extinction.dill'
     smc_data_loc: str = './data/smc_extinction_prevot_1984.dat'
-    results_dir: str = 'results'
 
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)

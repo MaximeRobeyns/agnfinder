@@ -41,10 +41,9 @@ class Prospector(object):
 
         self.sps = cpz_builders.build_sps(
             self.cpz_params, emulate_ssp, zcontinuous=1)
-        logging.info(self.sps)
-        sys.exit()
 
         self.run_params = self._cpz_params_to_run_params()
+        logging.info(f'run params are: {self.run_params}')
 
     def calculate_sed(self):
         self.model_spectra, self.model_photometry, _ = self.model.sed(
@@ -100,6 +99,8 @@ class Prospector(object):
                 mass_index = 1
             else:
                 mass_index = 0
+            logging.debug(f'Theta mass index is: {mass_index}')
+            logging.debug(f'Theta mass index is: {theta[mass_index]}')
             assert theta[mass_index] > 1e7
 
             model_photometry = self._calculate_photometry(theta)

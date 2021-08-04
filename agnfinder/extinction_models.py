@@ -37,7 +37,7 @@ class ExtinctionTemplate(quasar_templates.InterpolatedTemplate):
     def __call__(self, wavelength: np.ndarray, flux: np.ndarray,
                  eb_v: float) -> np.ndarray:
         return flux * \
-            10**(-0.4 * self._interpolated_template(wavelength, None) * eb_v)
+            10**(-0.4 * self._interpolated_template(wavelength) * eb_v)
 
 
 if __name__ == '__main__':

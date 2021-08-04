@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from typing import Union, Callable, Optional, Any
+from typing import Union, Callable, Optional
 from scipy.integrate import simps
 from scipy.interpolate import interp1d, interp2d
 
@@ -34,6 +34,7 @@ import agnfinder.config as cfg
 
 
 class InterpolatedTemplate(metaclass=abc.ABCMeta):
+    """This class is inherited by both QuasarTemplate and ExtinctionTemplate"""
 
     def __init__(self, template_loc: str, data_loc: str = "",
                  recreate_template: bool = False):
@@ -74,10 +75,11 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
             self._save_template()
 
     @abc.abstractmethod
-    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
+    def _create_template(self) -> Callable[[np.ndarray], np.ndarray]:
         """Create the template from data"""
         raise NotImplementedError
 
+    # Need to think a bit more carefully about the type of this function...
     # @abc.abstractmethod
     # def __call__(self, wavelengths: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
     #     """Evalaute the template for some wavelengths (in angstroms), returning
@@ -92,16 +94,44 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
         with open(self.template_loc, 'wb') as f:
             dill.dump(self._interpolated_template, f)
 
-    def _load_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
+    def _load_template(self) -> Callable[[np.ndarray], np.ndarray]:
         """Loads an existing template form disk"""
         with open(self.template_loc, 'rb') as f:
-            logging.debug(f'loading template with file handle {f}')
             return dill.load(f)
+
+
+    def normalise_template(self, interp: interp1d, *extra_args
+                          ) -> Callable[[np.ndarray], np.ndarray]:
+        """Normalises the template mapping wavelengths to flux, such that it
+        returns the normalised flux in log space.
+
+        Args:
+            interp: the loaded model
+
+        Returns:
+            A function to normalise the flux. Perhaps something like
+            Callable[[np.ndarray, *], np.ndarray] but quite frankly I have no clue.
+        """
+        # in angstroms
+        log_wavelengths = np.log10(
+            np.logspace(np.log10(1e2), np.log10(1e7), 500000))
+
+        total_flux = simps(10**interp(log_wavelengths, *extra_args),
+                           10**log_wavelengths, dx=1, even='avg')
+
+        # Return normalised flux in log space (remembering that division is
+        # subtraction)
+        #
+        # -21 is a magic constant :(
+        #
+        # Allegedly -21 is so that agn mass is similar to galaxy mass, but this
+        # actually doesn't seem to be the case; is this arbitrary?
+        return lambda x: interp(x) - np.log10(total_flux) - 21
 
 
 class QuasarTemplate(InterpolatedTemplate):
 
-    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
+    def _create_template(self) -> Callable[[np.ndarray], np.ndarray]:
 
         # radio-quiet mean quasar template from
         # https://iopscience.iop.org/article/10.1088/0067-0049/196/1/2#apjs400220f6.tar.gz
@@ -120,25 +150,54 @@ class QuasarTemplate(InterpolatedTemplate):
             df['log_flux'],
             kind='linear'
         )
-        normalised_interp = normalise_template(interp)
+        normalised_interp = self.normalise_template(interp)
         return normalised_interp
 
     def __call__(self, wavelengths: np.ndarray,
                        short_only: bool = False) -> np.ndarray:
-        fluxes = 10**self._interpolated_template(np.log10(wavelengths), None)
+        fluxes = 10**self._interpolated_template(np.log10(wavelengths))
         if short_only:
             fluxes *= get_damping_multiplier(wavelengths, 'long')
         return fluxes
 
 
-class TorusModel(InterpolatedTemplate):
+class TorusModel():
+    """This is like InterpolateTemplate2d, but since only one class would
+    inherit it, we simply define the TorusModel class on its own.
+    """
 
     def __init__(self, params: cfg.QuasarTemplateParams, template_loc: str,
                  data_loc: str = "", recreate_template: bool = False):
         self._params = params
-        super().__init__(template_loc, data_loc, recreate_template)
+        self.data_loc: str = data_loc
+        self.template_loc: str = template_loc
+        self._load_error = False
 
-    def _create_template(self) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
+        if not recreate_template:
+            try:
+                logging.debug(f'Opening quasar template: {self.template_loc}')
+                self._interpolated_template = self._load_template()
+            except Exception as e:
+                logging.error(f'Error opening template: {e}')
+                self._load_error = True
+
+        if recreate_template or self._load_error:
+            if data_loc == "":
+                err = f'No data location specified for template {template_loc}'
+                logging.error(err)
+                raise RuntimeError(err)
+            if not os.path.exists(data_loc):
+                raise ValueError(f'Data location {data_loc} does not exist')
+            logging.warning(
+                f'Creating new template {template_loc} from data {data_loc}')
+            self._interpolated_template = self._create_template()
+            self._save_template()
+
+    def _save_template(self):
+        with open(self.template_loc, 'wb') as f:
+            dill.dump(self._interpolated_template, f)
+
+    def _create_template(self) -> Callable[[np.ndarray, int], np.ndarray]:
 
         # Data from, saved to self.data_loc
         # https://www.clumpy.org/pages/seds.html
@@ -172,7 +231,22 @@ class TorusModel(InterpolatedTemplate):
                z=np.log10(seds[suggested_fixed_params]))
 
         # We normalise at inclination=0, arbitrarily
-        return normalise_template(func, 0)
+        return self.normalise_template(func, 0)
+
+    def _load_template(self) -> Callable[[np.ndarray, int], np.ndarray]:
+        with open(self.template_loc, 'rb') as f:
+            return dill.load(f)
+
+    def normalise_template(self, interp: interp2d, *extra_args
+                          ) -> Callable[[np.ndarray, int], np.ndarray]:
+        # in angstroms
+        log_wavelengths = np.log10(
+            np.logspace(np.log10(1e2), np.log10(1e7), 500000))
+
+        total_flux = simps(10**interp(log_wavelengths, *extra_args),
+                           10**log_wavelengths, dx=1, even='avg')
+
+        return lambda x, y: interp(x, y) - np.log10(total_flux) - 21
 
     def __call__(self, wavelengths: np.ndarray, inclination: int,
                  long_only: bool = False) -> np.ndarray:
@@ -200,34 +274,6 @@ def get_damping_multiplier(wavelengths: np.ndarray, damp: str) -> np.ndarray:
     damping_multiplier[to_damp] = intercept * wavelengths[to_damp] ** log_m
     return damping_multiplier
 
-
-def normalise_template(interp: Union[interp1d, interp2d], *extra_args
-                       ) -> Callable[[np.ndarray, Optional[Any]], np.ndarray]:
-    """Normalises the template mapping wavelengths to flux, such that it
-    returns the normalised flux in log space.
-
-    Args:
-        interp: the loaded model
-
-    Returns:
-        A function to normalise the flux. Perhaps something like
-        Callable[[np.ndarray, *], np.ndarray] but quite frankly I have no clue.
-    """
-    # in angstroms
-    log_wavelengths = np.log10(
-        np.logspace(np.log10(1e2), np.log10(1e7), 500000))
-
-    total_flux = simps(10**interp(log_wavelengths, *extra_args),
-                       10**log_wavelengths, dx=1, even='avg')
-
-    # Return normalised flux in log space (remembering that division is
-    # subtraction)
-    #
-    # -21 is a magic constant :(
-    #
-    # Allegedly -21 is so that agn mass is similar to galaxy mass, but this
-    # actually doesn't seem to be the case; is this arbitrary?
-    return lambda x, *args: interp(x, *args) - np.log10(total_flux) - 21
 
 
 if __name__ == '__main__':

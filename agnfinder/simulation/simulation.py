@@ -19,9 +19,6 @@
 to photometry.
 """
 
-# TODO remove this
-import sys
-
 import os
 import tqdm
 import h5py
@@ -105,6 +102,7 @@ class Simulator(object):
 
         self.forward_model = problem.get_forward_model()
         self.has_forward_model = True
+        logging.info('Created forward model')
 
     def run(self):
         """Run the sampling over all the galaxy parameters."""
@@ -116,7 +114,7 @@ class Simulator(object):
             self.create_forward_model()
 
         Y = np.zeros((self.n_samples, self.output_dim))
-        for n in tqdm(range(len(self.theta))):
+        for n in tqdm.tqdm(range(len(self.theta))):
             Y[n] = self.forward_model(self.theta[n].numpy())
         self.galaxy_photometry = Y
         self.has_run = True

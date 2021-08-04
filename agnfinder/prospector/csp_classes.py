@@ -88,7 +88,9 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         extinction_params = cfg.ExtinctionTemplateParams()
         logging.info(f'extinction template parameters: {extinction_params}')
         self.extinction_template = extinction_models.ExtinctionTemplate(
-            template_loc=extinction_params.interpolated_smc_extinction_loc
+            template_loc=extinction_params.interpolated_smc_extinction_loc,
+            data_loc=extinction_params.smc_data_loc,
+            recreate_template=extinction_params.recreate_extinction_template
         )
         logging.debug(f'successfully initialised extinction template')
 
