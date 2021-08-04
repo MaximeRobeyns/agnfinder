@@ -170,8 +170,9 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="installation-guide">
-<span id="installation"></span><h1><span class="section-number">1. </span>Installation Guide<a class="headerlink" href="#installation-guide" title="Permalink to this headline">¶</a></h1>
+  <p id="installation"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
+<div class="section" id="installation-guide">
+<h1><span class="section-number">1. </span>Installation Guide<a class="headerlink" href="#installation-guide" title="Permalink to this headline">¶</a></h1>
 <p>If you are just interested in using this project (i.e. not developing it), then
 follow the instructions in the quickstart section. For development, read on to
 the following sections.</p>
@@ -179,17 +180,16 @@ the following sections.</p>
 <h2><span class="section-number">1.1. </span>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic">
 <li><p><strong>Python 3.9</strong></p>
-<p>Please ensure that you have Python 3.9 or later installed on your system.</p>
+<p>Please make sure that you have Python 3.9 or later installed on your system.</p>
 <p>You can check your version by running:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">--</span><span class="n">version</span>
 </pre></div>
 </div>
-<p>Please follow the instructions in the <a class="reference internal" href="#building-python-3-9">Building Python 3.9</a> section for help if
+<p>Follow the instructions in the <a class="reference internal" href="#building-python-3-9">Building Python 3.9</a> section for help if
 you have an older version.</p>
 </li>
 <li><p><strong>Standard Installation</strong></p>
-<p>If the result of <code class="docutils literal notranslate"><span class="pre">which</span> <span class="pre">python</span></code> returns a Python 3.9 executable that you
-are happy to use, then proceed with the standard installation procedure:</p>
+<p>The standard installation process is:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">maximerobeyns</span><span class="o">/</span><span class="n">agnfinder</span>
 <span class="n">cd</span> <span class="n">agnfinder</span>
 <span class="n">make</span> <span class="n">install</span>
@@ -197,12 +197,14 @@ are happy to use, then proceed with the standard installation procedure:</p>
 </div>
 <p>The above will only modify files within the <code class="docutils literal notranslate"><span class="pre">agnfinder</span></code> directory (and therefore
 doesn’t require root privileges).</p>
+<p>2.1 <strong>Specific Python Path</strong></p>
 <blockquote>
-<div><p>If you want to use a specific Python 3.9 executable, modify the <code class="docutils literal notranslate"><span class="pre">Makefile</span></code>
-before running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code>, by updating the <code class="docutils literal notranslate"><span class="pre">PYTHON</span></code> variable defined
-near the top:</p>
+<div><p>If the standard python executable (i.e. the result of running <code class="docutils literal notranslate"><span class="pre">which</span>
+<span class="pre">python</span></code>) is different from the Python &gt;= 3.9 executable that you want to
+use, then update the <code class="docutils literal notranslate"><span class="pre">PYTHON</span></code> variable in the <code class="docutils literal notranslate"><span class="pre">Makefile</span></code> to point to
+your desired python path, before running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Makefile, around line 28</span>
-<span class="n">PYTHON</span> <span class="o">=</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">/</span><span class="n">python3</span><span class="mf">.9</span>
+<span class="n">PYTHON</span> <span class="o">=</span> <span class="o">/</span><span class="n">absolute</span><span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">/</span><span class="n">python3</span><span class="mf">.9</span>
 </pre></div>
 </div>
 </div></blockquote>
@@ -210,10 +212,12 @@ near the top:</p>
 <a class="reference internal" href="#manual-installation">Manual Installation</a> section for guidance.</p>
 </li>
 <li><p><strong>Shell Setup</strong></p>
-<p>Every time you run or work on the project, you should setup your shell to use
-the <code class="docutils literal notranslate"><span class="pre">agnvenv</span></code> virtual environment that was created for you in the step
-above, as well as other environment variables.</p>
-<p>To do this, simply run the following every time:</p>
+<p>Every time you run the project, or want to develop using linters and type
+checkers, you should activate the virtual environment and set some necessary
+environment variables (such as <code class="docutils literal notranslate"><span class="pre">SPS_HOME</span></code>).</p>
+<p>This will be done automatically for you when running targets through the
+<code class="docutils literal notranslate"><span class="pre">Makefile</span></code>, but if you’re running things directly, then you can easily
+setup your shell by running:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span> <span class="n">setup</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
@@ -232,21 +236,18 @@ above, as well as other environment variables.</p>
 <h2><span class="section-number">1.2. </span>Manual Installation<a class="headerlink" href="#manual-installation" title="Permalink to this headline">¶</a></h2>
 <p>You can look at the contents of <code class="docutils literal notranslate"><span class="pre">./bin/install_with_venv.sh</span></code> to see what the
 installation procedure above does.</p>
-<p>We first install <a class="reference external" href="https://github.com/cconroy20/fsps/blob/master/doc/INSTALL">FSPS</a>, by downloading the <code class="docutils literal notranslate"><span class="pre">v3.2</span></code> release in a <code class="docutils literal notranslate"><span class="pre">./deps</span></code> directory, and extracting it there:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">wget</span> <span class="o">-</span><span class="n">O</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span> \
-    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">cconroy20</span><span class="o">/</span><span class="n">fsps</span><span class="o">/</span><span class="n">archive</span><span class="o">/</span><span class="n">refs</span><span class="o">/</span><span class="n">tags</span><span class="o">/</span><span class="n">v3</span><span class="mf">.2</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
-<span class="n">tar</span> <span class="n">xzf</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span> <span class="o">-</span><span class="n">C</span> <span class="o">./</span><span class="n">deps</span>
-<span class="n">mv</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span><span class="o">-</span><span class="mf">3.2</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span>
-<span class="n">rm</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
-</pre></div>
-</div>
 <p>In order to install <code class="docutils literal notranslate"><span class="pre">python-fsps</span></code> (which the project uses), we need to export
-a <code class="docutils literal notranslate"><span class="pre">SPS_HOME</span></code> environment variable to point to the <code class="docutils literal notranslate"><span class="pre">fsps</span></code> directory that we
-just extracted (the directory containing FSPS’s <code class="docutils literal notranslate"><span class="pre">src</span></code> directory):</p>
+an <code class="docutils literal notranslate"><span class="pre">SPS_HOME</span></code> environment variable to point a directory where <a class="reference external" href="https://github.com/cconroy20/fsps">FSPS</a>’s source code lies. In this case, we will
+install it in the <code class="docutils literal notranslate"><span class="pre">./deps</span></code> directory:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export SPS_HOME=$(pwd)/deps/fsps
 </pre></div>
 </div>
-<p>We then create virtual environment called <code class="docutils literal notranslate"><span class="pre">agnvenv</span></code>:</p>
+<p>We then get the <code class="docutils literal notranslate"><span class="pre">FSPS</span></code> source code by cloning the repository into the
+<code class="docutils literal notranslate"><span class="pre">./deps</span></code> directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">cconroy20</span><span class="o">/</span><span class="n">fsps</span><span class="o">.</span><span class="n">git</span> <span class="o">./</span><span class="n">deps</span><span class="o">/</span><span class="n">fsps</span>
+</pre></div>
+</div>
+<p>We now create virtual environment called <code class="docutils literal notranslate"><span class="pre">agnvenv</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span><span class="mf">.9</span> <span class="o">-</span><span class="n">m</span> <span class="n">venv</span> <span class="n">agnvenv</span>
 </pre></div>
 </div>
@@ -286,24 +287,26 @@ of the repository:</p>
 <div class="section" id="writing-documentation">
 <h2><span class="section-number">1.3. </span>Writing Documentation<a class="headerlink" href="#writing-documentation" title="Permalink to this headline">¶</a></h2>
 <p>The documentation for this project is written in <a class="reference external" href="https://www.sphinx-doc.org/en/master/">sphinx</a>, inside a Docker container.</p>
-<p>To write documentation, begin by ensuring that you have docker installed, and
-that you have the <code class="docutils literal notranslate"><span class="pre">agnfinderdocs</span></code> Docker image built locally.</p>
-<p>You can either install docker manually by following the <a class="reference external" href="https://docs.docker.com/get-docker/">instructions</a> on their site, or by running the
+<p>To write documentation, begin by ensuring that you have docker installed. You
+can either install docker manually by following the <a class="reference external" href="https://docs.docker.com/get-docker/">instructions</a> on their site, or by running the
 following:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">curl</span> <span class="o">-</span><span class="n">fsSL</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">get</span><span class="o">.</span><span class="n">docker</span><span class="o">.</span><span class="n">com</span> <span class="o">-</span><span class="n">o</span> <span class="n">get</span><span class="o">-</span><span class="n">docker</span><span class="o">.</span><span class="n">sh</span>
 <span class="n">sh</span> <span class="n">get</span><span class="o">-</span><span class="n">docker</span><span class="o">.</span><span class="n">sh</span>
 </pre></div>
 </div>
-<p>You can now build the <code class="docutils literal notranslate"><span class="pre">agnfinderdocs</span></code> image by running:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">./</span><span class="n">docs</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="n">img</span>
+<p>Now, from the root of the repository, you can type <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">docs</span></code>. This will
+build the <code class="docutils literal notranslate"><span class="pre">agnfinderdocs</span></code> docker image if it cannot be found locally (which
+will be the case if you are running this for the first time). It will then begin
+watching the source files in <code class="docutils literal notranslate"><span class="pre">./docs/souce/*.rst</span></code> for changes and re-compile
+the HTML. It will also open your browser window at <code class="docutils literal notranslate"><span class="pre">http://localhost:8081</span></code>
+for previewing the documentation.</p>
+<p>To stop the docker image, either run <code class="docutils literal notranslate"><span class="pre">Ctrl-C</span></code> inside the terminal window, or
+if the process hangs for some reason, you can stop it with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>docker stop $(docker ps -f name=agnfinderdocs -q)
 </pre></div>
 </div>
-<p>To use this docker image, run:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">docs</span><span class="o">/</span><span class="n">writedocs</span><span class="o">.</span><span class="n">sh</span>
-</pre></div>
-</div>
-<p>which will start watching the soruce files in <code class="docutils literal notranslate"><span class="pre">./docs/source</span></code> for changes,
-compiling the HTML documentation and serving it on <code class="docutils literal notranslate"><span class="pre">http://localhost:8081/</span></code>.</p>
+<p>The documentation is re-build and re-deployed using GitHub Actions on pushes to
+<code class="docutils literal notranslate"><span class="pre">master</span></code>.</p>
 </div>
 <div class="section" id="building-python-3-9">
 <h2><span class="section-number">1.4. </span>Building Python 3.9<a class="headerlink" href="#building-python-3-9" title="Permalink to this headline">¶</a></h2>

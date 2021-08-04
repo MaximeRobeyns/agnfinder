@@ -1,4 +1,5 @@
 .. _installation:
+.. sectionauthor:: Maxime Robeyns <maximerobeyns@gmail.com>
 
 Installation Guide
 ##################
@@ -12,19 +13,18 @@ Quickstart
 
 1. **Python 3.9**
 
-   Please ensure that you have Python 3.9 or later installed on your system.
+   Please make sure that you have Python 3.9 or later installed on your system.
 
    You can check your version by running::
 
        python --version
 
-   Please follow the instructions in the `Building Python 3.9`_ section for help if
+   Follow the instructions in the `Building Python 3.9`_ section for help if
    you have an older version.
 
 2. **Standard Installation**
 
-   If the result of ``which python`` returns a Python 3.9 executable that you
-   are happy to use, then proceed with the standard installation procedure::
+   The standard installation process is::
 
     git clone https://github.com/maximerobeyns/agnfinder
     cd agnfinder
@@ -33,23 +33,28 @@ Quickstart
    The above will only modify files within the ``agnfinder`` directory (and therefore
    doesn't require root privileges).
 
-       If you want to use a specific Python 3.9 executable, modify the ``Makefile``
-       before running ``make install``, by updating the ``PYTHON`` variable defined
-       near the top::
+   2.1 **Specific Python Path**
+
+      If the standard python executable (i.e. the result of running ``which
+      python``) is different from the Python >= 3.9 executable that you want to
+      use, then update the ``PYTHON`` variable in the ``Makefile`` to point to
+      your desired python path, before running ``make install``::
 
         # Makefile, around line 28
-        PYTHON = /path/to/your/python3.9
+        PYTHON = /absolute/path/to/your/python3.9
 
    If you encounter an error during the ``make install`` step, please see the
    `Manual Installation`_ section for guidance.
 
 3. **Shell Setup**
 
-   Every time you run or work on the project, you should setup your shell to use
-   the ``agnvenv`` virtual environment that was created for you in the step
-   above, as well as other environment variables.
+   Every time you run the project, or want to develop using linters and type
+   checkers, you should activate the virtual environment and set some necessary
+   environment variables (such as ``SPS_HOME``).
 
-   To do this, simply run the following every time::
+   This will be done automatically for you when running targets through the
+   ``Makefile``, but if you're running things directly, then you can easily
+   setup your shell by running::
 
     source setup.sh
 
@@ -68,21 +73,19 @@ Manual Installation
 You can look at the contents of ``./bin/install_with_venv.sh`` to see what the
 installation procedure above does.
 
-We first install `FSPS <https://github.com/cconroy20/fsps/blob/master/doc/INSTALL>`_, by downloading the ``v3.2`` release in a ``./deps`` directory, and extracting it there::
-
-    wget -O ./deps/fsps.tar.gz \
-        https://github.com/cconroy20/fsps/archive/refs/tags/v3.2.tar.gz
-    tar xzf ./deps/fsps.tar.gz -C ./deps
-    mv ./deps/fsps-3.2 ./deps/fsps
-    rm ./deps/fsps.tar.gz
-
 In order to install ``python-fsps`` (which the project uses), we need to export
-a ``SPS_HOME`` environment variable to point to the ``fsps`` directory that we
-just extracted (the directory containing FSPS's ``src`` directory)::
+an ``SPS_HOME`` environment variable to point a directory where `FSPS
+<https://github.com/cconroy20/fsps>`_'s source code lies. In this case, we will
+install it in the ``./deps`` directory::
 
     export SPS_HOME=$(pwd)/deps/fsps
 
-We then create virtual environment called ``agnvenv``::
+We then get the ``FSPS`` source code by cloning the repository into the
+``./deps`` directory::
+
+    git clone https://github.com/cconroy20/fsps.git ./deps/fsps
+
+We now create virtual environment called ``agnvenv``::
 
     python3.9 -m venv agnvenv
 
@@ -127,26 +130,29 @@ Writing Documentation
 The documentation for this project is written in `sphinx
 <https://www.sphinx-doc.org/en/master/>`_, inside a Docker container.
 
-To write documentation, begin by ensuring that you have docker installed, and
-that you have the ``agnfinderdocs`` Docker image built locally.
-
-You can either install docker manually by following the `instructions
+To write documentation, begin by ensuring that you have docker installed. You
+can either install docker manually by following the `instructions
 <https://docs.docker.com/get-docker/>`_ on their site, or by running the
 following::
 
     curl -fsSL https://get.docker.com -o get-docker.sh
     sh get-docker.sh
 
-You can now build the ``agnfinderdocs`` image by running::
 
-    cd ./docs && make img
+Now, from the root of the repository, you can type ``make docs``. This will
+build the ``agnfinderdocs`` docker image if it cannot be found locally (which
+will be the case if you are running this for the first time). It will then begin
+watching the source files in ``./docs/souce/*.rst`` for changes and re-compile
+the HTML. It will also open your browser window at ``http://localhost:8081``
+for previewing the documentation.
 
-To use this docker image, run::
+To stop the docker image, either run ``Ctrl-C`` inside the terminal window, or
+if the process hangs for some reason, you can stop it with::
 
-    ./docs/writedocs.sh
+    docker stop $(docker ps -f name=agnfinderdocs -q)
 
-which will start watching the soruce files in ``./docs/source`` for changes,
-compiling the HTML documentation and serving it on ``http://localhost:8081/``.
+The documentation is re-build and re-deployed using GitHub Actions on pushes to
+``master``.
 
 
 Building Python 3.9
