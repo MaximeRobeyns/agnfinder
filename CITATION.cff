@@ -3,7 +3,12 @@ message: "If you use this software, please cite it as below."
 authors:
   - family-names: Robeyns
     given-names: Maxime
-    orcid: https://orcid.org/0000-0003-4925-7248
+  - family-names: Mike
+    given-names: Walmsley
+  - family-names: Sotiria
+    given-names: Fotopoulou
+  - family-names: Laurence
+    given-names: Aitchison
 title: "AGN Finder"
 version: 0.0.2
 date-released: 2021-07-01

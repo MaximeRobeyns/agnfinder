@@ -46,7 +46,7 @@ setup(
         'Operating System :: OS Independent',
     ],
     project_urls={
-        'Documentation': 'https://github.com/MaximeRobeyns/agnfinder',
+        'Documentation': 'https://maximerobeyns.github.io/agnfinder/',
         'Bug Reports': 'https://github.com/MaximeRobeyns/agnfinder/issues',
         'Source': 'https://github.com/MaximeRobeyns/agnfinder',
     },
