@@ -11,9 +11,9 @@ This fork contains additional experiments for neural network emulation, using Py
 Please see the [documentation](https://maximerobeyns.github.io/agnfinder/) for more information about this project.
 
 
-## Quickstart
+## Installation
 
-The [installaation guide](https://maximerobeyns.github.io/agnfinder/installation.html) contains detailed information on how to install the project, but for users looking to get started quickly, the following steps should be sufficient.
+The [installation guide](https://maximerobeyns.github.io/agnfinder/installation.html) contains detailed information on how to install the project, but for users looking to get started quickly, the following steps should be sufficient.
 
 AGNFinder only supports **Python 3.9** onwards, since it makes use of recent language features (as of August, 2021).
 
@@ -35,7 +35,7 @@ For further help and available commands, run
 ```
 make help
 ```
-or consult the [documentation](https://maximerobeyns.github.io/agnfinder/)
+or consult the [documentation](https://maximerobeyns.github.io/agnfinder/).
 
 ## Licence
 

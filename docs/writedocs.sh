@@ -43,11 +43,6 @@ openUrl() {
     fi
 }
 
-# First check whether the docker image exists
-if [[ -z $(docker images | grep agnfinderdocs) ]]; then
-    docker build -f Dockerfile -t agnfinderdocs .
-fi
-
 sleep 3 && openUrl http://localhost:8081 &
 
 docker run --rm -it -v $(pwd)/docs/source:/docs/source \
