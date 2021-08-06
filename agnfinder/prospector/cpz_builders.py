@@ -196,7 +196,18 @@ def build_sps(cpz_params: CPzParams, sps_params: SPSParams) -> CSPSpecBasis:
 
     if cpz_params.model_agn:
         logging.info('Building custom CSPSpecBasisAGN.')
-        sps = CSPSpecBasisAGN(cpz_params, sps_params)
+        sps = CSPSpecBasisAGN(
+            sps_params.zcontinuous,
+            sps_params.reserved_params,
+            sps_params.vactoair_flag,
+            sps_params.compute_vega_mags,
+            sps_params.emulate_ssp,
+
+            # kwargs:
+            agn_mass=cpz_params.agn_mass.value,
+            agn_eb_v=cpz_params.agn_eb_v.value,
+            agn_torus_mass=cpz_params.agn_torus_mass.value,
+            inclination=cpz_params.inclination.value)
     else:
         logging.info('Building standard CSPSpec')
         sps = CSPSpecBasisNoEm(zcontinuous=sps_params.zcontinuous)

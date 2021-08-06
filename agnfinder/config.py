@@ -104,8 +104,9 @@ class CPzParams(ConfigClass):
 class SPSParams(ConfigClass):
     """Parameters for FSPS SSP"""
     zcontinuous: int = 1
-    vectoair_flag: bool = False
+    vactoair_flag: bool = False
     compute_vega_mags: bool = False
+    reserved_params: list[str] = ['zred', 'sigma_smooth']
 
     # Outdated parameter: allows to emulate FSPS simple stellar population
     # using e.g. a GP (or some other function approximator).
@@ -175,7 +176,7 @@ logging_config = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'standard',
-            'level': 'WARNING',
+            'level': 'INFO',
             'stream': 'ext://sys.stderr'
         },
         'console_debug': {
@@ -210,9 +211,25 @@ logging_config = {
 # Utility -------------------------------------------------------------
 
 
-def configure_logging() -> None:
+def configure_logging(console: bool = True, file: bool = True,
+                      file_loc: str = "./logs.txt", debug: bool = False):
     """Performs one-time configuration of the root logger for the program.
+
+    Args:
+        console: Print outputs to stderr during runs
+        file: Output all logging outputs to file
+        file_loc: Location of logging file (default './logs.txt')
+        debug: Print debugging logs to stdout
     """
+    opts = []
+    if console:
+        opts.append('console')
+    if file:
+        opts.append('file')
+    if debug:
+        opts.append('console_debug')
+    logging_config['loggers']['']['handlers'] = opts
+    logging_config['handlers']['file']['filename'] = file_loc
     dictConfig(logging_config)
     logging.info(
         f'\n\n\n\n\n{35*"~"} New Run {35*"~"}\n\n')
