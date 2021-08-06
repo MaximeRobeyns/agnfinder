@@ -58,7 +58,6 @@ class SamplingParams(ConfigClass):
     redshift_min: float = 0.
     redshift_max: float = 4.
     save_dir: str = './data'
-    emulate_ssp: bool = False
     noise: bool = False
     filters: str = 'euclid'
 
@@ -97,6 +96,20 @@ class CPzParams(ConfigClass):
     # {Nothing | OptionalValue(Free) | OptionalValue(Just(<float>))}
     agn_eb_v: Optional = OptionalValue(Free)
     agn_torus_mass: Optional = OptionalValue(Free)
+
+
+# ============================== SPS Parameters ==============================
+
+
+class SPSParams(ConfigClass):
+    """Parameters for FSPS SSP"""
+    zcontinuous: int = 1
+    vectoair_flag: bool = False
+    compute_vega_mags: bool = False
+
+    # Outdated parameter: allows to emulate FSPS simple stellar population
+    # using e.g. a GP (or some other function approximator).
+    emulate_ssp: bool = False
 
 
 # ======================== Quasar Template Parameters =========================

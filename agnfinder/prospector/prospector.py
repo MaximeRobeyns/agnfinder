@@ -17,12 +17,11 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Main Prospector problem generation class."""
 
-import sys
 import logging
 import numpy as np
 from typing import Callable
 
-from agnfinder.config import CPzParams
+from agnfinder.config import CPzParams, SPSParams
 from agnfinder.types import prun_params_t
 from agnfinder.prospector import cpz_builders
 
@@ -34,13 +33,14 @@ class Prospector(object):
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
         logging.info(f'Created obs dict: {self.obs}')
 
-        self.emulate_ssp = emulate_ssp
         self.cpz_params = CPzParams()
+        self.emulate_ssp = emulate_ssp
         self.model = cpz_builders.build_model(self.cpz_params)
         logging.info(f'Created CPz model {self.model}')
 
-        self.sps = cpz_builders.build_sps(
-            self.cpz_params, emulate_ssp, zcontinuous=1)
+        self.sps_params = SPSParams()
+        self.sps = cpz_builders.build_sps(self.cpz_params, self.sps_params)
+        logging.info(f'Created sps model {self.sps}')
 
         self.run_params = self._cpz_params_to_run_params()
         logging.info(f'run params are: {self.run_params}')

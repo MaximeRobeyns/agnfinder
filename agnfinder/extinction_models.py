@@ -29,6 +29,11 @@ import agnfinder.config as cfg
 class ExtinctionTemplate(quasar_templates.InterpolatedTemplate):
 
     def _create_template(self) -> interp1d:
+        """Extinction of radiation from disk due to the torus.
+
+        Returns:
+            interp1d: Interpolated flux values.
+        """
         df = pd.read_csv(self.data_loc, delim_whitespace=True)
         assert isinstance(df, pd.DataFrame)
         return interp1d(df['wavelength'], df['k_l'], kind='linear',

@@ -22,7 +22,7 @@ import fsps
 import logging
 import numpy as np
 
-from typing import Any, Callable
+from typing import Any
 from prospect.sources import CSPSpecBasis
 
 import agnfinder.config as cfg
@@ -42,15 +42,10 @@ class CSPSpecBasisAGN(CSPSpecBasis):
     """
 
     def __init__(self,
-            # CPzParams go here as args
-            zcontinuous: int = 1,
-            reserved_params: list[str] = ['zred', 'sigma_smooth'],
-            vactoair_flag: bool = False,
-            compute_vega_mags: bool = False,
-            emulate_ssp: bool = False,
-            **kwargs):
+            cpz_params: cfg.CPzParams,
+            sps_params: cfg.SPSParams):
 
-        if emulate_ssp:
+        if sps_params.emulate_ssp:
             # This is somewhat outdated but it serves as a good example of how
             # forward emulation would work.
             logging.warning('Using custom FSPS emulator for SSP')
@@ -58,14 +53,19 @@ class CSPSpecBasisAGN(CSPSpecBasis):
         else:
             logging.warning('Using standard FSPS for SSP, no emulation')
             self.ssp = fsps.StellarPopulation(
-                compute_vega_mags=compute_vega_mags,
-                zcontinuous=zcontinuous,
-                vactoair_flag=vactoair_flag)
+                compute_vega_mags=sps_params.compute_vega_mags,
+                zcontinuous=sps_params.zcontinuous,
+                vectoair_flag=sps_params.vectoair_flag)
             logging.debug('Successfully created fsps StellarPopulation model')
 
-        self.reserved_params = reserved_params
+        self.reserved_params: list[str] = ['zred', 'sigma_smooth']
         self.params: dict[str, Any] = {}
-        self.update(**kwargs)
+        self.update(**{
+            'agn_mass': cpz_params.agn_mass.value,
+            'agn_eb_v': cpz_params.agn_eb_v.value,
+            'agn_torus_mass': cpz_params.agn_torus_mass.value,
+            'inclination': cpz_params.inclination.value
+        })
 
         quasar_params = cfg.QuasarTemplateParams()
         logging.info(f'quasar template parameters: {quasar_params}')

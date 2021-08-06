@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from typing import Union, Callable, Optional
+from typing import Callable
 from scipy.integrate import simps
 from scipy.interpolate import interp1d, interp2d
 

@@ -164,6 +164,7 @@ if __name__ == '__main__':
     # Get the defaults from config.py
     sp = cfg.SamplingParams()
     fp = cfg.FreeParams()
+    sps = cfg.SPSParams()
 
     parser = argparse.ArgumentParser(description='Find AGN')
     parser.add_argument(
@@ -175,7 +176,7 @@ if __name__ == '__main__':
     parser.add_argument(
             '--save-dir', dest='save_dir', type=str, default=sp.save_dir)
     parser.add_argument(
-            '--emulate-ssp', default=sp.emulate_ssp, action='store_true')
+            '--emulate-ssp', default=sps.emulate_ssp, action='store_true')
     parser.add_argument(
             '--noise', default=False, action='store_true')
     parser.add_argument(

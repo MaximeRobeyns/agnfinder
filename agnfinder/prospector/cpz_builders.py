@@ -29,7 +29,7 @@ from prospect.models import templates
 from prospect.models.sedmodel import SedModel
 from prospect.sources import CSPSpecBasis
 
-import agnfinder.config as cfg
+from agnfinder.config import CPzParams, SPSParams
 from agnfinder.types import cpz_obs_dict_t, pdict_t
 from agnfinder.prospector import load_photometry
 from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
@@ -46,7 +46,11 @@ def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
     """
 
     obs: cpz_obs_dict_t = {}
-    # this is a list[sedpy.observate.Filter]
+    # this is a list of sedpy.observate.Filter's
+    #
+    # Note that in previous versions, we could choose between
+    # load_galaxy_for_prospector or load_dummy_galaxy. Since the code doesn't
+    # use load_galaxy_for_prospector, we have left this code path out.
     obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
     obs['maggies'] = np.ones(len(obs['filters']))
     obs['maggies_unc'] = np.ones(len(obs['filters']))
@@ -96,7 +100,7 @@ def _use_float(name: str, defaults: pdict_t = {}) -> Callable[[float], pdict_t]:
     return f
 
 
-def build_model(args: cfg.CPzParams) -> SedModel:
+def build_model(args: CPzParams) -> SedModel:
     """Build a SedModel object using the provided parameters.
 
     Args:
@@ -106,20 +110,13 @@ def build_model(args: cfg.CPzParams) -> SedModel:
         SedModel: The prospector SED model.
     """
 
-    logging.debug(f'redshift: {args.redshift}')
-    logging.debug(f'fixed_metallicity: {args.fixed_metallicity}')
-    logging.debug(f'dust: {args.dust}')
-    logging.debug(f'agn_mass: {args.agn_mass}')
-    logging.debug(f'agn_eb_v: {args.agn_eb_v}')
-    logging.debug(f'agn_torus_mass: {args.agn_torus_mass}')
-    logging.debug(f'igm_absorbtion: {args.igm_absorbtion}')
+    logging.info(f'Building model with parameters {args}')
 
     # Get a copy of one of the pre-packaged model set dictionaries.
     model_params = templates.TemplateLibrary['parametric_sfh']
     model_params['dust_type'] = {'N': 1, 'isfree': False, 'init': 2}
 
     while True:  # allows to skip to end if args.model_agn == False
-
         # metallicity parameter
         model_params['logzsol'] |= args.fixed_metallicity.use(
                 _use_free('metallicity'),
@@ -146,19 +143,19 @@ def build_model(args: cfg.CPzParams) -> SedModel:
 
 
         if not args.model_agn:
-            logging.warning('AGN Not being modelled')
+            logging.warning('AGN not being modelled')
             break
 
         # AGN parameters -------------------------------------------------------
 
         # agn mass parameter
         model_params['agn_mass'] = args.agn_mass.use(
-                _use_free('agn mass', {'N': 1, 'init': 1,
+                _use_free('agn mass', {'N': 1, 'init': 1.,
                           'prior': priors.LogUniform(mini=1e-7, maxi=15)}),
                 _use_float('agn_mass', {'N': 1}))
 
         model_params['agn_eb_v'] = args.agn_eb_v.use(
-                _use_nothing('AGN disk'),
+                _use_nothing('AGN extinction'),
                 _use_free('agn_eb_v', {'N': 1, 'init': 0.1, 'units': '',
                           'prior': priors.TopHat(mini=0., maxi=0.5)}),
                 _use_float('agn_eb_v', {'N': 1, 'units': '',
@@ -172,7 +169,7 @@ def build_model(args: cfg.CPzParams) -> SedModel:
                           'prior': priors.LogUniform(mini=1e-7, maxi=15)}))
 
         model_params['inclination'] = args.inclination.use(
-                _use_free('inclination', {'N': 1, 'init': 60, 'units': '',
+                _use_free('inclination', {'N': 1, 'init': 60., 'units': '',
                           'prior': priors.TopHat(mini=0., maxi=90.)}),
                 _use_float('inclination', {'N': 1, 'units': '',
                            'prior': priors.TopHat(mini=0., maxi=90.)}))
@@ -181,8 +178,7 @@ def build_model(args: cfg.CPzParams) -> SedModel:
     return SedModel(model_params)
 
 
-def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
-              zcontinuous: int = 1) -> CSPSpecBasis:
+def build_sps(cpz_params: CPzParams, sps_params: SPSParams) -> CSPSpecBasis:
     """Build stellar population synthesis model
 
     Args:
@@ -196,18 +192,13 @@ def build_sps(args: cfg.CPzParams, emulate_ssp: bool,
         CSPSpecBasis: Instance of a CSPSpecBasis class
     """
 
-    if args.model_agn:
+    logging.info(f'Using the following sps_params in build_sps: {sps_params}')
+
+    if cpz_params.model_agn:
         logging.info('Building custom CSPSpecBasisAGN.')
-        sps = CSPSpecBasisAGN(
-            zcontinuous=zcontinuous,
-            emulate_ssp=emulate_ssp,
-            agn_mass=args.agn_mass.value,
-            agn_eb_v=args.agn_eb_v.value,
-            agn_torus_mass=args.agn_torus_mass.value,
-            inclination=args.inclination.value,
-        )
+        sps = CSPSpecBasisAGN(cpz_params, sps_params)
     else:
         logging.info('Building standard CSPSpec')
-        sps = CSPSpecBasisNoEm(zcontinuous=zcontinuous)
+        sps = CSPSpecBasisNoEm(zcontinuous=sps_params.zcontinuous)
 
     return sps
