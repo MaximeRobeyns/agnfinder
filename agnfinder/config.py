@@ -122,12 +122,12 @@ class QuasarTemplateParams(ConfigClass):
     results_dir: str = 'results'
 
     # quasar parameters
-    recreate_quasar_template: bool = False
+    recreate_quasar_template: bool = True
     quasar_data_loc: str = './data/quasar_template_shang.txt'
     interpolated_quasar_loc: str = './data/quasar_template_interpolated.dill'
 
     # dusty torus model paramteres
-    recreate_torus_template: bool = False
+    recreate_torus_template: bool = True
     torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
     interpolated_torus_loc: str = './data/normalised_torus_model.dill'
 
@@ -147,7 +147,7 @@ class QuasarTemplateParams(ConfigClass):
 
 class ExtinctionTemplateParams(ConfigClass):
     results_dir: str = 'results'
-    recreate_extinction_template: bool = False
+    recreate_extinction_template: bool = True
     interpolated_smc_extinction_loc: str \
                        = './data/interpolated_smc_extinction.dill'
     smc_data_loc: str = './data/smc_extinction_prevot_1984.dat'
@@ -188,10 +188,10 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
         # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
         'formatters': {
             'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(module)s: %(message)s'
+                'format': '%(asctime)s [%(levelname)s] %(message)s (%(module)s)'
             },
             'debug': {
-                'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(filename)s:%(funcName)s:%(lineno)d: %(message)s'
+                'format': '[Dbg: %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
             },
         },
         'handlers': {
