@@ -37,6 +37,26 @@ pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 prun_params_t = dict[str, Union[int, bool, float, None]]
 
 
+# 'Enum' for filter selection
+class FilterSet():
+    def __init__(self, name: str, dim: int):
+        self.value = name
+        self.dim = dim
+    def __repr__(self) -> str:
+        return self.value
+    def __eq__(self, other) -> bool:
+        return self.value == other
+
+class _Euclid(FilterSet): pass
+class _Reliable(FilterSet): pass
+class _All(FilterSet): pass
+
+class Filters():
+    Euclid = _Euclid('euclid', 8)
+    Reliable = _Reliable('reliable', 12)
+    All = _All('all', 12)
+
+
 # Maybe 'monad' ---------------------------------------------------------------
 # Monad for safer and more explicit CPz model parameter definitions.
 

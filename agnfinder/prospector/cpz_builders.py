@@ -30,12 +30,12 @@ from prospect.models.sedmodel import SedModel
 from prospect.sources import CSPSpecBasis
 
 from agnfinder.config import CPzParams, SPSParams
-from agnfinder.types import cpz_obs_dict_t, pdict_t
+from agnfinder.types import FilterSet, cpz_obs_dict_t, pdict_t
 from agnfinder.prospector import load_photometry
 from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
 
 
-def build_cpz_obs(filter_selection: str) -> cpz_obs_dict_t:
+def build_cpz_obs(filter_selection: FilterSet) -> cpz_obs_dict_t:
     """Build a dictionary of photometry (and maybe eventually spectra).
 
     Args:

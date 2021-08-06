@@ -21,6 +21,8 @@ import tqdm
 import pandas as pd
 from sedpy import observate
 
+from agnfinder.types import FilterSet, Filters
+
 
 class Filter(object):
     def __init__(self, bandpass_file: str, mag_col:str, error_col:str):
@@ -39,17 +41,17 @@ class Filter(object):
         self.maggie_error_col = error_col.replace('mag', 'maggie')
 
 
-def get_filters(selection: str) -> list[Filter]:
+def get_filters(filter_selection: FilterSet) -> list[Filter]:
     """Get the list of Filter objects corresponding to the named filter selection.
 
     Args:
-        selection: The filter selection; {reliable, euclid, all}
+        filter_selection: The filter selection; Filters.{Reliable, Euclid, All}
 
     Returns:
         list[Filter]: A list all the filters for the selection.
 
     Raises:
-        ValueError: If the selection is not recognised.
+        ValueError: If the filter selection is not recognised.
     """
 
     galex = [
@@ -107,14 +109,14 @@ def get_filters(selection: str) -> list[Filter]:
     # These are _not_ in wavelength order.
     all_filters = galex + sdss + cfht + kids + vista + wise
 
-    if selection == 'reliable':
+    if filter_selection == 'reliable':
         return sdss + vista + wise
-    elif selection == 'euclid':
+    elif filter_selection == 'euclid':
         return sdss + vista_euclid
-    elif selection == 'all':
+    elif filter_selection == 'all':
         return all_filters
     else:
-        raise ValueError(f'Filter selection {selection} not recognized')
+        raise ValueError(f'Filter selection {filter_selection} not recognized')
 
 
 def add_maggies_cols(input_df: pd.DataFrame) -> pd.DataFrame:
@@ -125,7 +127,7 @@ def add_maggies_cols(input_df: pd.DataFrame) -> pd.DataFrame:
     """
     df = input_df.copy()  # we don't modify the df inplace
     # Assume filled values for all 'reliable' filters
-    filters = get_filters('reliable')
+    filters = get_filters(Filters.Reliable)
     for f in tqdm.tqdm(filters):
         df[f.maggie_col] = df[f.mag_col].apply(mags_to_maggies)
         df[f.maggie_error_col] = df[[f.mag_error_col, f.maggie_col]].apply(
@@ -144,7 +146,7 @@ def calculate_maggie_uncertainty(mag_error, maggie):
     return maggie * mag_error / 1.09
 
 
-def load_dummy_galaxy(filter_selection: str
+def load_dummy_galaxy(filter_selection: FilterSet
         ) -> list[observate.Filter]:
     """Loads a dummy galaxy for prospector.
 
@@ -154,7 +156,7 @@ def load_dummy_galaxy(filter_selection: str
     Returns:
         list[observate.Filter]: A list of the loaded sedpy filters.
     """
-    filters = get_filters(selection=filter_selection)
+    filters = get_filters(filter_selection)
     loaded_filters = observate.load_filters([f.bandpass_file for f in filters])
     return loaded_filters
 

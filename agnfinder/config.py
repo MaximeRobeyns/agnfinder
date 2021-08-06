@@ -21,11 +21,13 @@ import os
 import math
 import torch as t
 import logging
+from typing import Any, Union
 from logging.config import dictConfig
 
 from agnfinder.types import ConfigClass, paramspace_t, \
         MaybeFloat, Free, Just, \
-        Optional, OptionalValue, Nothing
+        Optional, OptionalValue, Nothing, \
+        FilterSet, Filters
 
 
 # ============================= Free Parameters ===============================
@@ -59,7 +61,7 @@ class SamplingParams(ConfigClass):
     redshift_max: float = 4.
     save_dir: str = './data'
     noise: bool = False
-    filters: str = 'euclid'
+    filters: FilterSet = Filters.Euclid  # {Euclid, Reliable, All}
 
 
 # ============================= CPz Parameters ================================
@@ -120,12 +122,12 @@ class QuasarTemplateParams(ConfigClass):
     results_dir: str = 'results'
 
     # quasar parameters
-    recreate_quasar_template: bool = True
+    recreate_quasar_template: bool = False
     quasar_data_loc: str = './data/quasar_template_shang.txt'
     interpolated_quasar_loc: str = './data/quasar_template_interpolated.dill'
 
     # dusty torus model paramteres
-    recreate_torus_template: bool = True
+    recreate_torus_template: bool = False
     torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
     interpolated_torus_loc: str = './data/normalised_torus_model.dill'
 
@@ -145,7 +147,7 @@ class QuasarTemplateParams(ConfigClass):
 
 class ExtinctionTemplateParams(ConfigClass):
     results_dir: str = 'results'
-    recreate_extinction_template: bool = True
+    recreate_extinction_template: bool = False
     interpolated_smc_extinction_loc: str \
                        = './data/interpolated_smc_extinction.dill'
     smc_data_loc: str = './data/smc_extinction_prevot_1984.dat'
@@ -159,78 +161,104 @@ class ExtinctionTemplateParams(ConfigClass):
 # logging levels:
 # CRITICAL (50) > ERROR (40) > WARNING (30) > INFO (20) > DEBUG (10) > NOTSET
 
-logging_config = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
-    'formatters': {
-        'standard': {
-            'format': '%(asctime)s [%(levelname)s] %(module)s: %(message)s'
+
+class LoggingParams(ConfigClass):
+    file_loc: str = './logs.txt'
+
+    # If any of these levels are NOTSET, then the corresponding logging handler
+    # will not be used.
+    file_level: int = logging.INFO
+    debug_level: int = logging.INFO
+    console_level: int = logging.WARNING
+
+
+def get_logging_config(p: LoggingParams) -> dict[str, Any]:
+
+    handlers = []
+    if p.file_level > logging.NOTSET:
+        handlers.append('file')
+    if p.debug_level > logging.NOTSET:
+        handlers.append('console_debug')
+    if p.console_level > logging.NOTSET:
+        handlers.append('console')
+
+    return {
+        'version': 1,
+        'disable_existing_loggers': False,
+        # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
+        'formatters': {
+            'standard': {
+                'format': '%(asctime)s [%(levelname)s] %(module)s: %(message)s'
+            },
+            'debug': {
+                'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(filename)s:%(funcName)s:%(lineno)d: %(message)s'
+            },
         },
-        'debug': {
-            'format': '[Debugging %(relativeCreated)dms: %(levelname)s] %(filename)s:%(funcName)s:%(lineno)d: %(message)s'
+        'handlers': {
+            # only log errors out to the console
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'standard',
+                'level': p.console_level,
+                'stream': 'ext://sys.stderr'
+            },
+            'console_debug': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'debug',
+                'level': p.debug_level,
+                # print everything to stdout
+                'stream': 'ext://sys.stdout'
+            },
+            # Output more information to a file for post-hoc analysis
+            'file': {
+                'class': 'logging.handlers.RotatingFileHandler',
+                'formatter': 'standard',
+                'level': p.file_level,
+                'filename': p.file_loc,
+                'mode': 'a',
+                'encoding': 'utf-8',
+                'maxBytes': 500000,
+                'backupCount': 4
+            }
         },
-    },
-    'handlers': {
-        # only log errors out to the console
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'standard',
-            'level': 'INFO',
-            'stream': 'ext://sys.stderr'
-        },
-        'console_debug': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'debug',
-            'level': 'DEBUG',
-            # print everything to stdout
-            'stream': 'ext://sys.stdout'
-        },
-        # Output more information to a file for post-hoc analysis
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'formatter': 'standard',
-            'level': 'INFO',
-            'filename': './logs.txt',
-            'mode': 'a',
-            'encoding': 'utf-8',
-            'maxBytes': 500000,
-            'backupCount': 4
-        }
-    },
-    'loggers': {
-        '': {  # root logger
-            'handlers': ['console', 'file', 'console_debug'],
-            'level': 'NOTSET',
-            'propagate': True
+        'loggers': {
+            '': {  # root logger
+                'handlers': handlers,
+                'level': 'NOTSET',
+                'propagate': True
+            }
         }
     }
-}
 
 
 # Utility -------------------------------------------------------------
 
 
-def configure_logging(console: bool = True, file: bool = True,
-                      file_loc: str = "./logs.txt", debug: bool = False):
-    """Performs one-time configuration of the root logger for the program.
+def configure_logging(console_level: Union[int, None] = None,
+                      debug_level: Union[int, None] = None,
+                      file_level: Union[int, None] = None,
+                      file_loc: Union[str, None] = None):
+    """Performs a one-time configuration of the root logger for the program.
+
+    Note that all the arguments are optional, and if omitted the default values
+    in config.py will be used.
 
     Args:
-        console: Print outputs to stderr during runs
-        file: Output all logging outputs to file
-        file_loc: Location of logging file (default './logs.txt')
-        debug: Print debugging logs to stdout
+        console_level: level at which to output to stderr (e.g. logging.ERROR)
+        debug_level: level at which to output to stdout (e.g. logging.DEBUG)
+        file_level: level at which to output to log file (e.g. LOGGING.INFO)
+        file_loc: location of the log file
     """
-    opts = []
-    if console:
-        opts.append('console')
-    if file:
-        opts.append('file')
-    if debug:
-        opts.append('console_debug')
-    logging_config['loggers']['']['handlers'] = opts
-    logging_config['handlers']['file']['filename'] = file_loc
-    dictConfig(logging_config)
+    lp = LoggingParams()  # default logging parameters
+    if console_level is not None:
+        lp.console_level = console_level
+    if debug_level is not None:
+        lp.debug_level = debug_level
+    if file_level is not None:
+        lp.file_level = file_level
+    if file_loc is not None:
+        lp.file_loc = file_loc
+    dictConfig(get_logging_config(lp))
     logging.info(
         f'\n\n\n\n\n{35*"~"} New Run {35*"~"}\n\n')
 

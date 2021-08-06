@@ -58,7 +58,7 @@ class CSPSpecBasisAGN(CSPSpecBasis):
             logging.warning('Using custom FSPS emulator for SSP')
             self.ssp = CustomSSP()
         else:
-            logging.warning('Using standard FSPS for SSP, no emulation')
+            logging.info('Using standard FSPS for SSP, no emulation')
             self.ssp = fsps.StellarPopulation(
                 compute_vega_mags=compute_vega_mags,
                 zcontinuous=zcontinuous,

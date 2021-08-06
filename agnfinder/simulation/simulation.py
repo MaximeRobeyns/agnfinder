@@ -29,7 +29,7 @@ import numpy as np
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
-from agnfinder.types import paramspace_t
+from agnfinder.types import FilterSet, Filters, paramspace_t
 from agnfinder.prospector import Prospector
 
 
@@ -59,7 +59,10 @@ class Simulator(object):
         self.n_samples: int = args.n_samples
         self.emulate_ssp: bool = args.emulate_ssp
         self.noise: bool = args.noise
-        self.filters: str = args.filters
+
+        self.filters: FilterSet = self._str_to_filter(args.filters)
+        self.output_dim = self.filters.dim
+
         self.rshift_range: tuple[float, float] = \
             (args.rshift_min, args.rshift_max)
 
@@ -94,11 +97,6 @@ class Simulator(object):
         # TODO find more direct way of returning phot_wavelengths
         problem.calculate_sed()
         self.phot_wavelengths = problem.obs['phot_wave']
-
-        if self.filters == 'euclid':
-            self.output_dim = 8
-        else:
-            self.output_dim = 12
 
         self.forward_model = problem.get_forward_model()
         self.has_forward_model = True
@@ -155,6 +153,26 @@ class Simulator(object):
 
         logging.info(f'Saved samples to {self.save_loc}')
 
+    def _str_to_filter(self, name: str) -> FilterSet:
+        """Convenience method to convert filter name to filter.
+
+        Args:
+            name: The valid filter name
+
+        Returns:
+            FilterSet: The corresponding filter type
+
+        Raises:
+            ValueError: upon unrecognized filter name
+        """
+        if name == 'euclid':
+            return Filters.Euclid
+        elif name == 'reliable':
+            return Filters.Reliable
+        elif name == 'all':
+            return Filters.All
+        else:
+            raise ValueError(f'Unrecognised filter name {name}')
 
 if __name__ == '__main__':
 
@@ -180,7 +198,7 @@ if __name__ == '__main__':
     parser.add_argument(
             '--noise', default=False, action='store_true')
     parser.add_argument(
-            '--filters', dest='filters', type=str, default=sp.filters)
+            '--filters', dest='filters', type=str, default=sp.filters.value)
     args = parser.parse_args()
 
     logging.info(f'Free parameters are: {fp}')

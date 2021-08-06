@@ -14,24 +14,13 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
-"""Tests for the project configuration file"""
+"""Tests for some of the custom data types."""
 
-import agnfinder.config as config
+from agnfinder.types import Filters, FilterSet
 
+def test_Filters():
 
-def test_FreeParams():
-    assert len(config.FreeParams()) == 9
-
-    fp = config.FreeParams()
-    for p, k in enumerate(fp.raw_params):
-        if k.startswith('log'):
-            assert fp.log[p]
-        else:
-            assert not fp.log[p]
-        assert fp.params[p][0] == fp.raw_params[k][0]
-        assert fp.params[p][1] == fp.raw_params[k][1]
-        assert hasattr(fp, k)
-
-    assert fp.log.shape == (9,)
-    assert fp.params.shape == (9,2)
-
+    f: FilterSet = Filters.Euclid
+    assert f.dim == 8
+    assert f.value == 'euclid'
+    assert f == 'euclid'

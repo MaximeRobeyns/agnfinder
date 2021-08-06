@@ -22,25 +22,25 @@ import numpy as np
 from typing import Callable
 
 from agnfinder.config import CPzParams, SPSParams
-from agnfinder.types import prun_params_t
+from agnfinder.types import prun_params_t, FilterSet
 from agnfinder.prospector import cpz_builders
 
 class Prospector(object):
 
-    def __init__(self, filter_selection: str, emulate_ssp: bool):
+    def __init__(self, filter_selection: FilterSet, emulate_ssp: bool):
         logging.debug('initialising prospector class')
 
         self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
-        logging.info(f'Created obs dict: {self.obs}')
+        logging.debug(f'Created obs dict: {self.obs}')
 
         self.cpz_params = CPzParams()
         self.emulate_ssp = emulate_ssp
         self.model = cpz_builders.build_model(self.cpz_params)
-        logging.info(f'Created CPz model {self.model}')
+        logging.debug(f'Created CPz model {self.model}')
 
         self.sps_params = SPSParams()
         self.sps = cpz_builders.build_sps(self.cpz_params, self.sps_params)
-        logging.info(f'Created sps model {self.sps}')
+        logging.debug(f'Created sps model {self.sps}')
 
         self.run_params = self._cpz_params_to_run_params()
         logging.info(f'run params are: {self.run_params}')
@@ -99,9 +99,9 @@ class Prospector(object):
                 mass_index = 1
             else:
                 mass_index = 0
-            logging.debug(f'Theta mass index is: {mass_index}')
-            logging.debug(f'Theta mass index is: {theta[mass_index]}')
-            assert theta[mass_index] > 1e7
+            logging.warning(f'mass index is: {mass_index}')
+            logging.warning(f'Theta[mass_index] is: {theta[mass_index]}')
+            # assert theta[mass_index] > 1e7
 
             model_photometry = self._calculate_photometry(theta)
 
