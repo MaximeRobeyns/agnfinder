@@ -24,3 +24,13 @@ def test_Filters():
     assert f.dim == 8
     assert f.value == 'euclid'
     assert f == 'euclid'
+
+    f = Filters.Reliable
+    assert f.dim == 12
+    assert f.value == 'reliable'
+    assert f == 'reliable'
+
+    f = Filters.All
+    assert f.dim == 12
+    assert f.value == 'all'
+    assert f == 'all'

@@ -46,7 +46,6 @@ ifndef SPS_HOME
 endif
 	@python agnfinder/simulation/simulation.py
 
-
 mypy:
 ifndef SPS_HOME
 		@source setup.sh

@@ -95,12 +95,11 @@ class Prospector(object):
                 assert theta.ndim == 1
 
             # Check mass is of correct order
-            if 'zred' in self.model.free_params:
-                mass_index = 1
-            else:
-                mass_index = 0
-            logging.warning(f'mass index is: {mass_index}')
-            logging.warning(f'Theta[mass_index] is: {theta[mass_index]}')
+            # TODO figure out why this assertion is not passing...
+            # if 'zred' in self.model.free_params:
+            #     mass_index = 1
+            # else:
+            #     mass_index = 0
             # assert theta[mass_index] > 1e7
 
             model_photometry = self._calculate_photometry(theta)

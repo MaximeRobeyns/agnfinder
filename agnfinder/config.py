@@ -56,10 +56,10 @@ class FreeParameters(ConfigClass):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 1000
+    n_samples: int = 100000
     redshift_min: float = 0.
     redshift_max: float = 4.
-    save_dir: str = './data'
+    save_dir: str = './data/cubes'
     noise: bool = False
     filters: FilterSet = Filters.Euclid  # {Euclid, Reliable, All}
 
