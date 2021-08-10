@@ -94,7 +94,8 @@ class Simulator(object):
 
         problem = Prospector(self.filters, self.emulate_ssp)
 
-        # TODO find more direct way of returning phot_wavelengths
+        # The calculate_sed method has side-effects, which includes updating
+        # the problem.obs dict.
         problem.calculate_sed()
         self.phot_wavelengths = problem.obs['phot_wave']
 

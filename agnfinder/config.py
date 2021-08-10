@@ -248,6 +248,9 @@ def configure_logging(console_level: Union[int, None] = None,
         debug_level: level at which to output to stdout (e.g. logging.DEBUG)
         file_level: level at which to output to log file (e.g. LOGGING.INFO)
         file_loc: location of the log file
+
+    Example:
+        >>> configure_logging(debug_level=logging.DEBUG)
     """
     lp = LoggingParams()  # default logging parameters
     if console_level is not None:

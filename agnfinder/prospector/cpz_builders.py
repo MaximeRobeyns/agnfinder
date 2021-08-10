@@ -46,11 +46,12 @@ def build_cpz_obs(filter_selection: FilterSet) -> cpz_obs_dict_t:
     """
 
     obs: cpz_obs_dict_t = {}
+
     # this is a list of sedpy.observate.Filter's
     #
     # Note that in previous versions, we could choose between
     # load_galaxy_for_prospector or load_dummy_galaxy. Since the code doesn't
-    # use load_galaxy_for_prospector, we have left this code path out.
+    # use load_galaxy_for_prospector, we have excluded this code path.
     obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
     obs['maggies'] = np.ones(len(obs['filters']))
     obs['maggies_unc'] = np.ones(len(obs['filters']))
