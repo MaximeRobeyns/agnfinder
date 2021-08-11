@@ -178,7 +178,8 @@ presented.
     .. image:: ./_static/jensens-inequality.svg
 
     Put loosely, Jensen's inequality states that :math:`\varphi(\mathbb{E}[x])
-    \le \mathbb{E}[\varphi(x)]`, for :math:`\varphi(\cdot)` a convex function.
+    \ge \mathbb{E}[\varphi(x)]`, for :math:`\varphi(\cdot)` a concave function
+    e.g. :math:`log(\cdot)`.
 
 For another perspective, we may derive the lower bound using Jensen's
 inequality.
