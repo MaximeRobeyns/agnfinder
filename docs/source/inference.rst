@@ -20,10 +20,12 @@ incidentally the original goal of this project.
 
 In this fork we take a slightly different approach to recovering physical
 parameters from photometric observations :math:`p(\theta \vert x)`. We first
-direct our attention from emulating (and speeding up) the forward model, to the
-main objective of recovering the physical parameters. We also eschew the MCMC
-methods used in this step in favour of a variational Bayesian attack; namely a
-conditional VAE---a deep conditional generative model with latent variables.
+direct our attention away from emulating (and speeding up) the forward model,
+and towards the main objective which is to recover the physical galaxy
+parameters. We also eschew the MCMC methods used in this inference step in
+favour of a variational Bayesian attack; namely a conditional variational
+autoencoder [CVAE2015]_---a deep conditional generative model with latent
+variables.
 
 We motivate the use of this model by acknowledging that the low-dimensional
 photometric observations (8 for the Euclid survey) are potentially weakly
@@ -39,7 +41,7 @@ then we would merely be making use of *correlations* in the dataset of simulated
 x_{i})\}_{i=1}^{n}` to make predictions.
 
 Attempting to model the generative process by using a CVAE may allow us to
-uncover causal relations [IVAE2019]_ in an unsupervised manner, using only the
+uncover causal relations in an unsupervised manner [IVAE2019]_, using only the
 simulated dataset :math:`\mathcal{D}`. This may make this approach more robust
 to extrapolation, and use in different surveys.
 
@@ -66,7 +68,7 @@ to extrapolation, and use in different surveys.
 .. note:: To avoid a clash of notation, we will henceforth denote the physical
    galaxy parameters as :math:`y` (previously :math:`\theta`). This matches
    the machine learning nomenclature of denoting outputs to be predicted as
-   :math:`y`.
+   :math:`y`, and model parameters as :math:`\theta`.
 
 Latent Variable Models
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -88,8 +90,8 @@ where :math:`f_{z}` and :math:`f_{y}` are valid distribution functions, and
 :math:`\theta = \{\theta_{z}, \theta_{y}\}` parametrises the generative process.
 To sample from :math:`p_{\theta_{y}}(y \vert z)` (and generate plausible
 galaxy parameters), we first sample from the 'prior' over the latent variables
-:math:`z_{i} \sim p_{\theta_{z}}(z)`, and condition on this :math:`y_{i} \sim
-p_{\theta_{y}}(y \vert z_{i})`. In practice, :math:`f_{z}` and :math:`f_{y}` are
+:math:`\hat{z} \sim p_{\theta_{z}}(z)`, and condition on this :math:`\hat{y} \sim
+p_{\theta_{y}}(y \vert \hat{z})`. In practice, :math:`f_{z}` and :math:`f_{y}` are
 neural networks.
 
 In the *conditional* VAE, we are interested in learning a model of galaxy
@@ -122,37 +124,52 @@ the (log) marginal likelihood of the :math:`n` training observations under our
 model:
 
 .. math::
+   :label: LVMObjective
 
-    \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log p_{\theta}(y_{i} \vert x_{i})
-    = \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log
-    \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz,
+    \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log p_{\theta}(y_{i} \vert x_{i}).
+    =
+    \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz
 
 Integrating out the latent variable from the LVM :math:`p_{\theta}(y \vert z,
 x)` to find the marginal likelihood (or *model evidence*) is often intractable.
-We instead optimise a lower-bound on the intractable model evidence (the
-*evidence lower bound*, ELBO). Here we introduce an approximate posterior
-distribution over the latent variables :math:`q_{\phi}(z \vert y, x) \approx
-p_{\theta}(z \vert y, x)`, which is parametrised by :math:`\phi` and should be
-convenient to sample from.
+Taking the variational Bayesian approach, we instead optimise a lower-bound on
+this intractable model evidence, referred to as the *evidence lower bound*,
+ELBO.
 
-We will derive this bound twice since these offer different intuitions.
-Beginning with the importance sampling approach, we take the expectation wrt the
-approximate distribution :math:`q_{\phi}(z \vert y, x)` on both sides of the
-above (first line below), and introduce it on the right as a ratio of itself
-(second line) while applying Bayes rule to rearrange :math:`p_{\theta}(y \vert
-z, x)` (also second line):
+..
+    Here we introduce an approximate posterior distribution over the latent
+    variables :math:`q_{\phi}(z \vert y, x) \approx p_{\theta}(z \vert x)`, which is
+    parametrised by :math:`\phi` and should be convenient to sample from.
+
+LVM Objective
+~~~~~~~~~~~~~
+
+We will derive this lower bound twice, to appreciate two different perspectives.
+Beginning with the importance sampling approach, we ideally want to take a Monte
+Carlo approximation to the integral in :eq:`LVMObjective`. Unfortunately for
+most :math:`z`, :math:`p_{\theta}(y \vert z, x)` will be close to zero. Rather
+than taking the expectation uniformly over :math:`z`, we instead take it over a
+'proposal distribution' :math:`q_{\phi}(z \vert y, x)`. We want samples of
+:math:`z \sim q_{\phi}(z \vert y, x)` to be likely to have produced :math:`y`,
+so we can approximate the integral with fewer samples.
+
+Taking the expectation wrt the proposal distribution :math:`q_{\phi}(z \vert y,
+x)` on both sides of :eq:`LVMObjective` (first line below), and introducing
+:math:`q_{\phi}` on the right hand side as a ratio of itself (second line) while
+applying Bayes rule to rearrange :math:`p_{\theta}(y \vert z, x)` (also second
+line) gives:
 
 .. math::
    \log p_{\theta}(y \vert x) &=
    \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log p_{\theta}(y \vert z, x)dz \\
    &= \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \left(
    \log \frac{p_{\theta}(y, z \vert x)}{q_{\phi}(z \vert y, x)} +
-   \log \frac{q_{\phi}(z \vert y, x)}{p_{\theta}(z \vert y, x)}
+   \log \frac{q_{\phi}(z \vert y, x)}{p_{\theta}(z \vert x)}
    \right) dz \\
    &= \underbrace{\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
    \log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)
    \right]}_{\text{variational lower-bound, } \mathcal{L}(\theta, \phi; x, y)} +
-   D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert y, x)\right].
+   D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].
 
 Since the KL divergence is non-negative, the :math:`\mathcal{L}(\theta, \phi; x,
 y)` term indeed lower-bounds the evidence:
@@ -186,13 +203,14 @@ inequality.
 
 In the first line below, we explicitly write the marginalisation
 over the latents :math:`z`, and we also introduce the encoder or *recognition
-model* :math:`q_{\phi}(z \vert y, x)`. On the second line, we use Jensen's
-inequality to push the logarithm inside the expectation, and introduce the lower
-bound.
+model* :math:`q_{\phi}(z \vert y, x)` as a ratio of itself. On the second line,
+we use Jensen's inequality to push the logarithm (a concave function) inside the
+expectation and introduce the lower bound:
 
 .. math::
 
-   \log p_{\theta}(y \vert x) &= \log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x) \frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
+   \log p_{\theta}(y \vert x) &=
+   \log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x) \frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
    &\ge \int_{\mathcal{Z}}q_{\phi}(z \vert y, x)\big(\log p_{\theta}(y, z \vert x)
    - \log q_{\phi}(z \vert y, x)\big) dz \\
      &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)\right] \\
@@ -202,13 +220,35 @@ We can now perform the same rearrangements as above on
 :math:`\mathcal{L}(\theta, \phi; x, y)` to reach the canonical expression for
 the ELBO.
 
-In order to optimise this objective over both :math:`\theta` and :math:`\phi`
-using SGD, we apply the reparametrisation trick and a Monte Carlo approximation
-to the expectations, giving:
+For completeness, the ELBO objective that we try to maximise is
 
 .. math::
 
-   \mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) = \frac{1}{K}\sum_{i=1}^{K}
+    \mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
+    \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+     - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right]
+
+From the above, we can see that the ELBO optimises two quantities that we care
+about concurrently:
+
+1. We (approximately) maximise the marginal likelihood, since
+   :math:`\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z,
+   x)\right] = \log p_{\theta}(y \vert x)`, which makes our generative model
+   better.
+2. We make the approximate posterior :math:`q_{\phi}(z \vert y, x)` more similar
+   to the true posterior :math:`p_{\theta}(z \vert x)`, making the recognition
+   model better.
+
+SGD ELBO Optimisation
+~~~~~~~~~~~~~~~~~~~~~
+
+In order to optimise this objective over both :math:`\theta` and :math:`\phi`
+using SGD, we apply the reparametrisation trick and a Monte Carlo approximation
+to the expectation, giving:
+
+.. math::
+
+   \hat{\mathcal{L}}_{\text{CVAE}}(\theta, \phi; x, y) = \frac{1}{K}\sum_{i=1}^{K}
    \log p_{\theta}(y \vert z^{(i)}, x) - D_{\text{KL}}\left[q_{\phi}(z \vert y,
    x) \Vert p_{\theta}(z \vert x)\right],
 
@@ -216,9 +256,90 @@ where :math:`z^{(i)} = g_{\phi}(y, x, \epsilon^{(i)})`, :math:`\epsilon^{(i)}
 \sim \mathcal{N}(\mathbf{0}, \mathbf{I})` and :math:`K` is the number of samples
 in the empirical expectation.
 
+By the change of variables formula, the densities of :math:`\epsilon` and
+:math:`z` are related as
+
+.. math::
+
+   \log q_{\phi}(z \vert y, x) = \log p(\epsilon) - \log \left\vert \det
+   \frac{\partial g_{\phi}}{\partial\epsilon}(y, x, \epsilon)\right\vert,
+
+We have yet to specify a form for :math:`q_{\phi}(z \vert y, x)`. A good first
+attempt might be an isotropic Gaussian. That is, :math:`q_{\phi}(z \vert y, x) =
+\mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)`.
+
+..
+    , where the parameters are obtained from the encoder network:
+
+    .. math::
+
+       (\mu, \log \sigma) &= f_{\text{enc}}(\phi, y, x) \\
+       q_{\phi}(z \vert y, x) &= \prod_{i=1}^{d}\mathcal{N}(z_{i} \vert \mu_{i},
+       \sigma^2_{i}),
+
+    and the above product is a product of univariate Gaussians. The
+    reparametrisation is :math:`\mu + \sigma \odot \epsilon`
+
+After reparametrisation, we have
+
+.. math::
+
+   \epsilon &\sim \mathcal{N}(0, \mathbf{I}) \\
+   (\mu, \log \sigma) &= f_{\text{enc}}(\phi, y, x) \\
+   z &= \mu + \sigma \odot \epsilon
+
+where :math:`\odot` represents an element-wise product. The Jacobian of a
+triangular matrix is just the product of the diagonal elements
+
+That is, :math:`q_{\phi}(z \vert y,
+x) = \mathcal{N}\big(z; \mu(y, x, \phi_{\mu}), \sigma(y, x,
+\phi_{\sigma})\big)`, where :math:`\phi = \{\phi_{\mu}, \phi_{\Sigma}\}`
+parametrises two neural networks to output a mean vector and the diagonal of the
+covariance matrix, respectively.
+
+..
+    Taking the reparametrised sampling approach, we have
+
+    .. math::
+
+        g_{\phi}(y, x, \epsilon^{(i)}) =
+        \mu(y, x, \phi_{\mu}) + \sigma(y, x, \phi_{\sigma}) \odot \epsilon^{(i)}.
+
+    where :math:`\odot` represents an element-wise product, and :math:`A^{1/2} =
+    LL^{\top}` is the Cholesky decomposition of the PSD (and diagonal) covariance
+    matrix. Hence the KL divergence term in the empirical CVAE
+    objective is the KL between two multivariate Gaussians, which can be written as:
+
+    .. math::
+
+       D_{\text{KL}}\left[\mathcal{N}(\mu_{1}, \Sigma_{1}) \Vert
+       \mathcal{N}(\mu_{2}, \Sigma_{2})\right] &=
+       \frac{1}{2} \left(
+        \log \frac{\vert \Sigma_{2}\vert}{\vert \Sigma_{1}\vert}
+        - d
+        + \tr \left(\Sigma^{-1}_{2}\Sigma_{1}\right)
+        + (\mu_{2} - \mu_{1})^\top \Sigma^{-1}_{2}(\mu_{2} - \mu_{1})
+       \right),
+
+    where :math:`d` is the dimensionality of the latent representation. If we
+    further express a preference for the latent space to be unit Gaussian
+    further say that we wish :math:`p_{\theta}(z \vert x)` to be unit Gaussian
+
+    Thus to implement the CVAE, we have three networks;
+
+    - the recognition network :math:`q_{\phi}(z \vert y, x)`,
+    - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
+    - the generation network :math:`p_{\theta}(y \vert z, x)`
+
+.. todo:: Finish writing this page
 
 References
 ----------
+
+.. [CVAE2015] Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. ‘Learning Structured
+   Output Representation Using Deep Conditional Generative Models’. In Advances
+   in Neural Information Processing Systems, Vol. 28. Curran Associates, Inc.,
+   2015. https://proceedings.neurips.cc/paper/2015/hash/8d55a249e6baa5c06772297520da2051-Abstract.html.
 
 .. [SPEC2020] Alsing Justin, Hiranya Peiris, Joel Leja, ChangHoon Hahn, Rita
    Tojeiro, Daniel Mortlock, Boris Leistedt, Benjamin D. Johnson, and Charlie
@@ -226,8 +347,6 @@ References
    Accurate Galaxy Spectra and Photometry’. The Astrophysical Journal Supplement
    Series 249, no. 1 (26 June 2020): 5.
    https://doi.org/10.3847/1538-4365/ab917f.
-
-
 
 .. [IVAE2019] Kingma, Diederik P., and Max Welling. ‘An Introduction to
    Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
