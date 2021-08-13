@@ -86,7 +86,7 @@ A latent variable model is one of the form
    p_{\theta_{y}}(y \vert z) &= f_{y}(y; z, \theta_{y}),
    \end{align*}
 
-where :math:`f_{z}` and :math:`f_{y}` are valid distribution functions, and
+where :math:`f_{z}` and :math:`f_{y}` are valid density functions, and
 :math:`\theta = \{\theta_{z}, \theta_{y}\}` parametrises the generative process.
 To sample from :math:`p_{\theta_{y}}(y \vert z)` (and generate plausible
 galaxy parameters), we first sample from the 'prior' over the latent variables
@@ -188,7 +188,7 @@ y)` term indeed lower-bounds the evidence:
      - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].
 
 This last line above is the canonical form in which the ELBO is usually
-presented.
+given.
 
 .. sidebar:: Jensen's inequality
 
@@ -242,43 +242,65 @@ about concurrently:
 SGD ELBO Optimisation
 ~~~~~~~~~~~~~~~~~~~~~
 
-In order to optimise this objective over both :math:`\theta` and :math:`\phi`
-using SGD, we apply the reparametrisation trick and a Monte Carlo approximation
-to the expectation, giving:
+We wish to optimise this ELBO objective over both :math:`\theta` and
+:math:`\phi`. While the gradient :math:`\nabla_{\theta, \phi}\mathcal{L}(\theta,
+\phi; y, x)` is in general intractable, we can use Monte Carlo approximation as
+well as the 'reparametrisation trick' to obtain a good unbiased estimator
+:math:`\tilde{\nabla}_{\theta, \phi}\mathcal{L}(\theta, \phi; y, x)`.
+
+The derivative wrt. :math:`\theta` can be straightforwardly obtained with a
+Monte Carlo approximation of the expectation:
 
 .. math::
 
-   \hat{\mathcal{L}}_{\text{CVAE}}(\theta, \phi; x, y) = \frac{1}{K}\sum_{i=1}^{K}
-   \log p_{\theta}(y \vert z^{(i)}, x) - D_{\text{KL}}\left[q_{\phi}(z \vert y,
-   x) \Vert p_{\theta}(z \vert x)\right],
+   \nabla_{\theta}\mathcal{L}(\theta, \phi; y, x) &=
+   \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
+   \nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)\big)
+   \right] \\
+   &\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta} \log p_{\theta}(y, z \vert x)
 
-where :math:`z^{(i)} = g_{\phi}(y, x, \epsilon^{(i)})`, :math:`\epsilon^{(i)}
-\sim \mathcal{N}(\mathbf{0}, \mathbf{I})` and :math:`K` is the number of samples
-in the empirical expectation.
+However, when trying to get unbiased gradients of the ELBO wrt. the variational
+parameters :math:`\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)`, we can no
+longer commute the derivative with the expectation:
+:math:`\nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] \ne
+\mathbb{E}_{q_{\phi}(z \vert y, x)}[\nabla_{\phi}f(x, y, z)]`. We resolve to
+apply the change of variables formula for probability distributions (also called
+the *reparametrisation trick*), which will result in:
 
-By the change of variables formula, the densities of :math:`\epsilon` and
-:math:`z` are related as
+.. math::
+
+   \nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] &=
+   \mathbb{E}_{p(\epsilon)}\big[\nabla_{\phi}f\big(x, y, g(\phi, y, x,
+   \epsilon)\big)\big] \\
+   &\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\phi} f\big(x, y, z^{(i)}\big),
+   \hspace{0.5cm} z^{(i)} = g(\phi, y, x, \epsilon),
+
+where :math:`g(\cdot)` is an invertible and differentiable function, and
+:math:`p(\epsilon)` is a fixed density (e.g. a standard Gaussian) which we
+can easily sample from.
+
+While it is straightforward to generate reparametrised samples from
+:math:`q_{\phi}(z \vert y, x)` (we just evaluate :math:`g(\phi, \epsilon, y,
+x)`), in order to evaluate the density of some :math:`z` under this posterior
+distribution, we calculate
 
 .. math::
 
    \log q_{\phi}(z \vert y, x) = \log p(\epsilon) - \log \left\vert \det
    \frac{\partial g_{\phi}}{\partial\epsilon}(y, x, \epsilon)\right\vert,
 
+where we must subtract the log of the determinant of the Jacobian
+:math:`\frac{\partial z}{\partial \epsilon}` in order to conserve unit probability
+mass before and after the transformation :math:`g`. We would like to select
+(flexible) transformations :math:`g` where the log determinant of the Jacobian
+term is cheap to compute.
+
+**Factorised Gaussian Encoder**
+
 We have yet to specify a form for :math:`q_{\phi}(z \vert y, x)`. A good first
 attempt might be an isotropic Gaussian. That is, :math:`q_{\phi}(z \vert y, x) =
-\mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)`.
-
-..
-    , where the parameters are obtained from the encoder network:
-
-    .. math::
-
-       (\mu, \log \sigma) &= f_{\text{enc}}(\phi, y, x) \\
-       q_{\phi}(z \vert y, x) &= \prod_{i=1}^{d}\mathcal{N}(z_{i} \vert \mu_{i},
-       \sigma^2_{i}),
-
-    and the above product is a product of univariate Gaussians. The
-    reparametrisation is :math:`\mu + \sigma \odot \epsilon`
+\mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)`, where the parameters of
+this Gaussian :math:`(\mu, \log \sigma)` are the outputs of the encoder network.
 
 After reparametrisation, we have
 
@@ -288,14 +310,39 @@ After reparametrisation, we have
    (\mu, \log \sigma) &= f_{\text{enc}}(\phi, y, x) \\
    z &= \mu + \sigma \odot \epsilon
 
-where :math:`\odot` represents an element-wise product. The Jacobian of a
-triangular matrix is just the product of the diagonal elements
+where :math:`\odot` represents an element-wise product.
 
-That is, :math:`q_{\phi}(z \vert y,
-x) = \mathcal{N}\big(z; \mu(y, x, \phi_{\mu}), \sigma(y, x,
-\phi_{\sigma})\big)`, where :math:`\phi = \{\phi_{\mu}, \phi_{\Sigma}\}`
-parametrises two neural networks to output a mean vector and the diagonal of the
-covariance matrix, respectively.
+To evaluate the density of some :math:`z` under this distribution, we first find
+the Jacobian of this transformation, which in this isotropic Gaussian case is
+:math:`\frac{\partial z}{\partial \epsilon} = \text{diag}(\sigma)`. The
+determinant of a diagonal matrix is merely the product of the diagonal terms, so
+we may compute the log determinant of the Jacobian in :math:`O(n)` time as:
+
+.. math::
+
+   \log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+   \sum_{i=1}^{n}\log \sigma_{i},
+
+where :math:`n` is the dimensionality of the latent space. Since :math:`q` is
+isotropic Gaussian, we may find the density of a latent vector as a product of
+univariate Gaussians: :math:`q_{\phi}(z \vert y, x) =
+\prod_{i=1}^{n}\mathcal{N}(z_{i}; \mu_{i}, \sigma_{i})`, and so the posterior density
+can be expressed as a single sum:
+
+.. math::
+
+   \log q_{\phi}(z \vert y, x) &= \sum_{i=1}^{n} \log \mathcal{N}(\epsilon_{i};
+   0, 1) - \log \sigma_{i} \\
+   &= -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) + \epsilon_{i}^2\big) + \log \sigma_{i},
+
+when :math:`z = g(\phi, \epsilon, y, x)`.
+
+..
+    That is, :math:`q_{\phi}(z \vert y,
+    x) = \mathcal{N}\big(z; \mu(y, x, \phi_{\mu}), \sigma(y, x,
+    \phi_{\sigma})\big)`, where :math:`\phi = \{\phi_{\mu}, \phi_{\Sigma}\}`
+    parametrises two neural networks to output a mean vector and the diagonal of the
+    covariance matrix, respectively.
 
 ..
     Taking the reparametrised sampling approach, we have
@@ -332,6 +379,7 @@ covariance matrix, respectively.
     - the generation network :math:`p_{\theta}(y \vert z, x)`
 
 .. todo:: Finish writing this page
+
 
 References
 ----------
