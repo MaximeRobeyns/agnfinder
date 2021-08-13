@@ -190,6 +190,8 @@ y)` term indeed lower-bounds the evidence:
 This last line above is the canonical form in which the ELBO is usually
 given.
 
+--------------------------------------------------------------------------------
+
 .. sidebar:: Jensen's inequality
 
     .. image:: ./_static/jensens-inequality.svg
@@ -197,6 +199,7 @@ given.
     Put loosely, Jensen's inequality states that :math:`\varphi(\mathbb{E}[x])
     \ge \mathbb{E}[\varphi(x)]`, for :math:`\varphi(\cdot)` a concave function
     e.g. :math:`log(\cdot)`.
+
 
 For another perspective, we may derive the lower bound using Jensen's
 inequality.
@@ -295,6 +298,8 @@ mass before and after the transformation :math:`g`. We would like to select
 (flexible) transformations :math:`g` where the log determinant of the Jacobian
 term is cheap to compute.
 
+--------------------------------------------------------------------------------
+
 **Factorised Gaussian Encoder**
 
 We have yet to specify a form for :math:`q_{\phi}(z \vert y, x)`. A good first
@@ -337,48 +342,67 @@ can be expressed as a single sum:
 
 when :math:`z = g(\phi, \epsilon, y, x)`.
 
-..
-    That is, :math:`q_{\phi}(z \vert y,
-    x) = \mathcal{N}\big(z; \mu(y, x, \phi_{\mu}), \sigma(y, x,
-    \phi_{\sigma})\big)`, where :math:`\phi = \{\phi_{\mu}, \phi_{\Sigma}\}`
-    parametrises two neural networks to output a mean vector and the diagonal of the
-    covariance matrix, respectively.
+--------------------------------------------------------------------------------
 
-..
-    Taking the reparametrised sampling approach, we have
+**Full Covariance Gaussian Encoder**
 
-    .. math::
+A more flexible inference model :math:`q_{\phi}(z \vert y, x)` will generally
+improve the tightness of the ELBO (since the KL divergence term
+:math:`D_{\text{KL}}\big[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)]`,
+which introduces the inequality, will be smaller). We must maintain an efficient
+sampling procedure (e.g. reparametrised sampling, for which it must remain cheap
+to evaluate the log determinant of the Jacobian). A full-covariance Gaussian
+satisfies these desiderata; where :math:`q_{\phi}(z \vert y, x) = \mathcal{N}(z;
+\mu, \Sigma)`, and :math:`(\mu, \Sigma) = f_{\text{enc}}(\phi, y, x)` is a
+neural network.
 
-        g_{\phi}(y, x, \epsilon^{(i)}) =
-        \mu(y, x, \phi_{\mu}) + \sigma(y, x, \phi_{\sigma}) \odot \epsilon^{(i)}.
+The reparametrised sampling procedure is:
 
-    where :math:`\odot` represents an element-wise product, and :math:`A^{1/2} =
-    LL^{\top}` is the Cholesky decomposition of the PSD (and diagonal) covariance
-    matrix. Hence the KL divergence term in the empirical CVAE
-    objective is the KL between two multivariate Gaussians, which can be written as:
+.. math::
 
-    .. math::
+   \epsilon &\sim \mathcal{N}(0, \mathbf{I}) \\
+   z &= \mu + L\epsilon
 
-       D_{\text{KL}}\left[\mathcal{N}(\mu_{1}, \Sigma_{1}) \Vert
-       \mathcal{N}(\mu_{2}, \Sigma_{2})\right] &=
-       \frac{1}{2} \left(
-        \log \frac{\vert \Sigma_{2}\vert}{\vert \Sigma_{1}\vert}
-        - d
-        + \tr \left(\Sigma^{-1}_{2}\Sigma_{1}\right)
-        + (\mu_{2} - \mu_{1})^\top \Sigma^{-1}_{2}(\mu_{2} - \mu_{1})
-       \right),
+where L is a lower triangular matrix with non-zero diagonal elements. The reason
+for this constraint is that it makes the evaluating the density of
+:math:`q_{\phi}(z \vert y, x)`, which in turn requires finding the log
+determinant of the Jacobian of the above simple.  The Jacobian is
+:math:`\frac{\partial z}{\partial \epsilon}`, and since the determinant of a
+triangular matrix is the product of the diagonal elements, we get:
 
-    where :math:`d` is the dimensionality of the latent representation. If we
-    further express a preference for the latent space to be unit Gaussian
-    further say that we wish :math:`p_{\theta}(z \vert x)` to be unit Gaussian
+.. math::
 
-    Thus to implement the CVAE, we have three networks;
+   \log \det \frac{\partial z}{\partial \epsilon} = \sum_{i=1}^{n} \log \vert
+   L_{ii} \vert
 
-    - the recognition network :math:`q_{\phi}(z \vert y, x)`,
-    - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
-    - the generation network :math:`p_{\theta}(y \vert z, x)`
+As an implementation point, we can output a matrix :math:`L` with the desired
+properties from a neural net by constructing it as:
 
-.. todo:: Finish writing this page
+.. math::
+
+   (\mu, \log \sigma, L') &= f_{\text{enc}}(\phi, y, x) \\
+   L &= L_{\text{mask}} \odot L' + \text{diag}(\sigma),
+
+where :math:`L_{\text{mask}}` is a masking matrix with zeros on and above the
+diagonal, and ones below the diagonal. This ensures that :math:`L` is
+triangular, with :math:`\sigma` on the diagonal. We therefore recover the same
+log-determinant as the isotropic Gaussian case:
+
+.. math::
+
+   \log \det \frac{\partial z}{\partial \epsilon} = \sum_{i=1}^{n} \log \sigma_{i}.
+
+
+.. todo:: Consolidate all the equations and write pseudo-code for training
+          procedure.
+
+--------------------------------------------------------------------------------
+
+Thus to implement the CVAE, we have three networks;
+
+- the recognition network :math:`q_{\phi}(z \vert y, x)`,
+- the (conditional) prior network :math:`p_{\theta}(z \vert x)`
+- the generation network :math:`p_{\theta}(y \vert z, x)`
 
 
 References
