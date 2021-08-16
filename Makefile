@@ -58,6 +58,12 @@ ifndef SPS_HOME
 endif
 	@python -m pytest tests
 
+alltest: mypy
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python -m pytest tests --runslow
+
 docs:
 	@./docs/writedocs.sh
 
@@ -96,4 +102,4 @@ endif
 help:
 	@./bin/help.sh
 
-.PHONY: run test kernel lab install docs docsimg qt help mypy
+.PHONY: run test kernel lab install docs docsimg qt help mypy alltest

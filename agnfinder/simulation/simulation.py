@@ -24,12 +24,11 @@ import tqdm
 import h5py
 import logging
 import argparse
-import torch as t
 import numpy as np
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
-from agnfinder.types import FilterSet, Filters, paramspace_t
+from agnfinder.types import Tensor, FilterSet, Filters, paramspace_t
 from agnfinder.prospector import Prospector
 
 
@@ -67,7 +66,7 @@ class Simulator(object):
             (args.rshift_min, args.rshift_max)
 
         # The hypercube of (denormalised) galaxy parameters
-        self.theta: t.Tensor
+        self.theta: Tensor
         logging.debug('Successfully initialised Simulator object')
 
     def sample_theta(self) -> None:

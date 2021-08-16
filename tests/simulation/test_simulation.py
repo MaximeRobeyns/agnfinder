@@ -16,6 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Tests for the simulation class"""
 
+import pytest
 import argparse
 import torch as t
 
@@ -64,10 +65,9 @@ def test_create_hypercube():
     # We have already tested that the denormalised theta are in the correct
     # range in test_utils.py
 
+@pytest.mark.slow
 def test_create_forward_model():
     sim = _create_test_sim()
     assert not sim.has_forward_model
-    # Running this test is too slow and expensive, since it makes calls to
-    # SPS codes.
-    # sim.create_forward_model()
-    # assert sim.has_forward_model
+    sim.create_forward_model()
+    assert sim.has_forward_model

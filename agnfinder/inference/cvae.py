@@ -19,8 +19,29 @@
 import torch as t
 import torch.nn as nn
 
+from agnfinder.types import arch_t
+
 
 class CVAE(t.Module):
+
+    # def __init__(self, enc_arch: arch_t, dec_arch: arch_t, latent_size: int,
+    #              cond_size: int):
+    #     """Conditional Variational AutoEncoder
+
+    #     Args:
+    #         enc_arch: encoder architecture
+    #         dec_arch: decoder architecture
+    #         latent_size: size of latent vector; must equal output of enc_arch
+    #         cond_size: size of conditioning information.
+    #     """
+    #     if enc_arch.out_shape != latent_size:
+    #         raise ValueError(('Latent vector size must be same dimension as '
+    #                           'encoder output layer'))
+
+    #     self.latent_size = latent_size
+    #     # TODO configure which encoder is present here.
+    #     self.encoder = Encoder(encoder_layers, latent_size, cond_size)
+
 
     def __init__(self, encoder_layers: list[int], latent_size: int,
                  cond_size: int, decoder_layers: list[int]):

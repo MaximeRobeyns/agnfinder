@@ -21,10 +21,11 @@ import pyDOE2
 
 import torch as t
 
+from agnfinder.types import Tensor
 from agnfinder.config import FreeParams
 
 
-def get_unit_latin_hypercube(dims: int, n_samples: int) -> t.Tensor:
+def get_unit_latin_hypercube(dims: int, n_samples: int) -> Tensor:
     """Generate latin hypercube.
 
     Only reason to use pyDOE2 to do this is for the correlation minimisation.
@@ -41,9 +42,9 @@ def get_unit_latin_hypercube(dims: int, n_samples: int) -> t.Tensor:
     return t.from_numpy(np_cube)
 
 
-def shift_redshift_theta(norm_redshift: t.Tensor,
+def shift_redshift_theta(norm_redshift: Tensor,
                          fixed_theta_range: tuple[float, float],
-                         target_theta_range: tuple[float, float]) -> t.Tensor:
+                         target_theta_range: tuple[float, float]) -> Tensor:
     """Transforms redshift range so that when this hypercube is used with other
     hypercubes (with other redshift ranges), the normalised redshift will still
     cover the [0, 1] range when combined.
@@ -73,7 +74,7 @@ def shift_redshift_theta(norm_redshift: t.Tensor,
     return rshift + target_theta_range[0] / fixed_theta_range[1]
 
 
-def denormalise_theta(norm_theta: t.Tensor, limits: FreeParams) -> t.Tensor:
+def denormalise_theta(norm_theta: Tensor, limits: FreeParams) -> Tensor:
     """Convert hypercube to the true parameter space.
 
     Args:
@@ -81,7 +82,7 @@ def denormalise_theta(norm_theta: t.Tensor, limits: FreeParams) -> t.Tensor:
         limits: Free parameter definition (including limits)
 
     Returns:
-        t.Tensor: Scaled parameter values
+        Tensor: Scaled parameter values
     """
     assert norm_theta.shape[1] == len(limits)
 
@@ -93,7 +94,7 @@ def denormalise_theta(norm_theta: t.Tensor, limits: FreeParams) -> t.Tensor:
     return t.where(limits.log, 10**t.clip(theta, -10, 20), theta)
 
 
-def normalise_theta(params: t.Tensor, limits: FreeParams) -> t.Tensor:
+def normalise_theta(params: Tensor, limits: FreeParams) -> Tensor:
     """Normalise galaxy parameters to lie in range [0, 1]
 
     Useful for turning Prospector samples into normalised samples.
@@ -103,7 +104,7 @@ def normalise_theta(params: t.Tensor, limits: FreeParams) -> t.Tensor:
         limits: Free paameter definition (including limits)
 
     Returns:
-        t.Tensor: The normalised SPS parameters
+        Tensor: The normalised SPS parameters
     """
     assert params.shape[1] == len(limits)
 

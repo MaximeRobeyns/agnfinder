@@ -16,7 +16,10 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Tests for some of the custom data types."""
 
-from agnfinder.types import Filters, FilterSet
+import pytest
+import torch.nn as nn
+
+from agnfinder.types import Filters, FilterSet, arch_t
 
 def test_Filters():
 
@@ -34,3 +37,39 @@ def test_Filters():
     assert f.dim == 12
     assert f.value == 'all'
     assert f == 'all'
+
+def test_arch_t():
+
+    with pytest.raises(ValueError):
+        # test len(layer_sizes) /= len(activations)
+        _ = arch_t([1,2,3], [4], [nn.ReLU()])
+
+    # test type(activations) must be list[nn.Module]
+    with pytest.raises(ValueError):
+        _ = arch_t([1,2,3], [4], [None])
+    with pytest.raises(ValueError):
+        _ = arch_t([1,2,3], [4], [42])
+
+    # test type(activations) must be nn.Module
+    with pytest.raises(ValueError):
+        _ = arch_t([1,2,3], [4], None)
+    with pytest.raises(ValueError):
+        _ = arch_t([1,2,3], [4], 42)
+
+    # Verify that this doesn't raise a ValueError
+    a = arch_t([1,2,3], [4], nn.ReLU())
+    assert len(a) == 4
+    assert len(a.activations) == 3
+
+    aa = arch_t([1,2], [3, 4], [nn.ReLU(), nn.Softmax(1)])
+    assert len(aa) == 3
+    assert len(aa.activations) == 2
+    assert len(aa.layer_sizes) == 2
+    assert len(aa.head_sizes) == 2
+    assert all([a is None for a in aa.head_activations])
+    assert aa.batch_norm
+
+    aaa = arch_t([2**i for i in range(10, 5, -1)],
+                 [10, 2], nn.ReLU(), [None, nn.Softmax()], False)
+    assert len(aaa) == 6
+    assert not aaa.batch_norm
