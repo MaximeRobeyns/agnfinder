@@ -25,13 +25,15 @@ AGNfinder: Detect AGN from photometry in XXL data.
 
 Please use 'make target' where 'target' is one of:
 
-    install     To install everything (warning, downloads ~1.5Gb of data)
-    test        To run the program's tests (and verify the installation)
-    run         To run the main sampling program
+    alltest     To run all the program's tests (including slow running ones)
     docs        To compile the documentation (requires Docker)
     docsimg     To explicitly build the documentation writing image
-    qt          To re-create the quasar templates (quasar and torus models)
+    install     To install everything (warning, downloads ~1.5Gb of data)
     kernel      To setup a Jupyter kernel
     lab         To start a Jupyter Lab server
+    mypy        To run mypy only (this is usually done with test / alltest)
+    sim         To run the main sampling / simulation program
+    test        To run the program's fast tests (e.g. to verify an installation)
+    qt          To re-create the quasar templates (quasar and torus models)
 
 EOF

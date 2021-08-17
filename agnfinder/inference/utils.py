@@ -21,8 +21,8 @@ import h5py
 import torch as t
 import numpy as np
 
-from torch.utils.data import Dataset
-from typing import Callable, Union, Any
+from torch.utils.data import Dataset, DataLoader, random_split
+from typing import Any, Callable, Optional, Union
 
 from agnfinder.types import Tensor, tensor_like
 
@@ -30,7 +30,7 @@ class GalaxyDataset(Dataset):
     """Generated (theta, photometry) pairs."""
 
     def __init__(self, file: str,
-                 transforms: list[Callable[[Any], Any]] = [t.from_numpy]):
+                 transforms: list[Callable[[Any], Any]] = []):
         """Load the galaxy dataset
 
         Args:
@@ -67,5 +67,42 @@ class GalaxyDataset(Dataset):
         for tr in self.transforms:
             xs, ys = tr(xs), tr(ys)
 
-        return (xs, ys)
+        # both np.ndarray and torch.Tensor implement `squeeze`
+        return (xs.squeeze(), ys.squeeze())
 
+def load_simulated_data(
+        path: str, split_ratio: float = 0.8, batch_size: int = 32,
+        test_batch_size: Optional[int] = None,
+        transforms: list[Callable[[Any], Any]] = [t.from_numpy],
+        ) -> tuple[DataLoader, DataLoader]:
+    """Load simulated (theta, photometry) data as train and test data loaders.
+
+    Args:
+        path: file path to the .hdf5 file containing simulated data
+        split_ratio: train / test split ratio
+        batch_size: training batch size (default 32)
+        test_batch_size: optional different batch size for testing (defaults to
+            `batch_size`)
+        transforms: list of transformations to apply to data before returning
+
+    Returns:
+        tuple[DataLoader, DataLoader]: train and test DataLoaders, respectively
+    """
+    tbatch_size = test_batch_size if test_batch_size is not None else batch_size
+
+    cuda_kwargs = {'num_workers': 1}#, 'pin_memory': True}
+    train_kwargs: dict[str, Any] = {
+        'batch_size': batch_size, 'shuffle': False} | cuda_kwargs
+    test_kwargs: dict[str, Any] = {
+        'batch_size': tbatch_size, 'shuffle': False} | cuda_kwargs
+
+    dataset = GalaxyDataset(file=path, transforms=transforms)
+
+    n_train = int(len(dataset) * split_ratio)
+    n_test = len(dataset) - n_train
+    train_set, test_set = random_split(dataset, [n_train, n_test])
+
+    train_loader = DataLoader(train_set, **train_kwargs)
+    test_loader = DataLoader(test_set, **test_kwargs)
+
+    return train_loader, test_loader

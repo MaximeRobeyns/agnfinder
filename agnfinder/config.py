@@ -19,6 +19,7 @@
 
 import os
 import math
+import time
 import torch as t
 import torch.nn as nn
 import logging
@@ -57,7 +58,7 @@ class FreeParameters(ConfigClass):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 100000
+    n_samples: int = 10000
     redshift_min: float = 0.
     redshift_max: float = 4.
     save_dir: str = './data/cubes'
@@ -160,6 +161,9 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(ConfigClass):
+    epochs: int = 8
+    batch_size: int = 32
+    split_ratio: float = 0.9  # train / test split ratio
     dataset_loc: str = './data/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
 
 
@@ -209,8 +213,11 @@ class LoggingParams(ConfigClass):
     # If any of these levels are NOTSET, then the corresponding logging handler
     # will not be used.
     file_level: int = logging.INFO
-    debug_level: int = logging.INFO
-    console_level: int = logging.WARNING
+    debug_level: int = logging.NOTSET  # logging.NOTSET
+    console_level: int = logging.INFO
+
+
+# ----------------------------------------------------------------------------
 
 
 def get_logging_config(p: LoggingParams) -> dict[str, Any]:
@@ -229,7 +236,7 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
         # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
         'formatters': {
             'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(message)s (%(module)s)'
+                'format': '%(asctime)s [%(levelname)s] %(message)s'
             },
             'debug': {
                 'format': '[Dbg: %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
@@ -304,7 +311,7 @@ def configure_logging(console_level: Union[int, None] = None,
         lp.file_loc = file_loc
     dictConfig(get_logging_config(lp))
     logging.info(
-        f'\n\n\n\n\n{35*"~"} New Run {35*"~"}\n\n')
+        f'\n\n{79*"~"}\n\n\tAGNFinder\n\t{time.ctime()}\n\n{79*"~"}\n\n')
 
 
 class FreeParams(FreeParameters):

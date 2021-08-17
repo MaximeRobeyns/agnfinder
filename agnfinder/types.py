@@ -17,6 +17,7 @@
 """ Some custom types """
 
 import typing
+import logging
 import numpy as np
 import torch as t
 import torch.nn as nn
@@ -82,6 +83,9 @@ class ConfigClass(object):
     """The point of this class is to allow class-based configuration objects to
     be printed for logging and debugging in a clean way.
     """
+
+    def __init__(self) -> None:
+        logging.debug(f'New configuration object: {self}')
 
     def __repr__(self) -> str:
         r = f'\n\n{79*"="}\n'

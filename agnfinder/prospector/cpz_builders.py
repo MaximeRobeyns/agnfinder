@@ -111,7 +111,7 @@ def build_model(args: CPzParams) -> SedModel:
         SedModel: The prospector SED model.
     """
 
-    logging.info(f'Building model with parameters {args}')
+    logging.info(f'Building SedModel model')
 
     # Get a copy of one of the pre-packaged model set dictionaries.
     model_params = templates.TemplateLibrary['parametric_sfh']
@@ -193,7 +193,7 @@ def build_sps(cpz_params: CPzParams, sps_params: SPSParams) -> CSPSpecBasis:
         CSPSpecBasis: Instance of a CSPSpecBasis class
     """
 
-    logging.info(f'Using the following sps_params in build_sps: {sps_params}')
+    logging.info(f'Building SPS model')
 
     if cpz_params.model_agn:
         logging.info('Building custom CSPSpecBasisAGN.')

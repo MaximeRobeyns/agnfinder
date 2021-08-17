@@ -19,20 +19,20 @@
 import torch as t
 
 from agnfinder.types import Tensor
-from agnfinder.inference.utils import GalaxyDataset
+from agnfinder.inference.utils import GalaxyDataset, load_simulated_data
 
 fpath = './data/testdata/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
 
-def test_GalaxyDaaset():
-    dset = GalaxyDataset(file=fpath)
+def test_GalaxyDataset():
+    dset = GalaxyDataset(file=fpath, transforms=[t.from_numpy])
     assert len(dset) == 1000
 
     xs, ys = dset[500]
 
     assert isinstance(xs, Tensor)
-    assert xs.shape == t.Size([1, 9])
+    assert xs.shape == t.Size((9,))
     assert isinstance(ys, Tensor)
-    assert ys.shape == t.Size([1, 8])
+    assert ys.shape == t.Size((8,))
 
     xs, ys = dset[[2**i for i in range(5)]]
     assert xs.shape == t.Size([5, 9])
@@ -51,5 +51,27 @@ def test_GalaxyDaaset():
     xs, ys = dset[0]
     assert isinstance(xs, Tensor)
     assert isinstance(ys, Tensor)
-    assert t.equal(xs, t.ones((1, 9), dtype=t.float64)*10)
-    assert t.equal(ys, t.ones((1, 8), dtype=t.float64)*10)
+    assert t.equal(xs, t.ones((9,), dtype=t.float64)*10)
+    assert t.equal(ys, t.ones((8,), dtype=t.float64)*10)
+
+
+def test_load_simulated_data():
+    train, test = load_simulated_data(
+        path=fpath, split_ratio=0.5, batch_size=64, test_batch_size=128)
+
+    for _, (x, y) in enumerate(train):
+        assert isinstance(x, Tensor)
+        assert x.shape == t.Size((64, 9))
+        assert isinstance(y, Tensor)
+        assert y.shape == t.Size((64, 8))
+        break
+
+    for _, (x, y) in enumerate(test):
+        assert isinstance(x, Tensor)
+        assert x.shape == t.Size((128, 9))
+        assert isinstance(y, Tensor)
+        assert y.shape == t.Size((128, 8))
+        break
+
+    assert len(train.dataset) == 500
+    assert len(test.dataset) == 500

@@ -114,7 +114,7 @@ data/*.hdf5
 data/old_data
 results/*.png
 data/*.png
-data/testdata
+data/testdata/MNIST
 *.parquet
 .vscode/*
 *.hdf5

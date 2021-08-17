@@ -16,14 +16,16 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Entrypoint for inference tasks."""
 
+import logging
 import torch as t
 import torch.distributions as dist
+from torch.utils.data import DataLoader
 
 import agnfinder.inference.base as base
 
 from agnfinder import config as cfg
 from agnfinder.types import arch_t, Tensor, Distribution
-from agnfinder.inference.utils import GalaxyDataset
+from agnfinder.inference.utils import load_simulated_data
 
 class Recognition(base.RecognitionNet):
 
@@ -105,7 +107,7 @@ class CVAE(object):
         self.theta_opt = t.optim.Adam(self.prior_net.parameters())
 
 
-    def train(self, epochs: int = 2):
+    def train(self, train_loader: DataLoader, epochs: int = 2):
         for _ in range(epochs):
             pass
 
@@ -122,12 +124,17 @@ if __name__ == '__main__':
     ip = cfg.InferenceParams()  # inference procedure parameters
     cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
+    # initialise the model
     cvae = CVAE(cp.recognition_arch, cp.prior_arch, cp.generator_arch)
 
-    # TODO load the generated (theta, photometry) dataset
+    # load the generated (theta, photometry) dataset
+    train_loader, test_loader = load_simulated_data(
+        path=ip.dataset_loc,
+        split_ratio=ip.split_ratio,
+        batch_size=ip.batch_size)
 
-    # TODO train the CVAE
-    # cvae.train()
+    # train the CVAE
+    cvae.train(train_loader, ip.epochs)
 
     # TODO evaluate and optionally output plots and figures
 

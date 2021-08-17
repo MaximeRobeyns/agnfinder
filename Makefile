@@ -40,7 +40,7 @@ endif
 # Targets ---------------------------------------------------------------------
 
 # Generic 'run' target for development
-run:
+sim:
 ifndef SPS_HOME
 		@source setup.sh
 endif
