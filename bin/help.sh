@@ -28,6 +28,7 @@ Please use 'make target' where 'target' is one of:
     alltest     To run all the program's tests (including slow running ones)
     docs        To compile the documentation (requires Docker)
     docsimg     To explicitly build the documentation writing image
+    inf         To run the inference code
     install     To install everything (warning, downloads ~1.5Gb of data)
     kernel      To setup a Jupyter kernel
     lab         To start a Jupyter Lab server

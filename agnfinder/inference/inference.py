@@ -28,21 +28,31 @@ from agnfinder.types import arch_t, Tensor, Distribution
 from agnfinder.inference.utils import load_simulated_data
 
 class Recognition(base.RecognitionNet):
+    """Gaussian q_{phi}(z | y, x)"""
 
     def distribution(self, y: Tensor, x: Tensor) -> Distribution:
         """
         Takes the physical parameters y and photometric observations x, and
         returns a distribution over latents.
         """
-        params = self.forward(t.cat((y, x), -1))
+        in_vec = t.cat((y, x), -1)
+        params = self.forward(in_vec)
         assert self.out_len == 2
         assert len(params) == self.out_len
-        d = dist.MultivariateNormal(params[0], t.diag(t.pow(params[1], 2.)))
+        assert params[0].shape == params[1].shape
+        logging.debug(f'{self}')  # print NN architecture
+
+        # batch of covariance matrices will be [batch_size, latent_dim, latent_dim]
+        [batch, latent_dim] = params[1].shape
+        cov = t.eye(latent_dim).expand(batch, -1, -1) * t.pow(params[1], 2.).unsqueeze(-1)
+
+        d = dist.MultivariateNormal(params[0], cov)
 
         assert d.has_rsample
         return d
 
 class Prior(base.PriorNet):
+    """Gaussian p_{theta}(z | x)"""
 
     def distribution(self, x: Tensor) -> Distribution:
         """
@@ -56,6 +66,7 @@ class Prior(base.PriorNet):
         return d
 
 class Generator(base.GeneratorNet):
+    """Gaussian p_{theta}(y | z, x)"""
 
     def distribution(self, z: Tensor, x: Tensor) -> Distribution:
         """
@@ -77,9 +88,6 @@ class CVAE(object):
     and loss_function.
 
     Training procedure:
-    for e in epochs:
-        iterate through training pairs (y, x)
-        where y = galaxy params (9 dims), and x = photometric obs (8 dims)
         1. use recognition net to output params of q distribution, so we can
            use reparametrised sampling to get a z sample. Keep track of the
            epsilon used, or return log q_{phi}(z' | y, x) then and there along
@@ -96,25 +104,47 @@ class CVAE(object):
     """
 
     def __init__(self, recognition_arch: arch_t, prior_arch: arch_t,
-                 generator_arch: arch_t) -> None:
+                 generator_arch: arch_t, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
 
-        self.recognition_net = Recognition(recognition_arch)
-        self.prior_net = Prior(prior_arch)
-        self.generator_net = Generator(generator_arch)
+        self.device = device
+        self.dtype = dtype
+
+        self.recognition_net = Recognition(recognition_arch, device, dtype)
+        self.prior_net = Prior(prior_arch, device, dtype)
+        self.generator_net = Generator(generator_arch, device, dtype)
 
         self.phi_opt = t.optim.Adam(self.recognition_net.parameters())
         # TODO we perhaps need to have another one here
         self.theta_opt = t.optim.Adam(self.prior_net.parameters())
 
 
-    def train(self, train_loader: DataLoader, epochs: int = 2):
-        for _ in range(epochs):
-            pass
 
-    def loss_function(self):
-        # TODO implement this
-        # reconstruction loss + KL divergence
-        pass
+    def train(self, train_loader: DataLoader, epochs: int = 2, log_every: int = 100):
+        for e in range(epochs):
+            for i, (x, y) in enumerate(train_loader):
+
+                assert x.dtype == t.float64
+                assert y.dtype == t.float64
+
+                qdist = self.recognition_net.distribution(y, x)
+                z = qdist.rsample()
+                pdist = self.prior_net.distribution(x)
+                gendist = self.generator_net.distribution(z, x)
+
+                self.phi_opt.zero_grad()
+                self.theta_opt.zero_grad()
+
+                ELBO = gendist.log_prob(y) + pdist.log_prob(z) - qdist.log_prob(z)
+                loss = -ELBO.mean(-1)
+                loss.backward()
+
+                self.phi_opt.step()
+                self.theta_opt.step()
+
+                if i % log_every == 0 or i == len(train_loader)-1:
+                    print("Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}".format(
+                        e, epochs, i, len(train_loader)-1, loss.item()))
 
 
 if __name__ == '__main__':
@@ -125,13 +155,20 @@ if __name__ == '__main__':
     cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
     # initialise the model
-    cvae = CVAE(cp.recognition_arch, cp.prior_arch, cp.generator_arch)
+    cvae = CVAE(cp.recognition_arch, cp.prior_arch, cp.generator_arch,
+                device=ip.device, dtype=ip.dtype)
+    logging.info('Initialised CVAE network')
 
     # load the generated (theta, photometry) dataset
     train_loader, test_loader = load_simulated_data(
         path=ip.dataset_loc,
         split_ratio=ip.split_ratio,
-        batch_size=ip.batch_size)
+        batch_size=ip.batch_size,
+        transforms=[
+            t.from_numpy,
+            lambda x: x.to(dtype=ip.dtype, device=ip.device)
+        ])
+    logging.info('Created data loaders')
 
     # train the CVAE
     cvae.train(train_loader, ip.epochs)

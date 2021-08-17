@@ -29,11 +29,14 @@ from agnfinder.types import Tensor, Distribution, DistParam, arch_t
 
 class MLP(nn.Module):
 
-    def __init__(self, arch: arch_t) -> None:
+    def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
         """Base neural network class for simple feed-forward architectures.
 
         Args:
             arch: neural network architecture description
+            device: device memory on which to store parameters
+            dtype: datatype to use for parameters
         """
         super().__init__()
         self._arch = arch  # keep a record of arch description
@@ -45,6 +48,7 @@ class MLP(nn.Module):
             if arch.batch_norm:
                 self.MLP.add_module(name=f'BN{i}', module=nn.BatchNorm1d(k))
             self.MLP.add_module(name=f'A{i}', module=arch.activations[i])
+        self.MLP.to(device=device, dtype=dtype)
 
         h_n = layer_sizes[-1]
         self.heads: list[nn.Module] = []
@@ -54,6 +58,7 @@ class MLP(nn.Module):
             if arch.head_activations[i] is not None:
                 this_head.add_module(name=f'HA{i}',
                                      module=arch.head_activations[i])
+            this_head.to(device=device, dtype=dtype)
             self.heads.append(this_head)
 
     def forward(self, x: Tensor) -> Union[Tensor, DistParam]:
@@ -78,12 +83,24 @@ class MLP(nn.Module):
         """Number of tensor parameters returned"""
         return len(self._arch.head_sizes)
 
+    def __repr__(self) -> str:
+        """Prints representation of NN architecture"""
+        a = f'{type(self).__name__} Network Architecture'
+        b = int((78 - len(a))/2)
+
+        r = f'\n\n{b*"~"} {a} {b*"~"}\n{self.MLP}'
+        for i, h in enumerate(self.heads):
+            r += f'\nHead {i}:\n{h}'
+        r += f'\n{79*"~"}\n'
+        return r
+
 
 class RecognitionNet(MLP, abc.ABC):
     """An abstract recognition network; implementing q_{phi}(z | y, x)."""
 
-    def __init__(self, arch: arch_t) -> None:
-        MLP.__init__(self, arch)
+    def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
 
     @abc.abstractmethod
@@ -94,8 +111,9 @@ class RecognitionNet(MLP, abc.ABC):
 class PriorNet(MLP, abc.ABC):
     """Abstract 'prior' network; implementing p_{theta}(z | x)."""
 
-    def __init__(self, arch: arch_t) -> None:
-        MLP.__init__(self, arch)
+    def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
 
     @abc.abstractmethod
@@ -106,8 +124,9 @@ class PriorNet(MLP, abc.ABC):
 class GeneratorNet(MLP, abc.ABC):
     """Abstract generation network; implementing p_{theta}(y | z, x)."""
 
-    def __init__(self, arch: arch_t) -> None:
-        MLP.__init__(self, arch)
+    def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
 
     @abc.abstractmethod

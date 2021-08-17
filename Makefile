@@ -46,6 +46,13 @@ ifndef SPS_HOME
 endif
 	@python agnfinder/simulation/simulation.py
 
+# 'inference': train CVAE
+inf:
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/inference.py
+
 mypy:
 ifndef SPS_HOME
 		@source setup.sh

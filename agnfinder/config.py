@@ -164,7 +164,9 @@ class InferenceParams(ConfigClass):
     epochs: int = 8
     batch_size: int = 32
     split_ratio: float = 0.9  # train / test split ratio
-    dataset_loc: str = './data/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
+    dtype: t.dtype = t.float64
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+    dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
 
 
 # ======================= Inference (CVAE) Parameters =========================

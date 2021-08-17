@@ -18,6 +18,7 @@
 
 import os
 import h5py
+import logging
 import torch as t
 import numpy as np
 
@@ -38,6 +39,7 @@ class GalaxyDataset(Dataset):
                 from simulation run)
             transforms: any transformations to apply to the data
         """
+        logging.info(f'Loading data from file: \n\t{file}')
         assert os.path.exists(file)
         self.file = file
         self.transforms = transforms
@@ -45,8 +47,8 @@ class GalaxyDataset(Dataset):
         f = h5py.File(file, 'r')
         samples = f.get('samples')
         assert isinstance(samples, h5py.Group)
-        xs = np.array(samples.get('theta'))
-        ys = np.array(samples.get('simulated_y'))
+        xs = np.array(samples.get('simulated_y'))
+        ys = np.array(samples.get('theta'))
         self._x_dim, self._y_dim = xs.shape[-1], ys.shape[-1]
         self.dataset = np.concatenate((xs, ys), -1)
 

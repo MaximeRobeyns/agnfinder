@@ -30,17 +30,17 @@ def test_GalaxyDataset():
     xs, ys = dset[500]
 
     assert isinstance(xs, Tensor)
-    assert xs.shape == t.Size((9,))
+    assert xs.shape == t.Size((8,))
     assert isinstance(ys, Tensor)
-    assert ys.shape == t.Size((8,))
+    assert ys.shape == t.Size((9,))
 
     xs, ys = dset[[2**i for i in range(5)]]
-    assert xs.shape == t.Size([5, 9])
-    assert ys.shape == t.Size([5, 8])
+    assert xs.shape == t.Size([5, 8])
+    assert ys.shape == t.Size([5, 9])
 
     xs, ys = dset[t.randint(0, len(dset), (200,))]
-    assert xs.shape == t.Size([200, 9])
-    assert ys.shape == t.Size([200, 8])
+    assert xs.shape == t.Size([200, 8])
+    assert ys.shape == t.Size([200, 9])
 
     t1 = t.from_numpy
     t2 = lambda x: x.to(dtype=t.float64)
@@ -51,8 +51,8 @@ def test_GalaxyDataset():
     xs, ys = dset[0]
     assert isinstance(xs, Tensor)
     assert isinstance(ys, Tensor)
-    assert t.equal(xs, t.ones((9,), dtype=t.float64)*10)
-    assert t.equal(ys, t.ones((8,), dtype=t.float64)*10)
+    assert t.equal(xs, t.ones((8,), dtype=t.float64)*10)
+    assert t.equal(ys, t.ones((9,), dtype=t.float64)*10)
 
 
 def test_load_simulated_data():
@@ -61,16 +61,16 @@ def test_load_simulated_data():
 
     for _, (x, y) in enumerate(train):
         assert isinstance(x, Tensor)
-        assert x.shape == t.Size((64, 9))
+        assert x.shape == t.Size((64, 8))
         assert isinstance(y, Tensor)
-        assert y.shape == t.Size((64, 8))
+        assert y.shape == t.Size((64, 9))
         break
 
     for _, (x, y) in enumerate(test):
         assert isinstance(x, Tensor)
-        assert x.shape == t.Size((128, 9))
+        assert x.shape == t.Size((128, 8))
         assert isinstance(y, Tensor)
-        assert y.shape == t.Size((128, 8))
+        assert y.shape == t.Size((128, 9))
         break
 
     assert len(train.dataset) == 500
