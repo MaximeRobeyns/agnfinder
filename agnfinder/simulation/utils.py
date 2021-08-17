@@ -20,6 +20,7 @@
 import pyDOE2
 
 import torch as t
+import torch.utils.data as data
 
 from agnfinder.types import Tensor
 from agnfinder.config import FreeParams

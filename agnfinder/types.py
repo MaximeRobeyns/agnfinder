@@ -40,6 +40,7 @@ pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 prun_params_t = dict[str, Union[int, bool, float, None]]
 
 
+
 # Neural network related ------------------------------------------------------
 
 # A PyTorch Tensor
@@ -48,6 +49,8 @@ Tensor = t.Tensor
 Distribution = t.distributions.Distribution
 # One or more tensors used to parametrise a distribution
 DistParam = list[Tensor]
+# NumPy array or PyTorch tensor
+tensor_like = Union[np.ndarray, Tensor]
 
 # Filters ---------------------------------------------------------------------
 
@@ -199,21 +202,21 @@ class arch_t(ConfigClass):
             and 2 output heads with different activation functions
 
             >>> arch_t(layer_sizes=[28*28, 256], head_sizes=[10, 2], \
-            >>>        activations=nn.ReLU(), \
-            >>>        head_activations=[nn.Softmax(), nn.ReLU()] \
-            >>>        batch_norm=False)
+            ...        activations=nn.ReLU(), \
+            ...        head_activations=[nn.Softmax(), nn.ReLU()] \
+            ...        batch_norm=False)
 
-            ANN with 2 hidden layers, ReLU activations, no output activation &
+            ANN with 1 hidden layer, ReLU activations, no output activation &
             batch normalisation:
 
-            >>> arch_t([512, 256], [10], nn.ReLU(), None)
+            >>> arch_t([512, 256], [10], nn.ReLU())
 
             ANN with two output heads, one without and one with activation,
             respectively:
 
             >>> arch_t([2**i for i in range(10, 5, -1)], [10, 2], \
-            >>>        activations=nn.ReLU(),
-            >>>        head_activations=[None, nn.Softmax()])
+            ...        activations=nn.ReLU(),
+            ...        head_activations=[None, nn.Softmax()])
 
         """
 

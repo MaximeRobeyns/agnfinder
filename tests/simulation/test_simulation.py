@@ -28,7 +28,7 @@ def _create_test_sim() -> Simulator:
         'n_samples': 1000,
         'rshift_min': 0.,
         'rshift_max': 4.,
-        'save_dir': './data',
+        'save_dir': './data/testdata',
         'emulate_ssp': False,
         'noise': False,
         'filters': 'euclid'
@@ -66,8 +66,10 @@ def test_create_hypercube():
     # range in test_utils.py
 
 @pytest.mark.slow
-def test_create_forward_model():
+def test_run_and_save_model():
     sim = _create_test_sim()
     assert not sim.has_forward_model
     sim.create_forward_model()
     assert sim.has_forward_model
+    sim.run()
+    sim.save_samples()

@@ -156,6 +156,12 @@ class ExtinctionTemplateParams(ConfigClass):
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
 
+# ======================= Inference (main) Parameters =========================
+
+
+class InferenceParams(ConfigClass):
+    dataset_loc: str = './data/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
+
 
 # ======================= Inference (CVAE) Parameters =========================
 

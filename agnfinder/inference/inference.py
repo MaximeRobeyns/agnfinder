@@ -22,7 +22,8 @@ import torch.distributions as dist
 import agnfinder.inference.base as base
 
 from agnfinder import config as cfg
-from agnfinder.types import arch_t, Tensor, Distribution, DistParam
+from agnfinder.types import arch_t, Tensor, Distribution
+from agnfinder.inference.utils import GalaxyDataset
 
 class Recognition(base.RecognitionNet):
 
@@ -59,11 +60,12 @@ class Generator(base.GeneratorNet):
         Accepts a latent vector z as well as conditioning information x, and
         returns a distribution over outputs y.
         """
-        params = self.forward(x)
+        params = self.forward(t.cat((z, x), -1))
         assert len(params) == self.out_len
         assert self.out_len == 2
         d = dist.MultivariateNormal(params[0], t.diag(t.pow(params[1], 2.)))
         return d
+
 
 # if required, create a base.CVAE class
 class CVAE(object):
@@ -71,7 +73,26 @@ class CVAE(object):
 
     TODO: implement methods such as encode, decode, sapmle, generate, forward
     and loss_function.
+
+    Training procedure:
+    for e in epochs:
+        iterate through training pairs (y, x)
+        where y = galaxy params (9 dims), and x = photometric obs (8 dims)
+        1. use recognition net to output params of q distribution, so we can
+           use reparametrised sampling to get a z sample. Keep track of the
+           epsilon used, or return log q_{phi}(z' | y, x) then and there along
+           with the z sample.
+        2. use prior network to get params of prior distribution p_{theta}(z | x)
+        3. use decoder / generator network to map sampled z and obs x to params
+           over y
+
+        Calculate ELBO objective to be maximised by evaluating likelihoods of
+        the various distributions.
+        - You only need us use the special reparametrised sampling density
+          equation for the recognition distribution q_{phi}(.); for the others
+          you can just do log_prob.
     """
+
     def __init__(self, recognition_arch: arch_t, prior_arch: arch_t,
                  generator_arch: arch_t) -> None:
 
@@ -79,8 +100,18 @@ class CVAE(object):
         self.prior_net = Prior(prior_arch)
         self.generator_net = Generator(generator_arch)
 
-    def loss_function():
+        self.phi_opt = t.optim.Adam(self.recognition_net.parameters())
+        # TODO we perhaps need to have another one here
+        self.theta_opt = t.optim.Adam(self.prior_net.parameters())
+
+
+    def train(self, epochs: int = 2):
+        for _ in range(epochs):
+            pass
+
+    def loss_function(self):
         # TODO implement this
+        # reconstruction loss + KL divergence
         pass
 
 
@@ -88,14 +119,15 @@ if __name__ == '__main__':
 
     cfg.configure_logging()
 
-    # TODO Get the inference parameters
-    cp = cfg.CVAEParams()
+    ip = cfg.InferenceParams()  # inference procedure parameters
+    cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
     cvae = CVAE(cp.recognition_arch, cp.prior_arch, cp.generator_arch)
 
     # TODO load the generated (theta, photometry) dataset
 
     # TODO train the CVAE
+    # cvae.train()
 
     # TODO evaluate and optionally output plots and figures
 
