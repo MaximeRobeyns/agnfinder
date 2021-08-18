@@ -18,4 +18,57 @@
 
 To verify the basic functionality of the implementation, we train and run the
 CVAE methods on MNIST.
+
+Need to test
+- initialisation (model initialises correctly; no errors)
+- training (loss decreases and eventually converges)
+- inference (handwritten digit recognition)
+- generation (conditional generation of digit given label)
 """
+
+import torch as t
+import torch.nn as nn
+
+from agnfinder.types import arch_t
+from agnfinder.config import ConfigClass
+from agnfinder.inference.inference import CVAE
+
+class TestCVAEParams(ConfigClass):
+    cond_dim: int = 10  # x; dimension of one-hot labels
+    data_dim: int = 28*28  # y; size of MNIST image
+    latent_dim: int = 2  # z
+
+    # Gaussian recognition model q_{phi}(z | y, x)
+    recognition_arch: arch_t = arch_t(
+        layer_sizes=[data_dim + cond_dim, 256],
+        activations=nn.ReLU(),
+        head_sizes=[latent_dim, latent_dim],
+        head_activations=None,
+        batch_norm=True)
+
+    # (conditional) Gaussian prior network p_{theta}(z | x)
+    prior_arch: arch_t = arch_t(
+        layer_sizes=[cond_dim, 256],
+        activations=nn.ReLU(),
+        head_sizes=[latent_dim, latent_dim],
+        head_activations=None,
+        batch_norm=True)
+
+    # generator network arch: p_{theta}(y | z, x)
+    # Assume Gaussian parameters
+    generator_arch: arch_t = arch_t(
+        layer_sizes=[latent_dim + cond_dim, 256],
+        activations=nn.ReLU(),
+        head_sizes=[data_dim, data_dim],
+        head_activations=None,
+        batch_norm=True)
+
+def test_cvae_initialisation():
+    """Tests that we can initialise a CVAE"""
+
+    p = TestCVAEParams()
+
+    _ = CVAE(p.recognition_arch, p.prior_arch, p.generator_arch,
+                device=t.device('cpu'), dtype=t.float64)
+
+    assert True  # haven't fallen over yet, great success!!

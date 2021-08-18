@@ -27,6 +27,7 @@ from agnfinder import config as cfg
 from agnfinder.types import arch_t, Tensor, Distribution
 from agnfinder.inference.utils import load_simulated_data
 
+
 class Recognition(base.RecognitionNet):
     """Gaussian q_{phi}(z | y, x)"""
 
@@ -37,6 +38,8 @@ class Recognition(base.RecognitionNet):
         """
         in_vec = t.cat((y, x), -1)
         params = self.forward(in_vec)
+
+        # TODO move this to constructor
         assert self.out_len == 2
         assert len(params) == self.out_len
         assert params[0].shape == params[1].shape
@@ -44,12 +47,14 @@ class Recognition(base.RecognitionNet):
 
         # batch of covariance matrices will be [batch_size, latent_dim, latent_dim]
         [batch, latent_dim] = params[1].shape
-        cov = t.eye(latent_dim).expand(batch, -1, -1) * t.pow(params[1], 2.).unsqueeze(-1)
+        I = t.eye(latent_dim).expand(batch, -1, -1)
+        cov = I * t.pow(params[1], 2.).unsqueeze(-1)
 
         d = dist.MultivariateNormal(params[0], cov)
 
         assert d.has_rsample
         return d
+
 
 class Prior(base.PriorNet):
     """Gaussian p_{theta}(z | x)"""
@@ -62,8 +67,13 @@ class Prior(base.PriorNet):
         params = self.forward(x)
         assert self.out_len == 2
         assert len(params) == self.out_len
-        d = dist.MultivariateNormal(params[0], t.diag(t.pow(params[1], 2.)))
+        [batch, latent_dim] = params[1].shape
+        I = t.eye(latent_dim).expand(batch, -1, -1)
+        cov = I * t.pow(params[1], 2.).unsqueeze(-1)
+
+        d = dist.MultivariateNormal(params[0], cov)
         return d
+
 
 class Generator(base.GeneratorNet):
     """Gaussian p_{theta}(y | z, x)"""
@@ -76,7 +86,11 @@ class Generator(base.GeneratorNet):
         params = self.forward(t.cat((z, x), -1))
         assert len(params) == self.out_len
         assert self.out_len == 2
-        d = dist.MultivariateNormal(params[0], t.diag(t.pow(params[1], 2.)))
+        [batch, latent_dim] = params[1].shape
+        I = t.eye(latent_dim).expand(batch, -1, -1)
+        cov = I * t.pow(params[1], 2.).unsqueeze(-1)
+
+        d = dist.MultivariateNormal(params[0], cov)
         return d
 
 
@@ -86,41 +100,72 @@ class CVAE(object):
 
     TODO: implement methods such as encode, decode, sapmle, generate, forward
     and loss_function.
-
-    Training procedure:
-        1. use recognition net to output params of q distribution, so we can
-           use reparametrised sampling to get a z sample. Keep track of the
-           epsilon used, or return log q_{phi}(z' | y, x) then and there along
-           with the z sample.
-        2. use prior network to get params of prior distribution p_{theta}(z | x)
-        3. use decoder / generator network to map sampled z and obs x to params
-           over y
-
-        Calculate ELBO objective to be maximised by evaluating likelihoods of
-        the various distributions.
-        - You only need us use the special reparametrised sampling density
-          equation for the recognition distribution q_{phi}(.); for the others
-          you can just do log_prob.
     """
 
     def __init__(self, recognition_arch: arch_t, prior_arch: arch_t,
                  generator_arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
+        """Initialise a conditional VAE.
+
+        Args:
+            recognition_arch: architecture for q_{phi}(z | y, x)
+            prior_arch: architecture for p_{theta_z}(z | x)
+            generator_arch: architecture for p_{theta_y}(y | z, x)
+            device: device on which to store model
+            dtype: data type to use in tensors
+        """
 
         self.device = device
         self.dtype = dtype
+
+        # TODO perform a set of assertions here to ensure that architectures
+        # are compatible (e.g. checking dimensions of inputs / outputs)
+        # TODO think about how these constraints could be enforced using types
 
         self.recognition_net = Recognition(recognition_arch, device, dtype)
         self.prior_net = Prior(prior_arch, device, dtype)
         self.generator_net = Generator(generator_arch, device, dtype)
 
         self.phi_opt = t.optim.Adam(self.recognition_net.parameters())
-        # TODO we perhaps need to have another one here
-        self.theta_opt = t.optim.Adam(self.prior_net.parameters())
+        self.theta_z_opt = t.optim.Adam(self.prior_net.parameters())
+        self.theta_y_opt = t.optim.Adam(self.generator_net.parameters())
 
+    # TODO abstract this as part of ABC?
+    def train(self, train_loader: DataLoader, epochs: int = 2,
+              log_every: int = 100):
+        """Training procedure for CVAE
 
+        1. Encode an (y, x) pair using q (recognition network), to obtain
+           mean and covariance of an isotropic Gaussian distribution;
+           (mu, L) parametrises p_{phi}(z | y, x).
+        2. Sample epsilon from p(epsilon) (standard Gaussian).
+        3. Compute z = mu + L * epsilon.
+        4. Compute density of z under q_{phi}(z | y, x); using
+           change-of-variables formula:
 
-    def train(self, train_loader: DataLoader, epochs: int = 2, log_every: int = 100):
+            log q_{phi}(z | y, x) = log p(epsilon) - log d_{phi}(y, x, epsilon)
+
+           where log d_{phi}(y, x, epsilon) is the log determinant of the
+           Jacobian of the reparametrisation.
+        5. Compute log prob of (reparametrised) z sample (from step 3) under
+           p_{theta_z}(z | x); by parametrising a MVN by prior_net:
+           (mu, std) = f_{theta_z}(x), and calling log_prob(z).
+        6. Compute (mu, std) = f_{theta_y}(z, x) to parametrise the Gaussian
+           p_{theta}(y | z, x). Evaluate log_prob(y).
+        7. Find ELBO (approx marginal likelihood) by summing
+
+           (step 6) + (step 5) - (step 4)
+
+        8. Convert approx marginal likelihood to a loss with -ELBO, and use
+           computational graph to backprop (call .backward()). Update all
+           network parameters by calling their respective optimisers' step()
+           method.
+
+        Args:
+            train_loader: DataLoader containing (mini-batched) training set
+            epochs: number of epochs for which to train
+            log_every: frequency at which to log training information
+        """
         for e in range(epochs):
             for i, (x, y) in enumerate(train_loader):
 
@@ -135,6 +180,8 @@ class CVAE(object):
                 self.phi_opt.zero_grad()
                 self.theta_opt.zero_grad()
 
+                # TODO fix this loss function.
+                # implement something like: ELBO = self.loss_function()
                 ELBO = gendist.log_prob(y) + pdist.log_prob(z) - qdist.log_prob(z)
                 loss = -ELBO.mean(-1)
                 loss.backward()
