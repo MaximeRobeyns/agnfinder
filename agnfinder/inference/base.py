@@ -22,11 +22,11 @@ import abc
 import torch as t
 import torch.nn as nn
 
-from typing import Union, Iterable
-from torch.types import _int
+from typing import Union
+from torch.utils.data import DataLoader
 from torch.distributions import MultivariateNormal
 
-from agnfinder.types import Tensor, Distribution, DistParam, arch_t
+from agnfinder.types import Tensor, Distribution, DistParam, arch_t, CVAEParams
 
 
 class MLP(nn.Module):
@@ -98,8 +98,11 @@ class MLP(nn.Module):
 
 
 class RecognitionNet(MLP, abc.ABC):
-    """An abstract recognition network; returning parameters of
-    q_{phi}(z | y, x).
+    """An abstract recognition network; returning the *parameters* of
+
+        q_{phi}(z | y, x)
+
+    as a list of tensors.
     """
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
@@ -107,18 +110,28 @@ class RecognitionNet(MLP, abc.ABC):
         MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
 
+    def __call__(self, y: Tensor, x: Tensor) -> DistParam:
+        return self.dist_params(y, x)
+
     @abc.abstractmethod
     def dist_params(self, y: Tensor, x: Tensor) -> DistParam:
         raise NotImplementedError
 
 
 class PriorNet(MLP, abc.ABC):
-    """Abstract 'prior' network; implementing p_{theta}(z | x)."""
+    """Abstract 'prior' network; implementing
+
+        p_{theta_x}(z | x).
+
+    """
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
         MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
+
+    def __call__(self, x: Tensor) -> Distribution:
+        return self.distribution(x)
 
     @abc.abstractmethod
     def distribution(self, x: Tensor) -> Distribution:
@@ -126,12 +139,19 @@ class PriorNet(MLP, abc.ABC):
 
 
 class GeneratorNet(MLP, abc.ABC):
-    """Abstract generation network; implementing p_{theta}(y | z, x)."""
+    """Abstract generation network; implementing
+
+        p_{theta_y}(y | z, x).
+
+    """
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
         MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
+
+    def __call__(self, z: Tensor, x: Tensor) -> Distribution:
+        return self.distribution(z, x)
 
     @abc.abstractmethod
     def distribution(self, z: Tensor, x: Tensor) -> Distribution:
@@ -152,3 +172,204 @@ class EKS(MultivariateNormal):
 
     def generate(self, size: t.Size) -> Tensor:
         return super().rsample(size).to(self.device, self.dtype)
+
+
+class CVAE(nn.Module, abc.ABC):
+    """Conditional VAE class
+
+    Implementation checklist:
+
+    - recognition_params(self, y: Tensor, x: Tensor) -> DistParam
+    - prior(self, x: Tensor) -> Distribution
+    - generator(self, z: Tensor, x: Tensor) -> Distribution
+    - rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]
+    - kl_div(sef, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor
+    - log_likelihood(self, y: Tensor, z: Tensor, x: Tensor) -> Tensor
+    """
+
+    def __init__(self, cp: CVAEParams,
+                 device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        """Initialise a CVAE
+
+        Args:
+            cp: CVAE parameters (usually from config.py)
+            device: device on which to store the model
+            dtype: data type to use in Tensors
+        """
+        super().__init__()
+        self.device = device
+        self.dtype = dtype
+
+        self.EKS = EKS(cp.latent_dim)
+
+        self.recognition_net = MLP(cp.recognition_arch, device, dtype)
+        self.prior_net = MLP(cp.prior_arch, device, dtype)
+        self.generator_net = MLP(cp.generator_arch, device, dtype)
+
+        # TODO should this be in the abstract base class?
+        # Big assumption made about using Adam with default params.
+        # Also big assumption about networks being used.
+        self.phi_opt = t.optim.Adam(self.recognition_net.parameters())
+        self.theta_z_opt = t.optim.Adam(self.prior_net.parameters())
+        self.theta_y_opt = t.optim.Adam(self.generator_net.parameters())
+
+    def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
+        return x, y
+
+    def train(self, train_loader: DataLoader, epochs: int = 10,
+              log_every: int = 100):
+
+        for e in range(epochs):
+
+            for i, (x, y) in enumerate(train_loader):
+
+                x, y = self.preprocess(x, y)
+
+                z, rparams = self.rsample(y, x)
+
+                KL = self.kl_div(z, x, rparams)
+
+                LL = self.log_likelihood(y, z, x)
+
+                ELBO = LL - KL
+                loss = (-ELBO).mean(0)  # average across batches
+
+                map(lambda opt: opt.zero_grad(), self.opts)
+                loss.backward()
+                map(lambda opt: opt.step(), self.opts)
+
+                if i % log_every == 0 or i == len(train_loader)-1:
+                    print("Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}".format(
+                        e, epochs, i, len(train_loader)-1, loss.item()))
+
+    def log_likelihood(self, y: Tensor, z: Tensor, x: Tensor) -> Tensor:
+        """Evaluate p(y | z, x)
+
+        Evaluate the probability of the given training point y under our
+        likelihod, parametrised by the generative network, whose inputs are the
+        z and x tensors.
+
+        For a Gaussian likelihood, this is equivalent to outputting the
+        negative MSE loss. For a Bernoulli likelihood, this is equivalent to
+        outputting the negative cross entropy.
+
+        Args:
+            y: batch of training samples
+            z: batch of latent variable samples
+            x: batch of conditioning information
+
+        Returns:
+            Tensor: log likelihood (still batched)
+        """
+        gen_dist = self.generator_net(z, x)
+        return gen_dist.log_prob(y)
+
+    @property
+    def opts(self) -> list[t.optim.Optimizer]:
+        """Returns all the optimizers for neural networks in the CVAE.
+
+        If you modify the networks in this class, or the PyTorch optimisers
+        (e.g. perhaps you combine the recognition net and prior net, or use
+        something other than Adam), then it is crucial that the inheriting
+        class overrides this `opts` attribute to return a list with the new
+        optimisers in use.
+
+        If you do not override the `opts` property, then the `train` method
+        will not be able to update the network parmeters.
+
+        Returns:
+            list[t.optim.Optimizer]: network optimisers
+        """
+        return [self.phi_opt, self.theta_z_opt, self.theta_y_opt]
+
+    @abc.abstractmethod
+    def recognition_params(self, y: Tensor, x: Tensor) -> DistParam:
+        """Returns parameters of q_{phi}(z | y, x) distribution.
+
+        These will be used to obtain reparametrised z samples.
+
+        Args:
+            y: training output sample (batch)
+            x: training conditioning info sample (batch)
+
+        Returns:
+            DistParam: parameters of approx posterior distribution q
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def prior(self, x: Tensor) -> Distribution:
+        """Returns the prior distribution p_{theta_z}(z | x)
+
+        Should use the prior_net internally to generate the parameters of this
+        distribution. Otherwise this function might simply return a standard
+        Gaussian; without making use of a prior_net at all.
+
+        Args:
+            x: conditioning information (e.g. photometric observations)
+
+        Returns:
+            Distribution: prior distribution over latent vectors
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def generator(self, z: Tensor, x: Tensor) -> Distribution:
+        """Returns the generator distribution p_{theta_y}(y | z, x)
+
+        Should use the generator_net internally to generate the parameters of this
+        distribution.
+
+        Args:
+            z: (rsampled / arbitrarily provided) latent vector
+            x: conditioning information
+
+        Returns:
+            Distribution: likelihood / distribution over outputs
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]:
+        """Reparametrised sampling of latent vector
+
+        Args:
+            y: data (batch); e.g. physical galaxy parameters
+            x: conditioning information (batch) e.g. photometric observations
+
+        Returns:
+            tuple[Tensor, DistParams]:
+                1. (Tensor) The latent variable sample, z.
+                2. (DistParams) The parameters of the mapping g.
+                   This will usually include the epsilon sample, as well as the
+                   distribution parameters (e.g. mean and (log) covariance).
+                   Please also note that DistParams = list[torch.Tensor].
+
+                   By convention, include epsilon as the 0th element of
+                   this list of Tensors, and other parameters thereafter.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor:
+        """Evaluate KL[q_{phi}(z | y, x) || p_{theta}(z | x)]
+
+        This will usually involve an application of the change-of-variables
+        formula, or an analytic form of the KL divergence (for instance,
+        between two Gaussians).
+
+        For the second term in the KL divergence, you will have to evaluate the
+        prior likelihood of z (given x); p(z | x).
+
+        Args:
+            z: sampled latent variable
+            rparams: reparametrised sampling parameters used to generate the
+                latent variable sample. By convention, the 0th element of this
+                list is the epsilon sample used to generate z.
+
+        Returns:
+            Tensor: the (mini-batched) KL divergence
+        """
+        raise NotImplementedError
+

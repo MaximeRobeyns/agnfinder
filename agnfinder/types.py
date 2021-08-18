@@ -42,7 +42,6 @@ pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 prun_params_t = dict[str, Union[int, bool, float, None]]
 
 
-
 # Neural network related ------------------------------------------------------
 
 # A PyTorch Tensor
