@@ -26,6 +26,7 @@ import logging
 from typing import Any, Union
 from logging.config import dictConfig
 
+import agnfinder.types as types
 from agnfinder.types import Tensor, ConfigClass, arch_t, paramspace_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
@@ -157,6 +158,7 @@ class ExtinctionTemplateParams(ConfigClass):
     def results_path(self, file: str) -> str:
         return os.path.join(self.results_dir, file)
 
+
 # ======================= Inference (main) Parameters =========================
 
 
@@ -165,14 +167,18 @@ class InferenceParams(ConfigClass):
     batch_size: int = 32
     split_ratio: float = 0.9  # train / test split ratio
     dtype: t.dtype = t.float64
-    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+    device: t.device = t.device("cpu")
+    # Alternative device configurations:
+    # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+    # t.device("cuda")
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
 
 
 # ======================= Inference (CVAE) Parameters =========================
 
 
-class CVAEParams(ConfigClass):
+class CVAEParams(types.CVAEParams):
+
     cond_dim: int = 8  # x; dimension of photometry
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     latent_dim: int = 4  # z
@@ -215,11 +221,12 @@ class LoggingParams(ConfigClass):
     # If any of these levels are NOTSET, then the corresponding logging handler
     # will not be used.
     file_level: int = logging.INFO
-    debug_level: int = logging.NOTSET  # logging.NOTSET
+    debug_level: int = logging.NOTSET  # logging.DEBUG
     console_level: int = logging.INFO
 
 
 # ----------------------------------------------------------------------------
+# Other logging configurations (you shouldn't have to change these).
 
 
 def get_logging_config(p: LoggingParams) -> dict[str, Any]:
@@ -316,6 +323,7 @@ def configure_logging(console_level: Union[int, None] = None,
         f'\n\n{79*"~"}\n\n\tAGNFinder\n\t{time.ctime()}\n\n{79*"~"}\n\n')
 
 
+# TODO move to types and inherit from FreeParameters
 class FreeParams(FreeParameters):
     def __init__(self):
 

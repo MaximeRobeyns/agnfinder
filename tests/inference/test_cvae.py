@@ -26,14 +26,15 @@ Need to test
 - generation (conditional generation of digit given label)
 """
 
+import pytest
 import torch as t
 import torch.nn as nn
 
-from agnfinder.types import arch_t
-from agnfinder.config import ConfigClass
+from agnfinder.types import arch_t, CVAEParams
 from agnfinder.inference.inference import CVAE
 
-class TestCVAEParams(ConfigClass):
+
+class CVAEParams_testing(CVAEParams):
     cond_dim: int = 10  # x; dimension of one-hot labels
     data_dim: int = 28*28  # y; size of MNIST image
     latent_dim: int = 2  # z
@@ -63,12 +64,59 @@ class TestCVAEParams(ConfigClass):
         head_activations=None,
         batch_norm=True)
 
+
+def test_cvae_params():
+    """Tests assertions ('type safety') during CVAE parameter definition"""
+
+    with pytest.raises(ValueError):
+        # input of rec net != data_dim + cond_dim
+        class P1(CVAEParams):
+            cond_dim = 1
+            data_dim = 1
+            latent_dim = 1
+            recognition_arch = arch_t([3, 1], [1], nn.ReLU())
+            prior_arch = arch_t([1, 1], [1], nn.ReLU())
+            generator_arch = arch_t([2, 1], [1], nn.ReLU())
+        _ = P1()
+
+    with pytest.raises(ValueError):
+        # input of prior net != cond_dim
+        class P2(CVAEParams):
+            cond_dim = 1
+            data_dim = 1
+            latent_dim = 1
+            recognition_arch = arch_t([2, 1], [1], nn.ReLU())
+            prior_arch = arch_t([2, 1], [1], nn.ReLU())
+            generator_arch = arch_t([2, 1], [1], nn.ReLU())
+        _ = P2()
+
+    with pytest.raises(ValueError):
+        # input of gen net != latent_dim + cond_dim
+        class P3(CVAEParams):
+            cond_dim = 1
+            data_dim = 1
+            latent_dim = 1
+            recognition_arch = arch_t([2, 1], [1], nn.ReLU())
+            prior_arch = arch_t([1, 1], [1], nn.ReLU())
+            generator_arch = arch_t([3, 1], [1], nn.ReLU())
+        _ = P3()
+
+    with pytest.raises(NotImplementedError):
+        # missing abstract property
+        class P4(CVAEParams):
+            cond_dim = 1
+            data_dim = 1
+            latent_dim = 1
+            recognition_arch = arch_t([2, 1], [1], nn.ReLU())
+            prior_arch = arch_t([1, 1], [1], nn.ReLU())
+        _ = P4()
+
+
 def test_cvae_initialisation():
     """Tests that we can initialise a CVAE"""
 
-    p = TestCVAEParams()
+    p = CVAEParams_testing()
 
-    _ = CVAE(p.recognition_arch, p.prior_arch, p.generator_arch,
-                device=t.device('cpu'), dtype=t.float64)
+    _ = CVAE(p, device=t.device('cpu'), dtype=t.float64)
 
     assert True  # haven't fallen over yet, great success!!

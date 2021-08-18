@@ -22,7 +22,9 @@ import abc
 import torch as t
 import torch.nn as nn
 
-from typing import Union
+from typing import Union, Iterable
+from torch.types import _int
+from torch.distributions import MultivariateNormal
 
 from agnfinder.types import Tensor, Distribution, DistParam, arch_t
 
@@ -96,7 +98,9 @@ class MLP(nn.Module):
 
 
 class RecognitionNet(MLP, abc.ABC):
-    """An abstract recognition network; implementing q_{phi}(z | y, x)."""
+    """An abstract recognition network; returning parameters of
+    q_{phi}(z | y, x).
+    """
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
@@ -104,7 +108,7 @@ class RecognitionNet(MLP, abc.ABC):
         abc.ABC.__init__(self)
 
     @abc.abstractmethod
-    def distribution(self, y: Tensor, x: Tensor) -> Distribution:
+    def dist_params(self, y: Tensor, x: Tensor) -> DistParam:
         raise NotImplementedError
 
 
@@ -132,3 +136,19 @@ class GeneratorNet(MLP, abc.ABC):
     @abc.abstractmethod
     def distribution(self, z: Tensor, x: Tensor) -> Distribution:
         raise NotImplementedError
+
+
+class EKS(MultivariateNormal):
+    """Entropy Kaos Service
+
+    lol
+    """
+    def __init__(self, latent_shape: int, device: t.device = t.device('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        super().__init__(t.zeros(latent_shape).to(device, dtype),  # mean
+                         t.eye(latent_shape).to(device, dtype))  # covariance
+        self.device = device
+        self.dtype = dtype
+
+    def generate(self, size: t.Size) -> Tensor:
+        return super().rsample(size).to(self.device, self.dtype)

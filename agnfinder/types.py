@@ -16,6 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Some custom types """
 
+import abc
 import typing
 import logging
 import numpy as np
@@ -288,3 +289,62 @@ class arch_t(ConfigClass):
 
     def __len__(self) -> int:
         return len(self.layer_sizes) + 1
+
+# CVAE Description ------------------------------------------------------------
+
+class CVAEParams(ConfigClass, abc.ABC):
+
+    def __init__(self):
+        super().__init__()
+        ri = self.recognition_arch.in_shape
+        if ri != self.data_dim + self.cond_dim:
+            raise ValueError((
+                f'Input dimensions of recognition network ({ri}) '
+                f'must equal data_dim ({self.data_dim}) + '
+                f'cond_dim ({self.cond_dim}).'))
+
+        pi = self.prior_arch.in_shape
+        if pi != self.cond_dim:
+            raise ValueError((
+                f'Input dimensions of prior network ({pi}) '
+                f'must equal cond_dim ({self.cond_dim})'))
+
+        gi = self.generator_arch.in_shape
+        if gi != self.latent_dim + self.cond_dim:
+            raise ValueError((
+                f'Input dimensions of generator network ({gi}) '
+                f'must euqal latent_dim ({self.latent_dim}) + '
+                f'cond_dim ({self.cond_dim})'))
+
+    # TODO for future flexibility, could replace `int` with `t.Size` for dim
+    # properties
+
+    @property
+    def cond_dim(self) -> int:
+        """Length of 1D conditioning information vector; x"""
+        raise NotImplementedError
+
+    @property
+    def data_dim(self) -> int:
+        """Length of the 1D data vector; y"""
+        raise NotImplementedError
+
+    @property
+    def latent_dim(self) -> int:
+        """Length of 1D latent vector; z"""
+        raise NotImplementedError
+
+    @property
+    def recognition_arch(self) -> arch_t:
+        """Architecture of 'recognition network' q_{phi}(z | y, x)"""
+        raise NotImplementedError
+
+    @property
+    def prior_arch(self) -> arch_t:
+        """Architecture of 'prior network' p_{theta_z}(z | x)"""
+        raise NotImplementedError
+
+    @property
+    def generator_arch(self) -> arch_t:
+        """Architecture of 'generator network' p_{theta_y}(y | z, x)"""
+        raise NotImplementedError
