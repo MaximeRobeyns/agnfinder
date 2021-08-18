@@ -184,7 +184,6 @@ class CVAE(nn.Module, abc.ABC):
     - generator(self, z: Tensor, x: Tensor) -> Distribution
     - rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]
     - kl_div(sef, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor
-    - log_likelihood(self, y: Tensor, z: Tensor, x: Tensor) -> Tensor
     """
 
     def __init__(self, cp: CVAEParams,
@@ -201,7 +200,7 @@ class CVAE(nn.Module, abc.ABC):
         self.device = device
         self.dtype = dtype
 
-        self.EKS = EKS(cp.latent_dim)
+        self.EKS = EKS(cp.latent_dim, device, dtype)
 
         self.recognition_net = MLP(cp.recognition_arch, device, dtype)
         self.prior_net = MLP(cp.prior_arch, device, dtype)
@@ -215,10 +214,10 @@ class CVAE(nn.Module, abc.ABC):
         self.theta_y_opt = t.optim.Adam(self.generator_net.parameters())
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
-        return x, y
+        return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
 
-    def train(self, train_loader: DataLoader, epochs: int = 10,
-              log_every: int = 100):
+    def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
+                   log_every: int = 1):
 
         for e in range(epochs):
 
@@ -262,7 +261,7 @@ class CVAE(nn.Module, abc.ABC):
         Returns:
             Tensor: log likelihood (still batched)
         """
-        gen_dist = self.generator_net(z, x)
+        gen_dist = self.generator(z, x)
         return gen_dist.log_prob(y)
 
     @property

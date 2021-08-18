@@ -19,13 +19,11 @@
 import logging
 import torch as t
 import torch.distributions as dist
-from torch.utils.data import DataLoader
-from typing import Optional
 
 import agnfinder.inference.base as base
 
 from agnfinder import config as cfg
-from agnfinder.types import Tensor, Distribution, DistParam, CVAEParams
+from agnfinder.types import Tensor, Distribution, DistParam
 from agnfinder.inference.utils import load_simulated_data
 
 
@@ -56,8 +54,8 @@ class CVAE(base.CVAE):
         params = self.generator_net(t.cat((z, x), -1))
         assert len(params) == self.generator_net.out_len
         assert self.generator_net.out_len == 2
-        [batch, latent_dim] = params[1].shape
-        I = t.eye(latent_dim).expand(batch, -1, -1)
+        [batch, output_dim] = params[1].shape
+        I = t.eye(output_dim).expand(batch, -1, -1)
         cov = I * t.exp(params[1]).unsqueeze(-1)
         d = dist.MultivariateNormal(params[0], cov)
         return d
@@ -100,7 +98,7 @@ if __name__ == '__main__':
     logging.info('Created data loaders')
 
     # train the CVAE
-    cvae.train(train_loader, ip.epochs)
+    cvae.trainmodel(train_loader, ip.epochs)
     logging.info('Trained CVAE')
 
     # TODO evaluate and optionally output plots and figures
