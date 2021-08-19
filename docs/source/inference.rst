@@ -510,11 +510,12 @@ We have already derived the expression for evaluating :math:`\log q_{\phi}(z
 where :math:`z \in \mathbb{R}^{n}`.
 
 In conditional LVMs, some authors choose to sample :math:`z` independently
-of the conditioning information :math:`x` at test time, and so they will use a
+of the conditioning information :math:`x` at test time, and they do so with a
 standard Gaussian for the prior density :math:`p(z \vert x) = \mathcal{N}(z; 0,
-\mathbf{I})`. For this application, conditioning the latent variable at test
-time on the photometric observations seems sensible. If we keep an
-isotropic Gaussian distribution (to match :math:`q`), then we get
+\mathbf{I})`. For this application however, conditioning the latent variable at
+test time on the photometric observations seems sensible. If we use an
+isotropic Gaussian distribution (to match our :math:`q` distribution), then we
+get
 
 .. math::
 
@@ -527,29 +528,165 @@ isotropic Gaussian distribution (to match :math:`q`), then we get
 Once again, in the above :math:`n` is the dimension of the latent vector
 :math:`z \in \mathbb{R}^{n}`.
 
-..
-  TODO finish writing docs from this point onward.
+Finally for the log likelihood term :math:`\mathcal{L}_{\text{logpy}}`, we
+merely evaluate the likelihood of the :math:`y` training datapoint under the
+appropriate density. Be mindful that this step is prone to be slow; particularly
+if one naively chooses something like a full multivariate Gaussian likelihood,
+where evaluating the log probability will involve Cholesky decompositions to
+invert the covariance matrix. As a rule of thumb, factorising this distribution
+should be sufficient to keep things speedy.
 
-  Include examples of how to implement the abstract methods in the CVAE class.
+For expedience and convenience, it can be useful to use the analagous loss
+function for your chosen likelihood; for instance the mean squared error for a
+Gaussian likelihood, binary cross-entropy for a Bernoulli likelihood, L1
+(mean absolute error) loss for a Laplace likelihood and so on. Just remember to
+negate it before using it in the ELBO!
 
-As discussed in the previous section, the log likelihood term can take numerous
-forms. For speedy evaluation, it can be useful to use the analagous loss
-function; mean squared error for a Gaussian likeilhood, binary cross entropy for
-a Bernoulli likelihood, L1 (mean absolute error) for a Laplace likelihood etc.
-Just remember to negate it before using it in the ELBO!
+Also note that these loss functions may only represent the negative log
+likelihood up to proportionality; this implicit scaling of the likelihood term
+relative to the KL divergence term in the ELBO might result in inadvertently
+'tempering the posterior', which is where we scale the KL divergence by some
+:math:`\lambda < 1`:
 
-Thus to implement the CVAE, we have three networks;
+.. math::
+
+    \mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
+    \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+     - \lambda D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].
+
+In the context of VAEs, this is often done intentionally as an implementation
+detail, where it is referred to as 'warming up the KL term' [LVAE2016]_.
+Here, :math:`\lambda` is annealed from 0 to 1 at the beginning of
+training---without this, the 'variational regularisation term' (read, KL divergence
+term) causes the latents in :math:`q` to be drawn towards their own prior, which
+leads to uninformative latents which the optimisation algorithm is not able to
+re-activate later in training.
+
+-------------------------------------------------------------------------------
+
+There are a fair number of moving parts involved with implementing a CVAE. For
+convenience I have tried to abstract away the common code into a base ``CVAE``
+class, so as to offer a framework wich which to implement variations on the
+(C)VAE described above.
+
+Architecture Description
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Thus to implement a CVAE, we have three networks;
 
 - the recognition network :math:`q_{\phi}(z \vert y, x)`,
 - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
 - the generation network :math:`p_{\theta}(y \vert z, x)`
 
-For consistency with PyTorch ``nn.Module`` conventions, the ``forward`` method
-in the ``CVAE`` class acts as a discriminative model; implemeting the mapping
-:math:`f: \mathcal{X} \times \Theta \to \mathcal{Y}` and making the LVM
-mechanism opaque to the user.
+Implementation begins in the ``config.py`` file, where the neural network
+architectures for each of the above may be described by an instance of an
+``arch_t`` class. These are passed to the constructor of the ``CVAE`` base class
+for you, where the corresponding networks will be initialised.
+
+The constructor of the ``arch_t`` class has the following signature::
+
+    def __init__(self, layer_sizes: list[int], head_sizes: list[int],
+                 activations: Union[nn.Module, list[nn.Module]],
+                 head_activations: Optional[list[Optional[nn.Module]]] = None,
+                 batch_norm: bool = True):
+         pass
+
+and as a generic example, you could use it as follows::
+
+    >>> arch_t(layer_sizes=[28*28, 256], head_sizes=[10, 2], \
+    ...        activations=nn.ReLU(), \
+    ...        head_activations=[nn.Softmax(), None] \
+    ...        batch_norm=False)
+
+For a CVAE-specific example, here are some networks that you might use for
+MNIST::
+
+    # Gaussian recognition model q_{phi}(z | y, x)
+    recognition_arch: arch_t = arch_t(
+            [data_dim + cond_dim, 256], [latent_dim, latent_dim], nn.ReLU())
+
+    # Gaussian prior network p_{theta}(z | x)
+    prior_arch: arch_t(
+        [cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
+
+    # generator network arch: p_{theta}(y | z, x)
+    generator_arch: arch_t = arch_t(
+        [latent_dim + cond_dim, 256], [data_dim, data_dim], nn.ReLU(),
+        [nn.Sigmoid(), None])
 
 
+CVAE Implementation
+~~~~~~~~~~~~~~~~~~~
+
+The base ``CVAE`` class has a number of abstract methods, which should hopefully
+be useful in guiding new CVAE implementations by providing a 'checklist' of
+methods to implement. These abstract methods are:
+
+1. **preprocess**
+
+   The ``preprocess`` method has the following signature::
+
+        def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]
+
+   This allows you to apply any required transformations, and send the data to a
+   particular device before the training process.
+
+2. **recognition_params**
+
+   This method is used to return the parameters which are later used to perform
+   reparametrised sampling. For example, if :math:`q` is isotropic Gaussian,
+   then you should calculate and return the mean and diagonal covariance. The
+   signature is::
+
+    def recognition_params(self, y: Tensor, x: Tensor) -> DistParam
+
+   Note that ``DistParam`` is an alias for ``list[Tensor]``.
+
+3. **prior**
+
+   This method returns the prior distribution---you do not have to use the
+   provided ``x`` tensor. The signature is::
+
+    prior(self, x: Tensor) -> Distribution
+
+   where ``Distribution`` is an alias for the base PyTorch distribution class.
+
+4. **generator**
+
+   Similar to the above, except now we are returning the 'generator'
+   distribution. The signature is::
+
+    generator(self, z: Tensor, x: Tensor) -> Distribution
+
+5. **rsample**
+
+   Performs reparametrised sampling. You usually call ``recognition_params`` as
+   a first step, and also sample some :math:`\hat{\epsilon} \sim p(\epsilon)`.
+
+   For convenience, the ``CVAE`` base class provides a ``self.EKS(batch_shape: int)``
+   callable, which samples a ``[batch_shape, latent_dim]`` tensor from a
+   standard Gaussian.
+
+   The signature of ``rsample`` is as follows::
+
+    rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]
+
+   The returned the ``DistParams`` are passed into the ``kl_div`` method
+   (below), and by convention should include the sampled :math:`\epsilon` term
+   at index 0.
+
+6. **kl_div**
+
+   This final abstract method returns the KL divergence term in the ELBO. It is
+   provided with ``z`` the latent vector obtained from ``rsample``, ``x`` the
+   conditioning information and ``rparams`` which was returned from ``rsample``.
+
+   The full signature is::
+
+    def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor
+
+For more descriptions and details on the workings of the ``CVAE`` base class,
+please see ``/agnfinder/inference/base.py``.
 
 References
 ----------
@@ -569,4 +706,10 @@ References
 .. [IVAE2019] Kingma, Diederik P., and Max Welling. ‘An Introduction to
    Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
    no. 4 (2019): 307–92. https://doi.org/10.1561/2200000056.
+
+.. [LVAE2016] Sø nderby, Casper Kaae, Tapani Raiko, Lars Maalø e, Sø ren Kaae Sø
+   nderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
+   Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
+   2016.
+   https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html.
 
