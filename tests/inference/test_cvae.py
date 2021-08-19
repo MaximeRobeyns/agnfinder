@@ -26,13 +26,17 @@ Need to test
 - generation (conditional generation of digit given label)
 """
 
+import math
 import pytest
 import torch as t
 import torch.nn as nn
 import torch.distributions as dist
 
+from typing import Optional
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
+
+from torch.profiler import profile, record_function, ProfilerActivity
 
 from agnfinder.types import arch_t, CVAEParams, DistParam, Distribution, Tensor
 from agnfinder.inference.base import CVAE
@@ -94,8 +98,8 @@ class MNIST_img_params(CVAEParams):
             [data_dim + cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
-    prior_arch: arch_t = arch_t(
-        [cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
+    prior_arch: Optional[arch_t] = None
+    # arch_t([cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
 
     # generator network arch: p_{theta}(y | z, x)
     generator_arch: arch_t = arch_t(
@@ -104,15 +108,6 @@ class MNIST_img_params(CVAEParams):
 
 
 class MNIST_img_cvae(CVAE):
-    """
-    We may either treat x (the conditioning information) as the MNIST labels,
-    and y as the images themselves, or vice versa.
-
-    Here we take the former view (where x is a label, and y is the pixel data).
-    At test time, we can therefore sample some z from a standard Gaussian,
-    provide a desired image label, x, and generate plausible looking 28x28
-    pixel images with a Gaussian likelihood.
-    """
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         # for the inputs, x is pixel data, and y are integer MNIST labels.
@@ -135,11 +130,15 @@ class MNIST_img_cvae(CVAE):
 
     def prior(self, x: Tensor) -> Distribution:
         """Isotropic Gaussian prior"""
-        params = self.prior_net(x)
-        [batch, latent_dim] = params[1].shape
-        I = t.eye(latent_dim, device=self.device, dtype=self.dtype)
-        cov = I.expand(batch, -1, -1) * t.exp(params[1]).unsqueeze(-1)
-        return dist.MultivariateNormal(params[0], cov)
+        return dist.MultivariateNormal(
+            t.zeros(self.latent_dim, device=self.device, dtype=self.dtype),
+            t.eye(self.latent_dim, device=self.device, dtype=self.dtype)
+        )
+        # params = self.prior_net(x)
+        # [batch, latent_dim] = params[1].shape
+        # I = t.eye(latent_dim, device=self.device, dtype=self.dtype)
+        # cov = I.expand(batch, -1, -1) * t.exp(params[1]).unsqueeze(-1)
+        # return dist.MultivariateNormal(params[0], cov)
 
     def generator(self, z: Tensor, x: Tensor) -> Distribution:
         params = self.generator_net(t.cat((z, x), -1))
@@ -150,20 +149,28 @@ class MNIST_img_cvae(CVAE):
 
     def rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]:
         [mu, cov] = self.recognition_params(y, x)
-        eps = self.EKS.sample((cov.shape[0],))
+        batch_size = cov.shape[0]
+        eps = self.EKS(batch_size)
         z = mu + cov * eps
         return z, [eps, mu, cov]
 
     def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor:
-        # x is 10 dimensional
         [eps, _, cov] = rparams
-        logqz = self.EKS.log_prob(eps) - t.log(cov).sum(1)
+        log2pi = math.log(2 * math.pi)
+        logqz = - (0.5 * (log2pi + t.pow(eps, 2.)) + t.log(cov)).sum(1)
+        # logqz = self.EKS.log_prob(eps) - t.log(cov).sum(1)
 
-        prior_dist = self.prior(x)
-        logpz = prior_dist.log_prob(z)
+        # prior_dist = self.prior(x)
+        # logpz = prior_dist.log_prob(z)
+        logpz = - (0.5 * (log2pi + t.pow(z, 2.))).sum(1)
 
         return logpz + logqz
 
+    def log_likelihood(self, y: Tensor, z: Tensor, x: Tensor) -> Tensor:
+        [mu, _] = self.generator_net(t.cat((z, x), -1))
+        log2pi = math.log(2 * math.pi)
+        ll = -(0.5 * log2pi + t.pow(y - mu, 2.)).sum(1)
+        return ll
 
 # Testing ---------------------------------------------------------------------
 
@@ -225,10 +232,17 @@ def test_cvae_initialisation():
     assert True  # haven't fallen over yet, great success!!
 
 
-@pytest.mark.slow
+# @pytest.mark.slow
 def test_cvae_MNIST():
     p = MNIST_img_params()
-    cvae = MNIST_img_cvae(p, device=t.device('cuda'), dtype=t.float64)
+    cvae = MNIST_img_cvae(p, device=t.device('cpu'), dtype=t.float64)
     train_loader, _ = load_mnist()
+
+    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, use_cuda=True) as prof:
     cvae.trainmodel(train_loader, epochs=1)
+
+    # generate samples of images from [0..9], and save to image for visual inspection.
+    # also write date / time in title of plot
+
+    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
     assert False

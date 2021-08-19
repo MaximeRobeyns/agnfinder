@@ -63,7 +63,7 @@ test: mypy
 ifndef SPS_HOME
 		@source setup.sh
 endif
-	@python -m pytest tests
+	@python -m pytest -s tests
 
 alltest: mypy
 ifndef SPS_HOME

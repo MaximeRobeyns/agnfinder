@@ -62,7 +62,7 @@ class CVAE(base.CVAE):
 
     def rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]:
         [mu, cov] = self.recognition_params(y, x)
-        eps = self.EKS.sample(cov.shape[0])
+        eps = self.EKS(cov.shape[0])
         z = mu + cov * eps
         return z, [eps, mu, cov]
 

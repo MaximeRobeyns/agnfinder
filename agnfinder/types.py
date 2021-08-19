@@ -302,11 +302,12 @@ class CVAEParams(ConfigClass, abc.ABC):
                 f'must equal data_dim ({self.data_dim}) + '
                 f'cond_dim ({self.cond_dim}).'))
 
-        pi = self.prior_arch.in_shape
-        if pi != self.cond_dim:
-            raise ValueError((
-                f'Input dimensions of prior network ({pi}) '
-                f'must equal cond_dim ({self.cond_dim})'))
+        if self.prior_arch is not None:
+            pi = self.prior_arch.in_shape
+            if pi != self.cond_dim:
+                raise ValueError((
+                    f'Input dimensions of prior network ({pi}) '
+                    f'must equal cond_dim ({self.cond_dim})'))
 
         gi = self.generator_arch.in_shape
         if gi != self.latent_dim + self.cond_dim:
@@ -339,9 +340,9 @@ class CVAEParams(ConfigClass, abc.ABC):
         raise NotImplementedError
 
     @property
-    def prior_arch(self) -> arch_t:
+    def prior_arch(self) -> typing.Optional[arch_t]:
         """Architecture of 'prior network' p_{theta_z}(z | x)"""
-        raise NotImplementedError
+        return None
 
     @property
     def generator_arch(self) -> arch_t:

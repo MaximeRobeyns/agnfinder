@@ -24,7 +24,7 @@ import torch.nn as nn
 
 from typing import Union
 from torch.utils.data import DataLoader
-from torch.distributions import MultivariateNormal
+from torch.distributions import LowRankMultivariateNormal
 
 from agnfinder.types import Tensor, Distribution, DistParam, arch_t, CVAEParams
 
@@ -158,20 +158,27 @@ class GeneratorNet(MLP, abc.ABC):
         raise NotImplementedError
 
 
-class EKS(MultivariateNormal):
-    """Entropy Kaos Service
+class EKS(object):
+    """Entropy Kaos Service haha (y8OnoxKotPQ)
 
-    lol
+    This is just a standard Gaussian with convenience features; useful for
+    sampling epsilon during reparametrisation.
     """
     def __init__(self, latent_shape: int, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        super().__init__(t.zeros(latent_shape).to(device, dtype),  # mean
-                         t.eye(latent_shape).to(device, dtype))  # covariance
+        # super().__init__(t.zeros(latent_shape).to(device, dtype),  # mean
+        #                  t.eye(latent_shape).to(device, dtype))  # diag
+        self._ls = latent_shape
         self.device = device
         self.dtype = dtype
 
-    def generate(self, size: t.Size) -> Tensor:
-        return super().rsample(size).to(self.device, self.dtype)
+    def __call__(self, size: Union[t.Size, int]) -> Tensor:
+        shape = size if isinstance(size, t.Size) else t.Size((size, self._ls))
+        return t.randn(shape).to(self.device, self.dtype)
+        # return super().rsample(shape).to(self.device, self.dtype)
+
+    def log_prob(self, x):
+        raise NotImplementedError
 
 
 class CVAE(nn.Module, abc.ABC):
@@ -199,28 +206,28 @@ class CVAE(nn.Module, abc.ABC):
         super().__init__()
         self.device = device
         self.dtype = dtype
+        self.latent_dim: int = cp.latent_dim
 
         self.EKS = EKS(cp.latent_dim, device, dtype)
 
         self.recognition_net = MLP(cp.recognition_arch, device, dtype)
-        self.prior_net = MLP(cp.prior_arch, device, dtype)
+        if cp.prior_arch is not None:
+            self.prior_net = MLP(cp.prior_arch, device, dtype)
         self.generator_net = MLP(cp.generator_arch, device, dtype)
 
-        # TODO should this be in the abstract base class?
-        # Big assumption made about using Adam with default params.
-        # Also big assumption about networks being used.
-        self.phi_opt = t.optim.Adam(self.recognition_net.parameters())
-        self.theta_z_opt = t.optim.Adam(self.prior_net.parameters())
-        self.theta_y_opt = t.optim.Adam(self.generator_net.parameters())
+        # NOTE should this be in the abstract base class?
+        # Making big assumption about using same Adam opt with default params on all nets.
+        nets: list[MLP] = [getattr(self, n) for n in dir(self) \
+                           if n.endswith('_net') and \
+                           isinstance(getattr(self, n), MLP)]
+        self.opt = t.optim.Adam([param for n in nets for param in n.parameters()])
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
 
     def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
-                   log_every: int = 1):
-
+                   log_every: int = 100):
         for e in range(epochs):
-
             for i, (x, y) in enumerate(train_loader):
 
                 x, y = self.preprocess(x, y)
@@ -234,9 +241,9 @@ class CVAE(nn.Module, abc.ABC):
                 ELBO = LL - KL
                 loss = (-ELBO).mean(0)  # average across batches
 
-                map(lambda opt: opt.zero_grad(), self.opts)
+                self.opt.zero_grad()
                 loss.backward()
-                map(lambda opt: opt.step(), self.opts)
+                self.opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
                     print("Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}".format(
@@ -264,23 +271,13 @@ class CVAE(nn.Module, abc.ABC):
         gen_dist = self.generator(z, x)
         return gen_dist.log_prob(y)
 
-    @property
-    def opts(self) -> list[t.optim.Optimizer]:
-        """Returns all the optimizers for neural networks in the CVAE.
-
-        If you modify the networks in this class, or the PyTorch optimisers
-        (e.g. perhaps you combine the recognition net and prior net, or use
-        something other than Adam), then it is crucial that the inheriting
-        class overrides this `opts` attribute to return a list with the new
-        optimisers in use.
-
-        If you do not override the `opts` property, then the `train` method
-        will not be able to update the network parmeters.
-
-        Returns:
-            list[t.optim.Optimizer]: network optimisers
+    def evidence(self, y, x):
         """
-        return [self.phi_opt, self.theta_z_opt, self.theta_y_opt]
+        Once the model is trained, use this method to evaluate the model
+        evidence under the held-out test dataset.
+        """
+        # TODO implement me!
+        raise NotImplementedError
 
     @abc.abstractmethod
     def recognition_params(self, y: Tensor, x: Tensor) -> DistParam:
