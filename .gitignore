@@ -127,7 +127,6 @@ temp*
 *.npy
 tmp*.py
 docker/*
-*.png
 license_boilerplate.txt
 
 deps
