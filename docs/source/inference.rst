@@ -76,9 +76,17 @@ Latent Variable Models
 A variational autoencoder (VAE) is an example of a *latent variable model*
 (LVM). Latent variables, often denoted :math:`z`, are unobserved variables which
 ideally represent some disentangled, semantically meaningful, and statistically
-independent causal factors for variation in the data :math:`x`.
+independent causal factors for variation in the data.
 
-A latent variable model is one of the form
+A latent variable model (LVM) is a distribution over the data we care about and
+the latent variables :math:`p(y, z)`. We can factorise this in two ways: either
+working with the posterior :math:`p(z \vert y)` to, perhaps stochastically,
+map (or *encode*) a datapoint :math:`y` to its latent representation :math:`z`,
+or the posterior :math:`p(y \vert z)` to generate (or *decode* latents :math:`z`
+to) new plausible :math:`y` samples.
+
+In the second factorisation :math:`p(y, z) = p(y \vert z) p(z)`, the LVM takes
+the form of
 
 .. math::
    \begin{align*}
@@ -88,24 +96,36 @@ A latent variable model is one of the form
 
 where :math:`f_{z}` and :math:`f_{y}` are valid density functions, and
 :math:`\theta = \{\theta_{z}, \theta_{y}\}` parametrises the generative process.
-To sample from :math:`p_{\theta_{y}}(y \vert z)` (and generate plausible
-galaxy parameters), we first sample from the 'prior' over the latent variables
-:math:`\hat{z} \sim p_{\theta_{z}}(z)`, and condition on this :math:`\hat{y} \sim
-p_{\theta_{y}}(y \vert \hat{z})`. In practice, :math:`f_{z}` and :math:`f_{y}` are
-neural networks.
+To sample from :math:`p_{\theta_{y}}(y \vert z)` we first sample from the
+prior over the latent variables :math:`\hat{z} \sim p_{\theta_{z}}(z)`, and
+condition on this :math:`\hat{y} \sim p_{\theta_{y}}(y \vert \hat{z})`. In
+practice we use neural networks to parametrise :math:`f_{z}` and :math:`f_{y}`.
 
-In the *conditional* VAE, we are interested in learning a model of galaxy
-parameters conditioned on photometric observations. Using :math:`p^{*}(\cdot)`
-to denote the true underlying data distribution, we seek
+We could train this model by maximising the log marginal likelihood
+:math:`\log p(y)`, which we may interpret as minimising some distance measure
+:math:`D\big[p_{\theta}(y) \Vert p^{*}(y)\big]` between our model
+:math:`p_{\theta}(y)` and the true data distribution :math:`p^{*}(y)` (i.e. a
+mixture of Diracs; one for each point in the training dataset).
 
-.. math::
+Since we are interested in inferring galaxy parameters :math:`y` *given* some
+photometric observation :math:`x`, we can extend this idea to a *conditional* VAE,
+where we are now after :math:`p_{\theta}(y \vert x) \approx p^{*}(y \vert x)`;
+or equivalently minimising :math:`D\big[p_{\theta}(y \vert x) \Vert p^{*}(y
+\vert x)\big]`.
 
-    p_{\theta}(y \vert x) \approx p^{*}(y \vert x) \stackrel{iid.}{=}
-    \prod_{(y', x') \in \mathcal{D}} p^{*}(y' \vert x').
+..
+    .. math::
 
-In other words, we want to minimise :math:`D\big[p_{\theta}(y \vert x) \Vert
-p^{*}(y \vert x)\big]`, where :math:`D` is some suitable distance measure. By
-analogy to the above, the conditional latent variable model is of the form
+        p_{\theta}(y \vert x) \approx p^{*}(y \vert x) \stackrel{iid.}{=}
+        \prod_{(y', x') \in \mathcal{D}} p^{*}(y' \vert x').
+
+
+A *conditional* latent variable model is a joint distribution over both some data
+:math:`y` and the latent variables :math:`z`, conditioned on some context
+:math:`x`; :math:`p(y, z \vert x) = p(y \vert z, x)p(z \vert x)`---in this
+application :math:`y` are the physical galaxy parameters, and :math:`x` are the
+photometric observations. By analogy to the above, the conditional latent
+variable model is of the form
 
 .. math::
    \begin{align*}
@@ -113,47 +133,56 @@ analogy to the above, the conditional latent variable model is of the form
    p_{\theta_{y}}(y \vert z, x) &= f_{y}(y; z, x, \theta_{y}).
    \end{align*}
 
-Thus we condition the distribution over the latent variable :math:`z` on the
-photometric observations :math:`x`. In turn, we condition the distribution over
-the physical galaxy parameters :math:`y` on both the (conditional) latent
+Thus we first condition the distribution over the latent variable :math:`z` on
+the photometric observations :math:`x`. In turn, we condition the distribution
+over the physical galaxy parameters :math:`y` on both the (conditional) latent
 samples and the photometric observations.
 
-If our objective is to find some :math:`\theta \in \Theta` such that
-:math:`p_{\theta}(y \vert x) \approx p^{*}(y \vert x)`, then we seek to maximise
-the (log) marginal likelihood of the :math:`n` training observations under our
-model:
+As above, our objective is to find some :math:`\theta \in \Theta` such that
+:math:`p_{\theta}(y \vert x) \approx p^{*}(y \vert x)`, and this can be acheived
+by maximising the (log) marginal likelihood of the :math:`N` training observations
+under our model:
 
 .. math::
    :label: LVMObjective
 
-    \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log p_{\theta}(y_{i} \vert x_{i}).
+    \underset{\theta \in \Theta}{\mathrm{argmax}}
+    \sum_{i=1}^{N} \log p_{\theta}(y_{i} \vert x_{i})
     =
-    \underset{\theta \in \Theta}{\mathrm{argmax}} \sum_{i=1}^{n} \log \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz
+    \underset{\theta \in \Theta}{\mathrm{argmax}}
+    \sum_{i=1}^{N} \log \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz.
 
 Integrating out the latent variable from the LVM :math:`p_{\theta}(y \vert z,
 x)` to find the marginal likelihood (or *model evidence*) is often intractable.
 Taking the variational Bayesian approach, we instead optimise a lower-bound on
-this intractable model evidence, referred to as the *evidence lower bound*,
-ELBO.
+this intractable model evidence, referred to as the *evidence lower bound*
+(ELBO).
 
 ..
     Here we introduce an approximate posterior distribution over the latent
     variables :math:`q_{\phi}(z \vert y, x) \approx p_{\theta}(z \vert x)`, which is
     parametrised by :math:`\phi` and should be convenient to sample from.
 
+
 LVM Objective
 ~~~~~~~~~~~~~
 
-We will derive this lower bound twice, to appreciate two different perspectives.
-Beginning with the importance sampling approach, we ideally want to take a Monte
-Carlo approximation to the integral in :eq:`LVMObjective`. Unfortunately for
-most :math:`z`, :math:`p_{\theta}(y \vert z, x)` will be close to zero. Rather
-than taking the expectation uniformly over :math:`z`, we instead take it over a
-'proposal distribution' :math:`q_{\phi}(z \vert y, x)`. We want samples of
-:math:`z \sim q_{\phi}(z \vert y, x)` to be likely to have produced :math:`y`,
-so we can approximate the integral with fewer samples.
+We will derive this lower bound twice, to appreciate two different intuitions.
+While we use the conditional form of the VAE throughout---which is certainly
+more verbose than the vanilla VAE derivations---I think that the consistency
+with later sections as well as the accompanying codebase justifies this.
 
-Taking the expectation wrt the proposal distribution :math:`q_{\phi}(z \vert y,
+Beginning with the importance sampling perspective, we ideally want to take a
+Monte Carlo approximation to the integral in :eq:`LVMObjective`. Unfortunately
+for most :math:`z`, :math:`p_{\theta}(y \vert z, x)` is likely to be close to
+zero. Rather than taking the expectation uniformly over :math:`z`, we instead
+take it over a 'proposal distribution' :math:`q_{\phi}(z \vert y, x)`. We want
+samples of :math:`z \sim q_{\phi}(z \vert y, x)` to be likely to have produced
+:math:`y`; that is, to give non-zero :math:`p(y \vert z, x)` for :math:`(x, y)`
+in the training data, so that we can approximate the integral with fewer
+samples.
+
+Taking the expectation wrt. the proposal distribution :math:`q_{\phi}(z \vert y,
 x)` on both sides of :eq:`LVMObjective` (first line below), and introducing
 :math:`q_{\phi}` on the right hand side as a ratio of itself (second line) while
 applying Bayes rule to rearrange :math:`p_{\theta}(y \vert z, x)` (also second
@@ -178,12 +207,12 @@ y)` term indeed lower-bounds the evidence:
 
    \log p_{\theta}(y \vert x) &\ge
    \mathbb{E}_{q_{\phi}(z \vert y, x)} \left[
-    \log p_{\theta}(y \vert z, x) + \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)
-    \right] \\
+    \log p_{\theta}(y \vert z, x) + \log p_{\theta}(z \vert x) -
+    \log q_{\phi}(z \vert y, x) \right] \\
    &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
     \log p_{\theta}(y \vert z, x)
-    \right] + \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log \frac{p_{\theta}(z \vert
-     x)}{q_{\phi}(z \vert y, x)} dz \\
+    \right] + \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log
+    \frac{p_{\theta}(z \vert x)}{q_{\phi}(z \vert y, x)} dz \\
      &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
      - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].
 
@@ -213,17 +242,17 @@ expectation and introduce the lower bound:
 .. math::
 
    \log p_{\theta}(y \vert x) &=
-   \log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x) \frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
+   \log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x)
+   \frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
    &\ge \int_{\mathcal{Z}}q_{\phi}(z \vert y, x)\big(\log p_{\theta}(y, z \vert x)
    - \log q_{\phi}(z \vert y, x)\big) dz \\
-     &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)\right] \\
+     &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y, z \vert x) -
+     \log q_{\phi}(z \vert y, x)\right] \\
      &\doteq \mathcal{L}(\theta, \phi; x, y).
 
 We can now perform the same rearrangements as above on
-:math:`\mathcal{L}(\theta, \phi; x, y)` to reach the canonical expression for
-the ELBO.
-
-For completeness, the ELBO objective that we try to maximise is
+:math:`\mathcal{L}(\theta, \phi; x, y)` to reach the canonical form for the ELBO
+objective that we try to maximise which, for completeness, is
 
 .. math::
 
@@ -239,7 +268,7 @@ about concurrently:
    x)\right] = \log p_{\theta}(y \vert x)`, which makes our generative model
    better.
 2. We make the approximate posterior :math:`q_{\phi}(z \vert y, x)` more similar
-   to the true posterior :math:`p_{\theta}(z \vert x)`, making the recognition
+   to the true posterior :math:`p_{\theta}(z \vert x)`; making the recognition
    model better.
 
 SGD ELBO Optimisation
@@ -247,7 +276,7 @@ SGD ELBO Optimisation
 
 We wish to optimise this ELBO objective over both :math:`\theta` and
 :math:`\phi`. While the gradient :math:`\nabla_{\theta, \phi}\mathcal{L}(\theta,
-\phi; y, x)` is in general intractable, we can use Monte Carlo approximation as
+\phi; y, x)` is in general intractable, we can use Monte Carlo approximations as
 well as the 'reparametrisation trick' to obtain a good unbiased estimator
 :math:`\tilde{\nabla}_{\theta, \phi}\mathcal{L}(\theta, \phi; y, x)`.
 
@@ -258,9 +287,10 @@ Monte Carlo approximation of the expectation:
 
    \nabla_{\theta}\mathcal{L}(\theta, \phi; y, x) &=
    \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
-   \nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)\big)
-   \right] \\
-   &\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta} \log p_{\theta}(y, z \vert x)
+   \nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) -
+   \log q_{\phi}(z \vert y, x)\big) \right] \\
+   &\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta}
+   \log p_{\theta}(y, z \vert x)
 
 However, when trying to get unbiased gradients of the ELBO wrt. the variational
 parameters :math:`\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)`, we can no
@@ -283,31 +313,31 @@ where :math:`g(\cdot)` is an invertible and differentiable function, and
 can easily sample from.
 
 While it is straightforward to generate reparametrised samples from
-:math:`q_{\phi}(z \vert y, x)` (we just evaluate :math:`g(\phi, \epsilon, y,
-x)`), in order to evaluate the density of some :math:`z` under this posterior
-distribution, we calculate
+:math:`q_{\phi}(z \vert y, x)` (we just evaluate :math:`g(\phi, \epsilon', y,
+x)` for some :math:`\epsilon' \sim p(\epsilon)`), it is slightly more
+complicated to evaluate the density of some :math:`z` under this posterior
+distribution, which is given by
 
 .. math::
 
    \log q_{\phi}(z \vert y, x) = \log p(\epsilon) - \log \left\vert \det
    \frac{\partial g_{\phi}}{\partial\epsilon}(y, x, \epsilon)\right\vert,
 
-where we must subtract the log of the determinant of the Jacobian
+We must subtract the log of the determinant of the Jacobian
 :math:`\frac{\partial z}{\partial \epsilon}` in order to conserve unit probability
-mass before and after the transformation :math:`g`. We would like to select
-(flexible) transformations :math:`g` where the log determinant of the Jacobian
-term is cheap to compute.
+mass before and after the transformation :math:`g`. It follows that we would
+like to select (flexible) transformations :math:`g` where the log determinant of
+the Jacobian term is cheap to compute.
 
 --------------------------------------------------------------------------------
 
 **Factorised Gaussian Encoder**
 
-We have yet to specify a form for :math:`q_{\phi}(z \vert y, x)`. A good first
-attempt might be an isotropic Gaussian. That is, :math:`q_{\phi}(z \vert y, x) =
+A good first attempt at specifying the form for :math:`q_{\phi}(z \vert y, x)`
+might be to use an isotropic Gaussian. That is, :math:`q_{\phi}(z \vert y, x) =
 \mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)`, where the parameters of
 this Gaussian :math:`(\mu, \log \sigma)` are the outputs of the encoder network.
-
-After reparametrisation, we have
+Hence we may draw samples from :math:`q_{\phi}(z \vert y, x)` as follows:
 
 .. math::
 
@@ -315,7 +345,8 @@ After reparametrisation, we have
    (\mu, \log \sigma) &= f_{\text{enc}}(\phi, y, x) \\
    z &= \mu + \sigma \odot \epsilon
 
-where :math:`\odot` represents an element-wise product.
+where :math:`\odot` represents an element-wise product and
+:math:`f_{\text{enc}}` is the '*encoder*' neural network.
 
 To evaluate the density of some :math:`z` under this distribution, we first find
 the Jacobian of this transformation, which in this isotropic Gaussian case is
@@ -332,13 +363,14 @@ where :math:`n` is the dimensionality of the latent space. Since :math:`q` is
 isotropic Gaussian, we may find the density of a latent vector as a product of
 univariate Gaussians: :math:`q_{\phi}(z \vert y, x) =
 \prod_{i=1}^{n}\mathcal{N}(z_{i}; \mu_{i}, \sigma_{i})`, and so the posterior density
-can be expressed as a single sum:
+can be expressed as a single sum and evaluated in linear time:
 
 .. math::
 
    \log q_{\phi}(z \vert y, x) &= \sum_{i=1}^{n} \log \mathcal{N}(\epsilon_{i};
    0, 1) - \log \sigma_{i} \\
-   &= -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) + \epsilon_{i}^2\big) + \log \sigma_{i},
+   &= -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) + \epsilon_{i}^2\big) +
+   \log \sigma_{i},
 
 when :math:`z = g(\phi, \epsilon, y, x)`.
 
@@ -367,16 +399,16 @@ where L is a lower triangular matrix with non-zero diagonal elements. The reason
 for this constraint is that it makes the evaluating the density of
 :math:`q_{\phi}(z \vert y, x)`, which in turn requires finding the log
 determinant of the Jacobian of the above simple.  The Jacobian is
-:math:`\frac{\partial z}{\partial \epsilon}`, and since the determinant of a
+:math:`\frac{\partial z}{\partial \epsilon} = L`, and since the determinant of a
 triangular matrix is the product of the diagonal elements, we get:
 
 .. math::
 
-   \log \det \frac{\partial z}{\partial \epsilon} = \sum_{i=1}^{n} \log \vert
-   L_{ii} \vert
+   \log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+   \sum_{i=1}^{n} \log \vert L_{ii} \vert
 
 As an implementation point, we can output a matrix :math:`L` with the desired
-properties from a neural net by constructing it as:
+properties from a neural network by constructing it as:
 
 .. math::
 
@@ -390,19 +422,86 @@ log-determinant as the isotropic Gaussian case:
 
 .. math::
 
-   \log \det \frac{\partial z}{\partial \epsilon} = \sum_{i=1}^{n} \log \sigma_{i}.
+   \log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+   \sum_{i=1}^{n} \log \sigma_{i}
+
+and therefore evaluating the density proceeds exactly as before:
+
+.. math::
+
+   \log q_{\phi}(z \vert y, x) = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
+   \epsilon_{i}^2\big) + \log \sigma_{i}.
+
+.. todo:: Discuss approaches using normalising flows for the inference model,
+          such as Normalising Flows or Inverse Autoregressive Flows.
+
+          Note that the Normalising Flows approach is in theory a straightforward
+          repetition of the full-covariance Gaussian approach outlined above.
+
+Likelihood
+----------
+
+We have yet to specify a form for :math:`p`. Recall that in our conditional LVM,
+the marginal likelihood is found by marginalising out the latent variable
+
+.. math::
+
+   p_{\theta}(y \vert x) = \int_{\mathcal{Z}}p_{\theta}(y, z \vert x) dz
+
+If we have a Gaussian likelihood :math:`p_{\theta}(y \vert z, x) =
+\mathcal{N}\big(y; \mu_{\theta}(z, x), \Sigma_{\theta}(z, x)\big)`, then the
+above is a Gaussian mixture model: for discrete :math:`z` with :math:`K`
+possible values, then there are :math:`K` components, while for continuous
+:math:`z` this is an infinite mixture, which can be very flexible.
+
+Implementation
+--------------
+
+We have yet to specify a form for :math:`p_{\theta}(y, z \vert x)`. If we select
+a Gaussian, then when we come to marginalise out the latent variable
+
+.. math::
+
+    \int_{\mathcal{Z}} p(y, z \vert x) dz,
+
+this becomes an infinite Gaussian mixture, since :math:`z` is continuous. This
+can potentially represent a very flexible class of distributions indeed.
 
 
-.. todo:: Consolidate all the equations and write pseudo-code for training
-          procedure.
+We now have all the components we need to actually optimise the ELBO using SGD.
+We can re-arrange the ELBO as
 
---------------------------------------------------------------------------------
+.. math::
+
+    \mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) &=
+    \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+     - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right] \\
+       &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
+       \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
+       &\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpx}} +
+       \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]
+
+We have already derived the expression for evaluating
+:math:`\mathcal{L}_{\text{logqz}} = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi)
++ \epsilon_{i}^2\big) + \log \sigma_{i}`. Evaluating :math:`\log p_{\theta}(z
+\vert x)` for some sampled :math:`z` depends on our prior distribution for
+:math:`z`. We can once again select a Gaussian
+
+.. math::
+
+    p_{\theta}(z \vert x) = \mathcal{N}(z; \mu, \text{diag}\sigma).
 
 Thus to implement the CVAE, we have three networks;
 
 - the recognition network :math:`q_{\phi}(z \vert y, x)`,
 - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
 - the generation network :math:`p_{\theta}(y \vert z, x)`
+
+For consistency with PyTorch ``nn.Module`` conventions, the ``forward`` method
+in the ``CVAE`` class acts as a discriminative model; implemeting the mapping
+:math:`f: \mathcal{X} \times \Theta \to \mathcal{Y}` and making the LVM
+mechanism opaque to the user.
+
 
 
 References
