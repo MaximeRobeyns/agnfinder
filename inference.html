@@ -37,6 +37,7 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -95,7 +96,22 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Inferring Galaxy Parameters</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Inferring Galaxy Parameters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#conditional-variational-autoencoders">3.1. (Conditional) Variational Autoencoders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#latent-variable-models">3.1.1. Latent Variable Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lvm-objective">3.1.2. LVM Objective</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sgd-elbo-optimisation">3.1.3. SGD ELBO Optimisation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#likelihood">3.2. Likelihood</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation">3.3. Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#architecture-description">3.3.1. Architecture Description</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cvae-implementation">3.3.2. CVAE Implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#references">3.4. References</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -163,11 +179,569 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="inferring-galaxy-parameters">
-<span id="inference"></span><h1><span class="section-number">3. </span>Inferring Galaxy Parameters<a class="headerlink" href="#inferring-galaxy-parameters" title="Permalink to this headline">¶</a></h1>
-<div class="admonition-todo admonition" id="id1">
+  <p id="inference"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
+<div class="section" id="inferring-galaxy-parameters">
+<h1><span class="section-number">3. </span>Inferring Galaxy Parameters<a class="headerlink" href="#inferring-galaxy-parameters" title="Permalink to this headline">¶</a></h1>
+<p>The original motivation behind the <em>AGNFinder</em> project was to speed up Bayesin
+SED fitting.
+MCMC approaches need to evaluate the likelihood term <span class="math notranslate nohighlight">\(p(x \vert \theta)\)</span>
+many times which is a slow process, dominated by the evaluation of the forward
+model <span class="math notranslate nohighlight">\(f : \Theta \to \mathcal{X}\)</span>. This is a mapping from physical galaxy
+parameters <span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> (such as mass, star formation, E(B-V)
+as well as AGN signatures such as AGN disc and torus, disk inclination and so
+forth) to (mock) photometric observations <span class="math notranslate nohighlight">\(x \in \mathcal{X}\)</span>.</p>
+<p>To speed up the evaluation of the likelihood, we can <em>emulate</em> the forward model
+with some function approximator (for instance a GP or a neural network). This is
+the approach taken in Alsing <em>et al.</em> <a class="reference internal" href="#spec2020" id="id1"><span>[SPEC2020]</span></a>, with good results, and was
+incidentally the original goal of this project.</p>
+<p>In this fork we take a slightly different approach to recovering physical
+parameters from photometric observations <span class="math notranslate nohighlight">\(p(\theta \vert x)\)</span>. We first
+direct our attention away from emulating (and speeding up) the forward model,
+and towards the main objective which is to recover the physical galaxy
+parameters. We also eschew the MCMC methods used in this inference step in
+favour of a variational Bayesian attack; namely a conditional variational
+autoencoder <a class="reference internal" href="#cvae2015" id="id2"><span>[CVAE2015]</span></a>—a deep conditional generative model with latent
+variables.</p>
+<p>We motivate the use of this model by acknowledging that the low-dimensional
+photometric observations (8 for the Euclid survey) are potentially weakly
+predictive of the free galaxy parameters <span class="math notranslate nohighlight">\(\theta\)</span>; particularly if
+<span class="math notranslate nohighlight">\(\theta\)</span> is relatively high dimensional. We are therefore trying to learn
+a ‘few-to-many’ mapping where the conditional distribution <span class="math notranslate nohighlight">\(p(\theta \vert
+x)\)</span> is complicated and multi-modal.</p>
+<p>If we were to use a discriminative model (such as a conventional feedforward
+neural network, directly learning the mapping <span class="math notranslate nohighlight">\(f: \mathcal{X} \to \Theta\)</span>)
+then we would merely be making use of <em>correlations</em> in the dataset of simulated
+<span class="math notranslate nohighlight">\((\theta, x)\)</span> pairs; <span class="math notranslate nohighlight">\(\mathcal{D} = \{(\theta_{i},
+x_{i})\}_{i=1}^{n}\)</span> to make predictions.</p>
+<p>Attempting to model the generative process by using a CVAE may allow us to
+uncover causal relations in an unsupervised manner <a class="reference internal" href="#ivae2019" id="id3"><span>[IVAE2019]</span></a>, using only the
+simulated dataset <span class="math notranslate nohighlight">\(\mathcal{D}\)</span>. This may make this approach more robust
+to extrapolation, and use in different surveys.</p>
+<div class="section" id="conditional-variational-autoencoders">
+<h2><span class="section-number">3.1. </span>(Conditional) Variational Autoencoders<a class="headerlink" href="#conditional-variational-autoencoders" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To avoid a clash of notation, we will henceforth denote the physical
+galaxy parameters as <span class="math notranslate nohighlight">\(y\)</span> (previously <span class="math notranslate nohighlight">\(\theta\)</span>). This matches
+the machine learning nomenclature of denoting outputs to be predicted as
+<span class="math notranslate nohighlight">\(y\)</span>, and model parameters as <span class="math notranslate nohighlight">\(\theta\)</span>.</p>
+</div>
+<div class="section" id="latent-variable-models">
+<h3><span class="section-number">3.1.1. </span>Latent Variable Models<a class="headerlink" href="#latent-variable-models" title="Permalink to this headline">¶</a></h3>
+<p>A variational autoencoder (VAE) is an example of a <em>latent variable model</em>
+(LVM). Latent variables, often denoted <span class="math notranslate nohighlight">\(z\)</span>, are unobserved variables which
+ideally represent some disentangled, semantically meaningful, and statistically
+independent causal factors for variation in the data.</p>
+<p>A latent variable model (LVM) is a distribution over the data we care about and
+the latent variables <span class="math notranslate nohighlight">\(p(y, z)\)</span>. We can factorise this in two ways: either
+working with the posterior <span class="math notranslate nohighlight">\(p(z \vert y)\)</span> to, perhaps stochastically,
+map (or <em>encode</em>) a datapoint <span class="math notranslate nohighlight">\(y\)</span> to its latent representation <span class="math notranslate nohighlight">\(z\)</span>,
+or the posterior <span class="math notranslate nohighlight">\(p(y \vert z)\)</span> to generate (or <em>decode</em> latents <span class="math notranslate nohighlight">\(z\)</span>
+to) new plausible <span class="math notranslate nohighlight">\(y\)</span> samples.</p>
+<p>In the second factorisation <span class="math notranslate nohighlight">\(p(y, z) = p(y \vert z) p(z)\)</span>, the LVM takes
+the form of</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align*}
+p_{\theta_{z}}(z) &amp;= f_{z}(z; \theta_{z}) \\
+p_{\theta_{y}}(y \vert z) &amp;= f_{y}(y; z, \theta_{y}),
+\end{align*}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(f_{z}\)</span> and <span class="math notranslate nohighlight">\(f_{y}\)</span> are valid density functions, and
+<span class="math notranslate nohighlight">\(\theta = \{\theta_{z}, \theta_{y}\}\)</span> parametrises the generative process.
+To sample from <span class="math notranslate nohighlight">\(p_{\theta_{y}}(y \vert z)\)</span> we first sample from the
+prior over the latent variables <span class="math notranslate nohighlight">\(\hat{z} \sim p_{\theta_{z}}(z)\)</span>, and
+condition on this <span class="math notranslate nohighlight">\(\hat{y} \sim p_{\theta_{y}}(y \vert \hat{z})\)</span>. In
+practice we use neural networks to parametrise <span class="math notranslate nohighlight">\(f_{z}\)</span> and <span class="math notranslate nohighlight">\(f_{y}\)</span>.</p>
+<p>We could train this model by maximising the log marginal likelihood
+<span class="math notranslate nohighlight">\(\log p(y)\)</span>, which we may interpret as minimising some distance measure
+<span class="math notranslate nohighlight">\(D\big[p_{\theta}(y) \Vert p^{*}(y)\big]\)</span> between our model
+<span class="math notranslate nohighlight">\(p_{\theta}(y)\)</span> and the true data distribution <span class="math notranslate nohighlight">\(p^{*}(y)\)</span> (i.e. a
+mixture of Diracs; one for each point in the training dataset).</p>
+<p>Since we are interested in inferring galaxy parameters <span class="math notranslate nohighlight">\(y\)</span> <em>given</em> some
+photometric observation <span class="math notranslate nohighlight">\(x\)</span>, we can extend this idea to a <em>conditional</em> VAE,
+where we are now after <span class="math notranslate nohighlight">\(p_{\theta}(y \vert x) \approx p^{*}(y \vert x)\)</span>;
+or equivalently minimising <span class="math notranslate nohighlight">\(D\big[p_{\theta}(y \vert x) \Vert p^{*}(y
+\vert x)\big]\)</span>.</p>
+<p>A <em>conditional</em> latent variable model is a joint distribution over both some data
+<span class="math notranslate nohighlight">\(y\)</span> and the latent variables <span class="math notranslate nohighlight">\(z\)</span>, conditioned on some context
+<span class="math notranslate nohighlight">\(x\)</span>; <span class="math notranslate nohighlight">\(p(y, z \vert x) = p(y \vert z, x)p(z \vert x)\)</span>—in this
+application <span class="math notranslate nohighlight">\(y\)</span> are the physical galaxy parameters, and <span class="math notranslate nohighlight">\(x\)</span> are the
+photometric observations. By analogy to the above, the conditional latent
+variable model is of the form</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align*}
+p_{\theta_{z}}(z \vert x) &amp;= f_{z}(z; x, \theta_{z}) \\
+p_{\theta_{y}}(y \vert z, x) &amp;= f_{y}(y; z, x, \theta_{y}).
+\end{align*}\end{split}\]</div>
+<p>Thus we first condition the distribution over the latent variable <span class="math notranslate nohighlight">\(z\)</span> on
+the photometric observations <span class="math notranslate nohighlight">\(x\)</span>. In turn, we condition the distribution
+over the physical galaxy parameters <span class="math notranslate nohighlight">\(y\)</span> on both the (conditional) latent
+samples and the photometric observations.</p>
+<p>As above, our objective is to find some <span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> such that
+<span class="math notranslate nohighlight">\(p_{\theta}(y \vert x) \approx p^{*}(y \vert x)\)</span>, and this can be acheived
+by maximising the (log) marginal likelihood of the <span class="math notranslate nohighlight">\(N\)</span> training observations
+under our model:</p>
+<div class="math notranslate nohighlight" id="equation-lvmobjective">
+<span class="eqno">(1)<a class="headerlink" href="#equation-lvmobjective" title="Permalink to this equation">¶</a></span>\[ \underset{\theta \in \Theta}{\mathrm{argmax}}
+ \sum_{i=1}^{N} \log p_{\theta}(y_{i} \vert x_{i})
+ =
+ \underset{\theta \in \Theta}{\mathrm{argmax}}
+ \sum_{i=1}^{N} \log \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz.\]</div>
+<p>Integrating out the latent variable from the LVM <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z,
+x)\)</span> to find the marginal likelihood (or <em>model evidence</em>) is often intractable.
+Taking the variational Bayesian approach, we instead optimise a lower-bound on
+this intractable model evidence, referred to as the <em>evidence lower bound</em>
+(ELBO).</p>
+</div>
+<div class="section" id="lvm-objective">
+<h3><span class="section-number">3.1.2. </span>LVM Objective<a class="headerlink" href="#lvm-objective" title="Permalink to this headline">¶</a></h3>
+<p>We will derive this lower bound twice, to appreciate two different intuitions.
+While we use the conditional form of the VAE throughout—which is certainly
+more verbose than the vanilla VAE derivations—I think that the consistency
+with later sections as well as the accompanying codebase justifies this.</p>
+<p>Beginning with the importance sampling perspective, we ideally want to take a
+Monte Carlo approximation to the integral in <a class="reference internal" href="#equation-lvmobjective">Equation 1</a>. Unfortunately
+for most <span class="math notranslate nohighlight">\(z\)</span>, <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span> is likely to be close to
+zero. Rather than taking the expectation uniformly over <span class="math notranslate nohighlight">\(z\)</span>, we instead
+take it over a ‘proposal distribution’ <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>. We want
+samples of <span class="math notranslate nohighlight">\(z \sim q_{\phi}(z \vert y, x)\)</span> to be likely to have produced
+<span class="math notranslate nohighlight">\(y\)</span>; that is, to give non-zero <span class="math notranslate nohighlight">\(p(y \vert z, x)\)</span> for <span class="math notranslate nohighlight">\((x, y)\)</span>
+in the training data, so that we can approximate the integral with fewer
+samples.</p>
+<p>Taking the expectation wrt. the proposal distribution <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y,
+x)\)</span> on both sides of <a class="reference internal" href="#equation-lvmobjective">Equation 1</a> (first line below), and introducing
+<span class="math notranslate nohighlight">\(q_{\phi}\)</span> on the right hand side as a ratio of itself (second line) while
+applying Bayes rule to rearrange <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span> (also second
+line) gives:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\log p_{\theta}(y \vert x) &amp;=
+\int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log p_{\theta}(y \vert z, x)dz \\
+&amp;= \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \left(
+\log \frac{p_{\theta}(y, z \vert x)}{q_{\phi}(z \vert y, x)} +
+\log \frac{q_{\phi}(z \vert y, x)}{p_{\theta}(z \vert x)}
+\right) dz \\
+&amp;= \underbrace{\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
+\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)
+\right]}_{\text{variational lower-bound, } \mathcal{L}(\theta, \phi; x, y)} +
+D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\end{split}\]</div>
+<p>Since the KL divergence is non-negative, the <span class="math notranslate nohighlight">\(\mathcal{L}(\theta, \phi; x,
+y)\)</span> term indeed lower-bounds the evidence:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\log p_{\theta}(y \vert x) &amp;\ge
+\mathbb{E}_{q_{\phi}(z \vert y, x)} \left[
+ \log p_{\theta}(y \vert z, x) + \log p_{\theta}(z \vert x) -
+ \log q_{\phi}(z \vert y, x) \right] \\
+&amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
+ \log p_{\theta}(y \vert z, x)
+ \right] + \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log
+ \frac{p_{\theta}(z \vert x)}{q_{\phi}(z \vert y, x)} dz \\
+  &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+  - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\end{split}\]</div>
+<p>This last line above is the canonical form in which the ELBO is usually
+given.</p>
+<hr class="docutils" />
+<div class="sidebar">
+<p class="sidebar-title">Jensen’s inequality</p>
+<img alt="_images/jensens-inequality.svg" src="_images/jensens-inequality.svg" /><p>Put loosely, Jensen’s inequality states that <span class="math notranslate nohighlight">\(\varphi(\mathbb{E}[x])
+\ge \mathbb{E}[\varphi(x)]\)</span>, for <span class="math notranslate nohighlight">\(\varphi(\cdot)\)</span> a concave function
+e.g. <span class="math notranslate nohighlight">\(log(\cdot)\)</span>.</p>
+</div>
+<p>For another perspective, we may derive the lower bound using Jensen’s
+inequality.</p>
+<p>In the first line below, we explicitly write the marginalisation
+over the latents <span class="math notranslate nohighlight">\(z\)</span>, and we also introduce the encoder or <em>recognition
+model</em> <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> as a ratio of itself. On the second line,
+we use Jensen’s inequality to push the logarithm (a concave function) inside the
+expectation and introduce the lower bound:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\log p_{\theta}(y \vert x) &amp;=
+\log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x)
+\frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
+&amp;\ge \int_{\mathcal{Z}}q_{\phi}(z \vert y, x)\big(\log p_{\theta}(y, z \vert x)
+- \log q_{\phi}(z \vert y, x)\big) dz \\
+  &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y, z \vert x) -
+  \log q_{\phi}(z \vert y, x)\right] \\
+  &amp;\doteq \mathcal{L}(\theta, \phi; x, y).\end{split}\]</div>
+<p>We can now perform the same rearrangements as above on
+<span class="math notranslate nohighlight">\(\mathcal{L}(\theta, \phi; x, y)\)</span> to reach the canonical form for the ELBO
+objective that we try to maximise which, for completeness, is</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
+\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+ - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right]\]</div>
+<p>From the above, we can see that the ELBO optimises two quantities that we care
+about concurrently:</p>
+<ol class="arabic simple">
+<li><p>We (approximately) maximise the marginal likelihood, since
+<span class="math notranslate nohighlight">\(\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z,
+x)\right] = \log p_{\theta}(y \vert x)\)</span>, which makes our generative model
+better.</p></li>
+<li><p>We make the approximate posterior <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> more similar
+to the true posterior <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span>; making the recognition
+model better.</p></li>
+</ol>
+</div>
+<div class="section" id="sgd-elbo-optimisation">
+<h3><span class="section-number">3.1.3. </span>SGD ELBO Optimisation<a class="headerlink" href="#sgd-elbo-optimisation" title="Permalink to this headline">¶</a></h3>
+<p>We wish to optimise this ELBO objective over both <span class="math notranslate nohighlight">\(\theta\)</span> and
+<span class="math notranslate nohighlight">\(\phi\)</span>. While the gradient <span class="math notranslate nohighlight">\(\nabla_{\theta, \phi}\mathcal{L}(\theta,
+\phi; y, x)\)</span> is in general intractable, we can use Monte Carlo approximations as
+well as the ‘reparametrisation trick’ to obtain a good unbiased estimator
+<span class="math notranslate nohighlight">\(\tilde{\nabla}_{\theta, \phi}\mathcal{L}(\theta, \phi; y, x)\)</span>.</p>
+<p>The derivative wrt. <span class="math notranslate nohighlight">\(\theta\)</span> can be straightforwardly obtained with a
+Monte Carlo approximation of the expectation:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\nabla_{\theta}\mathcal{L}(\theta, \phi; y, x) &amp;=
+\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
+\nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) -
+\log q_{\phi}(z \vert y, x)\big) \right] \\
+&amp;\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta}
+\log p_{\theta}(y, z \vert x)\end{split}\]</div>
+<p>However, when trying to get unbiased gradients of the ELBO wrt. the variational
+parameters <span class="math notranslate nohighlight">\(\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)\)</span>, we can no
+longer commute the derivative with the expectation:
+<span class="math notranslate nohighlight">\(\nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] \ne
+\mathbb{E}_{q_{\phi}(z \vert y, x)}[\nabla_{\phi}f(x, y, z)]\)</span>. We resolve to
+apply the change of variables formula for probability distributions (also called
+the <em>reparametrisation trick</em>), which will result in:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] &amp;=
+\mathbb{E}_{p(\epsilon)}\big[\nabla_{\phi}f\big(x, y, g(\phi, y, x,
+\epsilon)\big)\big] \\
+&amp;\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\phi} f\big(x, y, z^{(i)}\big),
+\hspace{0.5cm} z^{(i)} = g(\phi, y, x, \epsilon),\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(g(\cdot)\)</span> is an invertible and differentiable function, and
+<span class="math notranslate nohighlight">\(p(\epsilon)\)</span> is a fixed density (e.g. a standard Gaussian) which we
+can easily sample from.</p>
+<p>While it is straightforward to generate reparametrised samples from
+<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> (we just evaluate <span class="math notranslate nohighlight">\(g(\phi, \epsilon', y,
+x)\)</span> for some <span class="math notranslate nohighlight">\(\epsilon' \sim p(\epsilon)\)</span>), it is slightly more
+complicated to evaluate the density of some <span class="math notranslate nohighlight">\(z\)</span> under this posterior
+distribution, which is given by</p>
+<div class="math notranslate nohighlight">
+\[\log q_{\phi}(z \vert y, x) = \log p(\epsilon) - \log \left\vert \det
+\frac{\partial g_{\phi}}{\partial\epsilon}(y, x, \epsilon)\right\vert,\]</div>
+<p>We must subtract the log of the determinant of the Jacobian
+<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon}\)</span> in order to conserve unit probability
+mass before and after the transformation <span class="math notranslate nohighlight">\(g\)</span>. It follows that we would
+like to select (flexible) transformations <span class="math notranslate nohighlight">\(g\)</span> where the log determinant of
+the Jacobian term is cheap to compute.</p>
+<hr class="docutils" />
+<p><strong>Factorised Gaussian Encoder</strong></p>
+<p>A good first attempt at specifying the form for <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>
+might be to use an isotropic Gaussian. That is, <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) =
+\mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)\)</span>, where the parameters of
+this Gaussian <span class="math notranslate nohighlight">\((\mu, \log \sigma)\)</span> are the outputs of the encoder network.
+Hence we may draw samples from <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> as follows:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\epsilon &amp;\sim \mathcal{N}(0, \mathbf{I}) \\
+(\mu, \log \sigma) &amp;= f_{\text{enc}}(\phi, y, x) \\
+z &amp;= \mu + \sigma \odot \epsilon\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> represents an element-wise product and
+<span class="math notranslate nohighlight">\(f_{\text{enc}}\)</span> is the ‘<em>encoder</em>’ neural network.</p>
+<p>To evaluate the density of some <span class="math notranslate nohighlight">\(z\)</span> under this distribution, we first find
+the Jacobian of this transformation, which in this isotropic Gaussian case is
+<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon} = \text{diag}(\sigma)\)</span>. The
+determinant of a diagonal matrix is merely the product of the diagonal terms, so
+we may compute the log determinant of the Jacobian in <span class="math notranslate nohighlight">\(O(n)\)</span> time as:</p>
+<div class="math notranslate nohighlight">
+\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+\sum_{i=1}^{n}\log \sigma_{i},\]</div>
+<p>where <span class="math notranslate nohighlight">\(n\)</span> is the dimensionality of the latent space. Since <span class="math notranslate nohighlight">\(q\)</span> is
+isotropic Gaussian, we may find the density of a latent vector as a product of
+univariate Gaussians: <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) =
+\prod_{i=1}^{n}\mathcal{N}(z_{i}; \mu_{i}, \sigma_{i})\)</span>, and so the posterior density
+can be expressed as a single sum and evaluated in linear time:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\log q_{\phi}(z \vert y, x) &amp;= \sum_{i=1}^{n} \log \mathcal{N}(\epsilon_{i};
+0, 1) - \log \sigma_{i} \\
+&amp;= -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) + \epsilon_{i}^2\big) +
+\log \sigma_{i},\end{split}\]</div>
+<p>when <span class="math notranslate nohighlight">\(z = g(\phi, \epsilon, y, x)\)</span>.</p>
+<hr class="docutils" />
+<p><strong>Full Covariance Gaussian Encoder</strong></p>
+<p>A more flexible inference model <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> will generally
+improve the tightness of the ELBO (since the KL divergence term
+<span class="math notranslate nohighlight">\(D_{\text{KL}}\big[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)]\)</span>,
+which introduces the inequality, will be smaller). We must maintain an efficient
+sampling procedure (e.g. reparametrised sampling, for which it must remain cheap
+to evaluate the log determinant of the Jacobian). A full-covariance Gaussian
+satisfies these desiderata; where <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) = \mathcal{N}(z;
+\mu, \Sigma)\)</span>, and <span class="math notranslate nohighlight">\((\mu, \Sigma) = f_{\text{enc}}(\phi, y, x)\)</span> is a
+neural network.</p>
+<p>The reparametrised sampling procedure is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\epsilon &amp;\sim \mathcal{N}(0, \mathbf{I}) \\
+z &amp;= \mu + L\epsilon\end{split}\]</div>
+<p>where L is a lower triangular matrix with non-zero diagonal elements. The reason
+for this constraint is that it makes the evaluating the density of
+<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>, which in turn requires finding the log
+determinant of the Jacobian of the above simple.  The Jacobian is
+<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon} = L\)</span>, and since the determinant of a
+triangular matrix is the product of the diagonal elements, we get:</p>
+<div class="math notranslate nohighlight">
+\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+\sum_{i=1}^{n} \log \vert L_{ii} \vert\]</div>
+<p>As an implementation point, we can output a matrix <span class="math notranslate nohighlight">\(L\)</span> with the desired
+properties from a neural network by constructing it as:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}(\mu, \log \sigma, L') &amp;= f_{\text{enc}}(\phi, y, x) \\
+L &amp;= L_{\text{mask}} \odot L' + \text{diag}(\sigma),\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\(L_{\text{mask}}\)</span> is a masking matrix with zeros on and above the
+diagonal, and ones below the diagonal. This ensures that <span class="math notranslate nohighlight">\(L\)</span> is
+triangular, with <span class="math notranslate nohighlight">\(\sigma\)</span> on the diagonal. We therefore recover the same
+log-determinant as the isotropic Gaussian case:</p>
+<div class="math notranslate nohighlight">
+\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
+\sum_{i=1}^{n} \log \sigma_{i}\]</div>
+<p>and therefore evaluating the density proceeds exactly as before:</p>
+<div class="math notranslate nohighlight">
+\[\log q_{\phi}(z \vert y, x) = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
+\epsilon_{i}^2\big) + \log \sigma_{i}.\]</div>
+<div class="admonition-todo admonition" id="id4">
 <p class="admonition-title">Todo</p>
-<p>Write this page</p>
+<p>Discuss approaches using normalising flows for the inference model,
+such as Normalising Flows or Inverse Autoregressive Flows.</p>
+<p>Note that the Normalising Flows approach is in theory a straightforward
+repetition of the full-covariance Gaussian approach outlined above.</p>
+</div>
+</div>
+</div>
+<div class="section" id="likelihood">
+<h2><span class="section-number">3.2. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h2>
+<p>We have yet to specify a form for <span class="math notranslate nohighlight">\(p\)</span>. Recall that in our conditional LVM,
+the marginal likelihood is found by marginalising out the latent variable</p>
+<div class="math notranslate nohighlight">
+\[p_{\theta}(y \vert x) = \int_{\mathcal{Z}}p_{\theta}(y, z \vert x) dz.\]</div>
+<p>If we have a Gaussian likelihood <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x) =
+\mathcal{N}\big(y; \mu_{\theta}(z, x), \Sigma_{\theta}(z, x)\big)\)</span>, then the
+above is a Gaussian mixture model: for discrete <span class="math notranslate nohighlight">\(z\)</span> with <span class="math notranslate nohighlight">\(K\)</span>
+possible values, then there are <span class="math notranslate nohighlight">\(K\)</span> components, while for continuous
+<span class="math notranslate nohighlight">\(z\)</span> this is an infinite mixture, which can be very flexible.</p>
+<p>The likelihood needn’t be Gaussian however; for instance for binary MNIST images
+we might choose instead to use a (factorised) Bernoulli likelihood. We could
+even use a Laplace likelihood which would model something like the ‘median’
+digit image; resulting in sharper images—although this is perhaps a little
+unwise for it incurs a higher test log likelihood (due to a lower variety) and
+it’s certainly unusual.</p>
+<p>For fun, here is a comparison of some images sampled from the posterior
+<span class="math notranslate nohighlight">\(p(y \vert z, x)\)</span> for various likelihoods, where the CVAE was trained on
+the MNIST handwritten digit dataset in <code class="docutils literal notranslate"><span class="pre">/notebooks/VAE/basic_vae.ipynb</span></code>. (This
+is good for building intuition; we can immediately tell when a digit ‘looks
+right’, but we might not all have the same intuitions for galaxy parameters…)</p>
+<p><em>Gaussian likelihood:</em></p>
+<img alt="Gaussian likelihood" src="_static/gaussian_mnist.png" />
+<p><em>Laplace likelihood:</em></p>
+<img alt="Laplace likelihood" src="_static/laplace_likelihood.png" />
+<p><em>Bernoulli likelihood:</em></p>
+<img alt="Laplace likelihood" src="_static/bernoulli_likelihood.png" />
+</div>
+<div class="section" id="implementation">
+<h2><span class="section-number">3.3. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
+<p>We now have all the components we need to actually optimise the ELBO using SGD.
+We can re-arrange the ELBO as</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) &amp;=
+\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+ - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right] \\
+   &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
+   \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
+   &amp;\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpx}} +
+   \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]\end{split}\]</div>
+<p>We have already derived the expression for evaluating <span class="math notranslate nohighlight">\(\log q_{\phi}(z
+\vert y, x)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{L}_{\text{logqz}} = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
+\epsilon_{i}^2\big) + \log \sigma_{i},\]</div>
+<p>where <span class="math notranslate nohighlight">\(z \in \mathbb{R}^{n}\)</span>.</p>
+<p>In conditional LVMs, some authors choose to sample <span class="math notranslate nohighlight">\(z\)</span> independently
+of the conditioning information <span class="math notranslate nohighlight">\(x\)</span> at test time, and they do so with a
+standard Gaussian for the prior density <span class="math notranslate nohighlight">\(p(z \vert x) = \mathcal{N}(z; 0,
+\mathbf{I})\)</span>. For this application however, conditioning the latent variable at
+test time on the photometric observations seems sensible. If we use an
+isotropic Gaussian distribution (to match our <span class="math notranslate nohighlight">\(q\)</span> distribution), then we
+get</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}(\mu, \log \sigma) &amp;= f_{\text{prior}}(\theta_{z}, x) \\
+\mathcal{L}_{\text{logpz}} &amp;= \log p(z \vert x) =
+\sum_{i=1}^{n} \log \mathcal{N}(z_{i}; \mu_{i}, \sigma_{i}) \\
+&amp;= - \sum_{i=1}^{n} \frac{1}{2} \left(\log (2\pi\sigma_{i}^2) +
+\big(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\big)\right).\end{split}\]</div>
+<p>Once again, in the above <span class="math notranslate nohighlight">\(n\)</span> is the dimension of the latent vector
+<span class="math notranslate nohighlight">\(z \in \mathbb{R}^{n}\)</span>.</p>
+<p>Finally for the log likelihood term <span class="math notranslate nohighlight">\(\mathcal{L}_{\text{logpy}}\)</span>, we
+merely evaluate the likelihood of the <span class="math notranslate nohighlight">\(y\)</span> training datapoint under the
+appropriate density. Be mindful that this step is prone to be slow; particularly
+if one naively chooses something like a full multivariate Gaussian likelihood,
+where evaluating the log probability will involve Cholesky decompositions to
+invert the covariance matrix. As a rule of thumb, factorising this distribution
+should be sufficient to keep things speedy.</p>
+<p>For expedience and convenience, it can be useful to use the analagous loss
+function for your chosen likelihood; for instance the mean squared error for a
+Gaussian likelihood, binary cross-entropy for a Bernoulli likelihood, L1
+(mean absolute error) loss for a Laplace likelihood and so on. Just remember to
+negate it before using it in the ELBO!</p>
+<p>Also note that these loss functions may only represent the negative log
+likelihood up to proportionality; this implicit scaling of the likelihood term
+relative to the KL divergence term in the ELBO might result in inadvertently
+‘tempering the posterior’, which is where we scale the KL divergence by some
+<span class="math notranslate nohighlight">\(\lambda &lt; 1\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
+\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
+ - \lambda D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\]</div>
+<p>In the context of VAEs, this is often done intentionally as an implementation
+detail, where it is referred to as ‘warming up the KL term’ <a class="reference internal" href="#lvae2016" id="id5"><span>[LVAE2016]</span></a>.
+Here, <span class="math notranslate nohighlight">\(\lambda\)</span> is annealed from 0 to 1 at the beginning of
+training—without this, the ‘variational regularisation term’ (read, KL divergence
+term) causes the latents in <span class="math notranslate nohighlight">\(q\)</span> to be drawn towards their own prior, which
+leads to uninformative latents which the optimisation algorithm is not able to
+re-activate later in training.</p>
+<hr class="docutils" />
+<p>There are a fair number of moving parts involved with implementing a CVAE. For
+convenience I have tried to abstract away the common code into a base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code>
+class, so as to offer a framework wich which to implement variations on the
+(C)VAE described above.</p>
+<div class="section" id="architecture-description">
+<h3><span class="section-number">3.3.1. </span>Architecture Description<a class="headerlink" href="#architecture-description" title="Permalink to this headline">¶</a></h3>
+<p>Thus to implement a CVAE, we have three networks;</p>
+<ul class="simple">
+<li><p>the recognition network <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>,</p></li>
+<li><p>the (conditional) prior network <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span></p></li>
+<li><p>the generation network <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span></p></li>
+</ul>
+<p>Implementation begins in the <code class="docutils literal notranslate"><span class="pre">config.py</span></code> file, where the neural network
+architectures for each of the above may be described by an instance of an
+<code class="docutils literal notranslate"><span class="pre">arch_t</span></code> class. These are passed to the constructor of the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class
+for you, where the corresponding networks will be initialised.</p>
+<p>The constructor of the <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> class has the following signature:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_sizes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">head_sizes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+             <span class="n">activations</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]],</span>
+             <span class="n">head_activations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+             <span class="n">batch_norm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+     <span class="k">pass</span>
+</pre></div>
+</div>
+<p>and as a generic example, you could use it as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">(</span><span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
+<span class="gp">... </span>       <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span> \
+<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">(),</span> <span class="kc">None</span><span class="p">]</span> \
+<span class="gp">... </span>       <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For a CVAE-specific example, here are some networks that you might use for
+MNIST:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Gaussian recognition model q_{phi}(z | y, x)</span>
+<span class="n">recognition_arch</span><span class="p">:</span> <span class="n">arch_t</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">data_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
+
+<span class="c1"># Gaussian prior network p_{theta}(z | x)</span>
+<span class="n">prior_arch</span><span class="p">:</span> <span class="n">arch_t</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span> <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># generator network arch: p_{theta}(y | z, x)</span>
+<span class="n">generator_arch</span><span class="p">:</span> <span class="n">arch_t</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">latent_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">data_dim</span><span class="p">,</span> <span class="n">data_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+    <span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">(),</span> <span class="kc">None</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="cvae-implementation">
+<h3><span class="section-number">3.3.2. </span>CVAE Implementation<a class="headerlink" href="#cvae-implementation" title="Permalink to this headline">¶</a></h3>
+<p>The base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> class has a number of abstract methods, which should hopefully
+be useful in guiding new CVAE implementations by providing a ‘checklist’ of
+methods to implement. These abstract methods are:</p>
+<ol class="arabic">
+<li><p><strong>preprocess</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">preprocess</span></code> method has the following signature:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>This allows you to apply any required transformations, and send the data to a
+particular device before the training process.</p>
+</li>
+<li><p><strong>recognition_params</strong></p>
+<p>This method is used to return the parameters which are later used to perform
+reparametrised sampling. For example, if <span class="math notranslate nohighlight">\(q\)</span> is isotropic Gaussian,
+then you should calculate and return the mean and diagonal covariance. The
+signature is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">recognition_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DistParam</span>
+</pre></div>
+</div>
+<p>Note that <code class="docutils literal notranslate"><span class="pre">DistParam</span></code> is an alias for <code class="docutils literal notranslate"><span class="pre">list[Tensor]</span></code>.</p>
+</li>
+<li><p><strong>prior</strong></p>
+<p>This method returns the prior distribution—you do not have to use the
+provided <code class="docutils literal notranslate"><span class="pre">x</span></code> tensor. The signature is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Distribution</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> is an alias for the base PyTorch distribution class.</p>
+</li>
+<li><p><strong>generator</strong></p>
+<p>Similar to the above, except now we are returning the ‘generator’
+distribution. The signature is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">generator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Distribution</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>rsample</strong></p>
+<p>Performs reparametrised sampling. You usually call <code class="docutils literal notranslate"><span class="pre">recognition_params</span></code> as
+a first step, and also sample some <span class="math notranslate nohighlight">\(\hat{\epsilon} \sim p(\epsilon)\)</span>.</p>
+<p>For convenience, the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class provides a <code class="docutils literal notranslate"><span class="pre">self.EKS(batch_shape:</span> <span class="pre">int)</span></code>
+callable, which samples a <code class="docutils literal notranslate"><span class="pre">[batch_shape,</span> <span class="pre">latent_dim]</span></code> tensor from a
+standard Gaussian.</p>
+<p>The signature of <code class="docutils literal notranslate"><span class="pre">rsample</span></code> is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">DistParam</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The returned the <code class="docutils literal notranslate"><span class="pre">DistParams</span></code> are passed into the <code class="docutils literal notranslate"><span class="pre">kl_div</span></code> method
+(below), and by convention should include the sampled <span class="math notranslate nohighlight">\(\epsilon\)</span> term
+at index 0.</p>
+</li>
+<li><p><strong>kl_div</strong></p>
+<p>This final abstract method returns the KL divergence term in the ELBO. It is
+provided with <code class="docutils literal notranslate"><span class="pre">z</span></code> the latent vector obtained from <code class="docutils literal notranslate"><span class="pre">rsample</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code> the
+conditioning information and <code class="docutils literal notranslate"><span class="pre">rparams</span></code> which was returned from <code class="docutils literal notranslate"><span class="pre">rsample</span></code>.</p>
+<p>The full signature is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">kl_div</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">rparams</span><span class="p">:</span> <span class="n">DistParam</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p>For more descriptions and details on the workings of the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class,
+please see <code class="docutils literal notranslate"><span class="pre">/agnfinder/inference/base.py</span></code>.</p>
+</div>
+</div>
+<div class="section" id="references">
+<h2><span class="section-number">3.4. </span>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<dl class="citation">
+<dt class="label" id="cvae2015"><span class="brackets"><a class="fn-backref" href="#id2">CVAE2015</a></span></dt>
+<dd><p>Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. ‘Learning Structured
+Output Representation Using Deep Conditional Generative Models’. In Advances
+in Neural Information Processing Systems, Vol. 28. Curran Associates, Inc.,
+2015. <a class="reference external" href="https://proceedings.neurips.cc/paper/2015/hash/8d55a249e6baa5c06772297520da2051-Abstract.html">https://proceedings.neurips.cc/paper/2015/hash/8d55a249e6baa5c06772297520da2051-Abstract.html</a>.</p>
+</dd>
+<dt class="label" id="spec2020"><span class="brackets"><a class="fn-backref" href="#id1">SPEC2020</a></span></dt>
+<dd><p>Alsing Justin, Hiranya Peiris, Joel Leja, ChangHoon Hahn, Rita
+Tojeiro, Daniel Mortlock, Boris Leistedt, Benjamin D. Johnson, and Charlie
+Conroy. ‘SPECULATOR: Emulating Stellar Population Synthesis for Fast and
+Accurate Galaxy Spectra and Photometry’. The Astrophysical Journal Supplement
+Series 249, no. 1 (26 June 2020): 5.
+<a class="reference external" href="https://doi.org/10.3847/1538-4365/ab917f">https://doi.org/10.3847/1538-4365/ab917f</a>.</p>
+</dd>
+<dt class="label" id="ivae2019"><span class="brackets"><a class="fn-backref" href="#id3">IVAE2019</a></span></dt>
+<dd><p>Kingma, Diederik P., and Max Welling. ‘An Introduction to
+Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
+no. 4 (2019): 307–92. <a class="reference external" href="https://doi.org/10.1561/2200000056">https://doi.org/10.1561/2200000056</a>.</p>
+</dd>
+<dt class="label" id="lvae2016"><span class="brackets"><a class="fn-backref" href="#id5">LVAE2016</a></span></dt>
+<dd><p>Sø nderby, Casper Kaae, Tapani Raiko, Lars Maalø e, Sø ren Kaae Sø
+nderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
+Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
+2016.
+<a class="reference external" href="https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html">https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html</a>.</p>
+</dd>
+</dl>
 </div>
 </div>
 
