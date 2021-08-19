@@ -446,7 +446,7 @@ the marginal likelihood is found by marginalising out the latent variable
 
 .. math::
 
-   p_{\theta}(y \vert x) = \int_{\mathcal{Z}}p_{\theta}(y, z \vert x) dz
+   p_{\theta}(y \vert x) = \int_{\mathcal{Z}}p_{\theta}(y, z \vert x) dz.
 
 If we have a Gaussian likelihood :math:`p_{\theta}(y \vert z, x) =
 \mathcal{N}\big(y; \mu_{\theta}(z, x), \Sigma_{\theta}(z, x)\big)`, then the
@@ -454,19 +454,37 @@ above is a Gaussian mixture model: for discrete :math:`z` with :math:`K`
 possible values, then there are :math:`K` components, while for continuous
 :math:`z` this is an infinite mixture, which can be very flexible.
 
+The likelihood needn't be Gaussian however; for instance for binary MNIST images
+we might choose instead to use a (factorised) Bernoulli likelihood. We could
+even use a Laplace likelihood which would model something like the 'median'
+digit image; resulting in sharper images---although this is perhaps a little
+unwise for it incurs a higher test log likelihood (due to a lower variety) and
+it's certainly unusual.
+
+For fun, here is a comparison of some images sampled from the posterior
+:math:`p(y \vert z, x)` for various likelihoods, where the CVAE was trained on
+the MNIST handwritten digit dataset in ``/notebooks/VAE/basic_vae.ipynb``. (This
+is good for building intuition; we can immediately tell when a digit 'looks
+right', but we might not all have the same intuitions for galaxy parameters...)
+
+*Gaussian likelihood:*
+
+.. image:: ./_static/gaussian_mnist.png
+   :alt: Gaussian likelihood
+
+*Laplace likelihood:*
+
+.. image:: ./_static/laplace_likelihood.png
+   :alt: Laplace likelihood
+
+*Bernoulli likelihood:*
+
+.. image:: ./_static/bernoulli_likelihood.png
+   :alt: Laplace likelihood
+
+
 Implementation
 --------------
-
-We have yet to specify a form for :math:`p_{\theta}(y, z \vert x)`. If we select
-a Gaussian, then when we come to marginalise out the latent variable
-
-.. math::
-
-    \int_{\mathcal{Z}} p(y, z \vert x) dz,
-
-this becomes an infinite Gaussian mixture, since :math:`z` is continuous. This
-can potentially represent a very flexible class of distributions indeed.
-
 
 We now have all the components we need to actually optimise the ELBO using SGD.
 We can re-arrange the ELBO as
@@ -481,15 +499,44 @@ We can re-arrange the ELBO as
        &\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpx}} +
        \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]
 
-We have already derived the expression for evaluating
-:math:`\mathcal{L}_{\text{logqz}} = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi)
-+ \epsilon_{i}^2\big) + \log \sigma_{i}`. Evaluating :math:`\log p_{\theta}(z
-\vert x)` for some sampled :math:`z` depends on our prior distribution for
-:math:`z`. We can once again select a Gaussian
+We have already derived the expression for evaluating :math:`\log q_{\phi}(z
+\vert y, x)`:
 
 .. math::
 
-    p_{\theta}(z \vert x) = \mathcal{N}(z; \mu, \text{diag}\sigma).
+    \mathcal{L}_{\text{logqz}} = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
+    \epsilon_{i}^2\big) + \log \sigma_{i},
+
+where :math:`z \in \mathbb{R}^{n}`.
+
+In conditional LVMs, some authors choose to sample :math:`z` independently
+of the conditioning information :math:`x` at test time, and so they will use a
+standard Gaussian for the prior density :math:`p(z \vert x) = \mathcal{N}(z; 0,
+\mathbf{I})`. For this application, conditioning the latent variable at test
+time on the photometric observations seems sensible. If we keep an
+isotropic Gaussian distribution (to match :math:`q`), then we get
+
+.. math::
+
+    (\mu, \log \sigma) &= f_{\text{prior}}(\theta_{z}, x) \\
+    \mathcal{L}_{\text{logpz}} &= \log p(z \vert x) =
+    \sum_{i=1}^{n} \log \mathcal{N}(z_{i}; \mu_{i}, \sigma_{i}) \\
+    &= - \sum_{i=1}^{n} \frac{1}{2} \left(\log (2\pi\sigma_{i}^2) +
+    \big(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\big)\right).
+
+Once again, in the above :math:`n` is the dimension of the latent vector
+:math:`z \in \mathbb{R}^{n}`.
+
+..
+  TODO finish writing docs from this point onward.
+
+  Include examples of how to implement the abstract methods in the CVAE class.
+
+As discussed in the previous section, the log likelihood term can take numerous
+forms. For speedy evaluation, it can be useful to use the analagous loss
+function; mean squared error for a Gaussian likeilhood, binary cross entropy for
+a Bernoulli likelihood, L1 (mean absolute error) for a Laplace likelihood etc.
+Just remember to negate it before using it in the ELBO!
 
 Thus to implement the CVAE, we have three networks;
 
