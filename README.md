@@ -6,10 +6,9 @@
 
 Detect AGN from photometry in XXL data, as Euclid prep.
 
-This fork contains additional experiments for neural network emulation, using PyTorch.
+This fork explores the use of conditional generative modelling to to estimate galaxy parameters, using PyTorch.
 
-Please see the [documentation](https://maximerobeyns.github.io/agnfinder/) for more information about this project.
-
+Please see the [documentation](https://maximerobeyns.github.io/agnfinder/) for more information about this project; in particular, the description of the [inference procedure using CVAEs](https://maximerobeyns.github.io/agnfinder/inference.html) may give a good overview of this project's goals.
 
 ## Installation
 

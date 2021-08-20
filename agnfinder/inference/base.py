@@ -369,3 +369,77 @@ class CVAE(nn.Module, abc.ABC):
         """
         raise NotImplementedError
 
+
+# New, hopefully 'better' conditional VAE
+class NCVAE(nn.Module, abc.ABC):
+    """
+    Perhaps a cleaner abstraction would be to break out each of the distributions:
+    - q_{phi}(z | y, x)   approximate posterior / encoder
+    - p_{theta}(z | x)    prior / encoder
+    - p_{theta}(y | z, x) generator / decoder
+
+    And provide methods to 'initialise' the distribution (i.e. get distribution
+    parameters given conditioning information), as well as sampling from and
+    evaluating the log_prob of a datapoint under this distribution.
+
+    We would ideally like to keep these encoder, prior and decoder networks
+    modular, so that we can swap out just one of them and re-use others if need
+    be.
+
+    Also need to think more about how configuration will work (in config.py).
+    Do we directly specify the classes to use in the configuration struct, or
+    have some other 'class discovery' mechanism?
+    """
+
+    def __init__(self, cp: CVAEParams,
+                 device: t.device = t.deivce('cpu'),
+                 dtype: t.dtype = t.float64) -> None:
+        """Initialises a CVAE
+
+        TODO Provide the prior, encoder and decoder classes to be used as arguments.
+        """
+
+        def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
+                       log_every: int = 100):
+            """
+            This is a potentially better way of organising the training process
+            and encapsulating the functionality of the prior, encoder and
+            decoder distributions for better modularity and separation of
+            concerns.
+            """
+            for e in range(epochs):
+                for i, (x, y) in enumerate(train_loader):
+
+                    x, y = self.preprocess(x, y)
+
+                    # obtain the parameters of the q distribution (used for r-sampling).
+                    q_params = self.decoder.params(y, x)
+                    z = self.decoder.sample(q_params)
+                    logqz = self.decoder.log_prob(z, q_params)
+
+                    prior_params = self.prior.params(x)
+                    logpz = self.prior.log_prob(z, prior_params)
+
+                    p_params = self.decoder.params(z, x)
+                    logpy = self.decoder.log_prob(y, p_params)
+
+                    ELBO = logpy + logpz - logpz
+
+                    loss = (-ELBO).mean(0)
+
+                    self.opt.zero_grad()
+                    loss.backward()
+                    self.opt.step()
+
+
+
+
+
+
+
+
+
+
+
+
+

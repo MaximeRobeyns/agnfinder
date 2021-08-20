@@ -496,7 +496,7 @@ We can re-arrange the ELBO as
      - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right] \\
        &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
        \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
-       &\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpx}} +
+       &\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpy}} +
        \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]
 
 We have already derived the expression for evaluating :math:`\log q_{\phi}(z
