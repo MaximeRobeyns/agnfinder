@@ -23,10 +23,11 @@ import time
 import torch as t
 import torch.nn as nn
 import logging
-from typing import Any, Union
+from typing import Any, Union, Type
 from logging.config import dictConfig
 
 import agnfinder.types as types
+import agnfinder.inference as inference
 from agnfinder.types import Tensor, ConfigClass, arch_t, paramspace_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
@@ -179,21 +180,25 @@ class InferenceParams(ConfigClass):
 
 class CVAEParams(types.CVAEParams):
 
-    cond_dim: int = 8  # x; dimension of photometry
-    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
-    latent_dim: int = 4  # z
+    model = inference.base.CVAE
 
-    # Gaussian recognition model q_{phi}(z | y, x)
-    recognition_arch: arch_t = arch_t(
-        layer_sizes=[data_dim + cond_dim, 32],
+    cond_dim = 8  # x; dimension of photometry
+    data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
+    latent_dim = 4  # z
+
+    # (conditional) Gaussian prior network p_{theta}(z | x)
+    prior = inference.StandardGaussianPrior
+    prior_arch = arch_t(
+        layer_sizes=[cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
         batch_norm=True)
 
-    # (conditional) Gaussian prior network p_{theta}(z | x)
-    prior_arch: arch_t = arch_t(
-        layer_sizes=[cond_dim, 32],
+    # Gaussian recognition model q_{phi}(z | y, x)
+    encoder = inference.GaussianEncoder
+    enc_arch = arch_t(
+        layer_sizes=[data_dim + cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
@@ -201,7 +206,8 @@ class CVAEParams(types.CVAEParams):
 
     # generator network arch: p_{theta}(y | z, x)
     # Assume Gaussian parameters
-    generator_arch: arch_t = arch_t(
+    decoder = inference.GaussianDecoder
+    dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[data_dim, data_dim],

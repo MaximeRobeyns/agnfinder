@@ -18,62 +18,33 @@
 
 import logging
 import torch as t
-import torch.distributions as dist
+import agnfinder.inference.distributions as dist
 
-import agnfinder.inference.base as base
+from typing import Union, Optional
 
 from agnfinder import config as cfg
-from agnfinder.types import Tensor, Distribution, DistParam
+from agnfinder.types import Tensor, DistParams
 from agnfinder.inference.utils import load_simulated_data
+from agnfinder.inference.base import CVAEPrior, CVAEEnc, CVAEDec, \
+                                     _CVAE_Dist, _CVAE_RDist
 
 
-class CVAE(base.CVAE):
-    """Basic initial CVAE implementation using isotropic Gaussians for all
-    distributions"""
+class StandardGaussianPrior(CVAEPrior):
+    def get_dist(self, dist_params = None) -> _CVAE_Dist:
+        return dist.Gaussian(t.zeros(1), t.ones(1))
 
-    def recognition_params(self, y: Tensor, x: Tensor) -> DistParam:
-        in_vec = t.cat((y, x), -1)
-        params = self.recognition_net(in_vec)
-        assert isinstance(params, list)
-        # second head outputs log covariance, so we exponentiate before returning
-        params[1] = t.exp(params[1])
-        return params
 
-    def prior(self, x: Tensor) -> Distribution:
-        params = self.prior_net(x)
-        assert len(params) == self.prior_net.out_len
-        assert self.prior_net.out_len == 2
-        [batch, latent_dim] = params[1].shape
-        I = t.eye(latent_dim).expand(batch, -1, -1)
-        cov = I * t.exp(params[1]).unsqueeze(-1)
+class GaussianEncoder(CVAEEnc):
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
+        assert isinstance(dist_params, list)
+        return dist.R_Gaussian(dist_params[0], t.exp(dist_params[1]))
 
-        d = dist.MultivariateNormal(params[0], cov)
-        return d
 
-    def generator(self, z: Tensor, x: Tensor) -> Distribution:
-        params = self.generator_net(t.cat((z, x), -1))
-        assert len(params) == self.generator_net.out_len
-        assert self.generator_net.out_len == 2
-        [batch, output_dim] = params[1].shape
-        I = t.eye(output_dim).expand(batch, -1, -1)
-        cov = I * t.exp(params[1]).unsqueeze(-1)
-        d = dist.MultivariateNormal(params[0], cov)
-        return d
+class GaussianDecoder(CVAEDec):
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
+        assert isinstance(dist_params, list)
+        return dist.Gaussian(dist_params[0], t.exp(dist_params[1]))
 
-    def rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]:
-        [mu, cov] = self.recognition_params(y, x)
-        eps = self.EKS(cov.shape[0])
-        z = mu + cov * eps
-        return z, [eps, mu, cov]
-
-    def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor:
-        [eps, cov, _] = rparams
-        logqz = self.EKS.log_prob(eps) - t.log(cov).sum(1)
-
-        prior_dist = self.prior(x)
-        logpz = prior_dist.log_prob(z)
-
-        return logpz + logqz
 
 if __name__ == '__main__':
 
@@ -83,7 +54,7 @@ if __name__ == '__main__':
     cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
     # initialise the model
-    cvae = CVAE(cp, device=ip.device, dtype=ip.dtype)
+    cvae = cp.model(cp, device=ip.device, dtype=ip.dtype)
     logging.info('Initialised CVAE network')
 
     # load the generated (theta, photometry) dataset
