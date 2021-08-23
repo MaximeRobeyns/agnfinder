@@ -39,4 +39,3 @@ or consult the [documentation](https://maximerobeyns.github.io/agnfinder/).
 ## Licence
 
 [GPL-3.0 License](LICENSE)
-

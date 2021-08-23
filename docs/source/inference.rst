@@ -566,17 +566,17 @@ re-activate later in training.
 
 There are a fair number of moving parts involved with implementing a CVAE. For
 convenience I have tried to abstract away the common code into a base ``CVAE``
-class, so as to offer a framework wich which to implement variations on the
+class, so as to offer a framework with which to implement variations on the
 (C)VAE described above.
 
 Architecture Description
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Thus to implement a CVAE, we have three networks;
+To implement a CVAE, we have three networks;
 
-- the recognition network :math:`q_{\phi}(z \vert y, x)`,
+- the recognition or *encoder* network :math:`q_{\phi}(z \vert y, x)`,
 - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
-- the generation network :math:`p_{\theta}(y \vert z, x)`
+- the generation or *decoder* network :math:`p_{\theta}(y \vert z, x)`
 
 Implementation begins in the ``config.py`` file, where the neural network
 architectures for each of the above may be described by an instance of an
@@ -707,8 +707,8 @@ References
    Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
    no. 4 (2019): 307–92. https://doi.org/10.1561/2200000056.
 
-.. [LVAE2016] Sø nderby, Casper Kaae, Tapani Raiko, Lars Maalø e, Sø ren Kaae Sø
-   nderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
+.. [LVAE2016] Sønderby, Casper Kaae, Tapani Raiko, Lars Maaløe, Søren Kaae
+   Sønderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
    Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
    2016.
    https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html.
