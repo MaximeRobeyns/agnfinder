@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional, Union
 
 from agnfinder.types import Tensor, tensor_like
 
+
 class GalaxyDataset(Dataset):
     """Generated (theta, photometry) pairs."""
 
@@ -71,6 +72,7 @@ class GalaxyDataset(Dataset):
 
         # both np.ndarray and torch.Tensor implement `squeeze`
         return (xs.squeeze(), ys.squeeze())
+
 
 def load_simulated_data(
         path: str, split_ratio: float = 0.8, batch_size: int = 32,

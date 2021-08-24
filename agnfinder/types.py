@@ -16,12 +16,11 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Some custom types """
 
-import abc
-import typing
-import logging
 import numpy as np
 import torch as t
 import torch.nn as nn
+import typing
+import logging
 
 from sedpy import observate
 from prospect.models import priors
@@ -44,14 +43,14 @@ prun_params_t = dict[str, Union[int, bool, float, None]]
 
 # Neural network related ------------------------------------------------------
 
+
 # A PyTorch Tensor
 Tensor = t.Tensor
-# A PyTorch Distribution
-Distribution = t.distributions.Distribution
 # One or more tensors used to parametrise a distribution
-DistParam = list[Tensor]
+DistParams = list[Tensor]
 # NumPy array or PyTorch tensor
 tensor_like = Union[np.ndarray, Tensor]
+
 
 # Filters ---------------------------------------------------------------------
 
@@ -104,6 +103,7 @@ class ConfigClass(object):
 # Maybe 'monad' ---------------------------------------------------------------
 # Monad for safer and more explicit CPz model parameter definitions.
 
+
 class MaybeFloat():
     def __init__(self):
         self.value: Union[float, bool] = False
@@ -117,6 +117,7 @@ class MaybeFloat():
             assert isinstance(self.value, float)
             return just_action(self.value)
 
+
 class _Maybe__Free(MaybeFloat):
     def __init__(self):
         self.value: bool = True
@@ -125,6 +126,7 @@ class _Maybe__Free(MaybeFloat):
         return "Free"
 
 Free = _Maybe__Free()
+
 
 class Just(MaybeFloat):
     def __init__(self, v: float):
@@ -138,6 +140,7 @@ class Just(MaybeFloat):
 # Optional ---------------------------------------------------------------------
 # Allows for optional parameters. This is really just another Maybe data type,
 # but I have called it 'Optional' for ease of use
+
 
 class Optional():
     def __init__(self):
@@ -174,7 +177,8 @@ class OptionalValue(Optional):
         return f'OptionalValue({repr(self.maybefloatvalue)})'
 
 
-# Feed-Forward ANN Architecture Description -----------------------------------
+# Feed-Forward MLP Architecture Description -----------------------------------
+
 
 class arch_t(ConfigClass):
 
@@ -288,63 +292,3 @@ class arch_t(ConfigClass):
 
     def __len__(self) -> int:
         return len(self.layer_sizes) + 1
-
-# CVAE Description ------------------------------------------------------------
-
-class CVAEParams(ConfigClass, abc.ABC):
-
-    def __init__(self):
-        super().__init__()
-        ri = self.recognition_arch.in_shape
-        if ri != self.data_dim + self.cond_dim:
-            raise ValueError((
-                f'Input dimensions of recognition network ({ri}) '
-                f'must equal data_dim ({self.data_dim}) + '
-                f'cond_dim ({self.cond_dim}).'))
-
-        if self.prior_arch is not None:
-            pi = self.prior_arch.in_shape
-            if pi != self.cond_dim:
-                raise ValueError((
-                    f'Input dimensions of prior network ({pi}) '
-                    f'must equal cond_dim ({self.cond_dim})'))
-
-        gi = self.generator_arch.in_shape
-        if gi != self.latent_dim + self.cond_dim:
-            raise ValueError((
-                f'Input dimensions of generator network ({gi}) '
-                f'must euqal latent_dim ({self.latent_dim}) + '
-                f'cond_dim ({self.cond_dim})'))
-
-    # TODO for future flexibility, could replace `int` with `t.Size` for dim
-    # properties
-
-    @property
-    def cond_dim(self) -> int:
-        """Length of 1D conditioning information vector; x"""
-        raise NotImplementedError
-
-    @property
-    def data_dim(self) -> int:
-        """Length of the 1D data vector; y"""
-        raise NotImplementedError
-
-    @property
-    def latent_dim(self) -> int:
-        """Length of 1D latent vector; z"""
-        raise NotImplementedError
-
-    @property
-    def recognition_arch(self) -> arch_t:
-        """Architecture of 'recognition network' q_{phi}(z | y, x)"""
-        raise NotImplementedError
-
-    @property
-    def prior_arch(self) -> typing.Optional[arch_t]:
-        """Architecture of 'prior network' p_{theta_z}(z | x)"""
-        return None
-
-    @property
-    def generator_arch(self) -> arch_t:
-        """Architecture of 'generator network' p_{theta_y}(y | z, x)"""
-        raise NotImplementedError

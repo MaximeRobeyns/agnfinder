@@ -30,23 +30,26 @@ import math
 import pytest
 import torch as t
 import torch.nn as nn
-import torch.distributions as dist
 
-from typing import Optional
+from typing import Optional, Union
 from torch.utils.data import DataLoader
 from torchvision import transforms, datasets
-
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from agnfinder.types import arch_t, CVAEParams, DistParam, Distribution, Tensor
-from agnfinder.inference.base import CVAE
+import agnfinder.inference.distributions as dist
+
+from agnfinder.types import arch_t, DistParams, Tensor
+from agnfinder.inference.base import CVAE, CVAEParams, \
+                                     CVAEDec, CVAEEnc, CVAEPrior, \
+                                     _CVAE_Dist, _CVAE_RDist
 
 
 # testing utilities -----------------------------------------------------------
 
 
 def load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
-        device: t.device = t.device('cpu')) -> tuple[DataLoader, DataLoader]:
+               device: t.device = t.device('cpu')
+               ) -> tuple[DataLoader, DataLoader]:
     """(Down)load MNIST dataset in ./data/testdata, and return training and
     test DataLoaders using specified batch_size.
     """
@@ -88,23 +91,38 @@ def onehot(idx: Tensor, n: int) -> Tensor:
 # y = 28*28 = 784 dimensional pixel data ('data')
 # z = 2 dimensional latent vector
 
+
+class StandardGaussianPrior(CVAEPrior):
+    def get_dist(self, dist_params=None) -> _CVAE_Dist:
+        return dist.Gaussian(t.zeros(1), t.ones(1))
+
+class GaussianEncoder(CVAEEnc):
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
+        assert isinstance(dist_params, list)
+        return dist.R_Gaussian(dist_params[0], t.exp(dist_params[1]))
+
+
+class GaussianDecoder(CVAEDec):
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
+        assert isinstance(dist_params, list)
+        return dist.Gaussian(dist_params[0], t.exp(dist_params[1]))
+
+
 class MNIST_img_params(CVAEParams):
-    cond_dim: int = 10  # x; dimension of one-hot labels
-    data_dim: int = 28*28  # y; size of MNIST image
-    latent_dim: int = 2  # z
+    cond_dim = 10  # x; dimension of one-hot labels
+    data_dim = 28*28  # y; size of MNIST image
+    latent_dim = 2  # z
 
-    # Gaussian recognition model q_{phi}(z | y, x)
-    recognition_arch: arch_t = arch_t(
-            [data_dim + cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
+    prior = StandardGaussianPrior
+    prior_arch = None
 
-    # (conditional) Gaussian prior network p_{theta}(z | x)
-    prior_arch: Optional[arch_t] = None
-    # arch_t([cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
+    encoder = GaussianEncoder
+    enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
+                      nn.ReLU(), batch_norm=False)
 
-    # generator network arch: p_{theta}(y | z, x)
-    generator_arch: arch_t = arch_t(
-        [latent_dim + cond_dim, 256], [data_dim, data_dim], nn.ReLU(),
-        [nn.Sigmoid(), None], batch_norm=False)
+    decoder = GaussianDecoder
+    dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim, data_dim],
+                      nn.ReLU(), [nn.Sigmoid(), None], batch_norm=False)
 
 
 class MNIST_img_cvae(CVAE):
@@ -123,54 +141,6 @@ class MNIST_img_cvae(CVAE):
         switched_y = x.to(self.device, self.dtype)
         return switched_x, switched_y
 
-    def recognition_params(self, y: Tensor, x: Tensor) -> DistParam:
-        params = self.recognition_net(t.cat((x, y), -1))
-        params[1] = t.exp(params[1])
-        return params
-
-    def prior(self, x: Tensor) -> Distribution:
-        """Isotropic Gaussian prior"""
-        return dist.MultivariateNormal(
-            t.zeros(self.latent_dim, device=self.device, dtype=self.dtype),
-            t.eye(self.latent_dim, device=self.device, dtype=self.dtype)
-        )
-        # params = self.prior_net(x)
-        # [batch, latent_dim] = params[1].shape
-        # I = t.eye(latent_dim, device=self.device, dtype=self.dtype)
-        # cov = I.expand(batch, -1, -1) * t.exp(params[1]).unsqueeze(-1)
-        # return dist.MultivariateNormal(params[0], cov)
-
-    def generator(self, z: Tensor, x: Tensor) -> Distribution:
-        params = self.generator_net(t.cat((z, x), -1))
-        [batch, output_dim] = params[1].shape
-        I = t.eye(output_dim, device=self.device, dtype=self.dtype)
-        cov = I.expand(batch, -1, -1) * t.exp(params[1]).unsqueeze(-1)
-        return dist.MultivariateNormal(params[0], cov)
-
-    def rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]:
-        [mu, cov] = self.recognition_params(y, x)
-        batch_size = cov.shape[0]
-        eps = self.EKS(batch_size)
-        z = mu + cov * eps
-        return z, [eps, mu, cov]
-
-    def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor:
-        [eps, _, cov] = rparams
-        log2pi = math.log(2 * math.pi)
-        logqz = - (0.5 * (log2pi + t.pow(eps, 2.)) + t.log(cov)).sum(1)
-        # logqz = self.EKS.log_prob(eps) - t.log(cov).sum(1)
-
-        # prior_dist = self.prior(x)
-        # logpz = prior_dist.log_prob(z)
-        logpz = - (0.5 * (log2pi + t.pow(z, 2.))).sum(1)
-
-        return logpz + logqz
-
-    def log_likelihood(self, y: Tensor, z: Tensor, x: Tensor) -> Tensor:
-        [mu, _] = self.generator_net(t.cat((z, x), -1))
-        log2pi = math.log(2 * math.pi)
-        ll = -(0.5 * log2pi + t.pow(y - mu, 2.)).sum(1)
-        return ll
 
 # Testing ---------------------------------------------------------------------
 
@@ -179,36 +149,45 @@ def test_cvae_params():
     """Tests assertions ('type safety') during CVAE parameter definition"""
 
     with pytest.raises(ValueError):
-        # input of rec net != data_dim + cond_dim
+        # input of prior net != cond_dim
         class P1(CVAEParams):
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            recognition_arch = arch_t([3, 1], [1], nn.ReLU())
-            prior_arch = arch_t([1, 1], [1], nn.ReLU())
-            generator_arch = arch_t([2, 1], [1], nn.ReLU())
+            prior = StandardGaussianPrior
+            prior_arch = arch_t([2, 1], [1], nn.ReLU())
+            encoder = GaussianEncoder
+            enc_arch = arch_t([2, 1], [1], nn.ReLU())
+            decoder = GaussianDecoder
+            dec_arch = arch_t([2, 1], [1], nn.ReLU())
         _ = P1()
 
     with pytest.raises(ValueError):
-        # input of prior net != cond_dim
+        # input of enc net != data_dim + cond_dim
         class P2(CVAEParams):
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            recognition_arch = arch_t([2, 1], [1], nn.ReLU())
-            prior_arch = arch_t([2, 1], [1], nn.ReLU())
-            generator_arch = arch_t([2, 1], [1], nn.ReLU())
+            prior = StandardGaussianPrior
+            prior_arch = None
+            encoder = GaussianEncoder
+            enc_arch = arch_t([3, 1], [1, 1], nn.ReLU())
+            decoder = GaussianDecoder
+            dec_arch = arch_t([2, 1], [1, 1], nn.ReLU())
         _ = P2()
 
     with pytest.raises(ValueError):
-        # input of gen net != latent_dim + cond_dim
+        # input of dec net != latent_dim + cond_dim
         class P3(CVAEParams):
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            recognition_arch = arch_t([2, 1], [1], nn.ReLU())
-            prior_arch = arch_t([1, 1], [1], nn.ReLU())
-            generator_arch = arch_t([3, 1], [1], nn.ReLU())
+            prior = StandardGaussianPrior
+            prior_arch = None
+            encoder = GaussianEncoder
+            enc_arch = arch_t([2, 1], [1, 1], nn.ReLU())
+            decoder = GaussianDecoder
+            dec_arch = arch_t([3, 1], [1, 1], nn.ReLU())
         _ = P3()
 
     with pytest.raises(NotImplementedError):
@@ -232,7 +211,7 @@ def test_cvae_initialisation():
     assert True  # haven't fallen over yet, great success!!
 
 
-# @pytest.mark.slow
+@pytest.mark.slow
 def test_cvae_MNIST():
     p = MNIST_img_params()
     cvae = MNIST_img_cvae(p, device=t.device('cpu'), dtype=t.float64)
@@ -245,4 +224,3 @@ def test_cvae_MNIST():
     # also write date / time in title of plot
 
     # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-    assert False

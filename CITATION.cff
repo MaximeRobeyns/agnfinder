@@ -3,10 +3,13 @@ message: "If you use this software, please cite it as below."
 authors:
   - family-names: Robeyns
     given-names: Maxime
+    orcid: https://orcid.org/0000-0001-9802-9597
   - family-names: Mike
     given-names: Walmsley
+    orcid: https://orcid.org/0000-0002-6408-4181
   - family-names: Sotiria
     given-names: Fotopoulou
+    orcid: https://orcid.org/0000-0002-9686-254X
   - family-names: Laurence
     given-names: Aitchison
 title: "AGN Finder"

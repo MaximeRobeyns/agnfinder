@@ -1,5 +1,4 @@
 .. _installation:
-.. sectionauthor:: Maxime Robeyns <maximerobeyns@gmail.com>
 
 Installation Guide
 ##################

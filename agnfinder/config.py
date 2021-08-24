@@ -26,8 +26,11 @@ import logging
 from typing import Any, Union
 from logging.config import dictConfig
 
-import agnfinder.types as types
-from agnfinder.types import Tensor, ConfigClass, arch_t, paramspace_t, \
+import agnfinder.inference.base as base
+import agnfinder.inference.inference as inference
+
+from agnfinder.inference.base import CVAE, cvae_t
+from agnfinder.types import Tensor, ConfigClass, paramspace_t, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters
@@ -55,6 +58,7 @@ class FreeParameters(ConfigClass):
 
 
 # =========================== Sampling Parameters =============================
+
 
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
@@ -171,29 +175,31 @@ class InferenceParams(ConfigClass):
     # Alternative device configurations:
     # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # t.device("cuda")
+    model: cvae_t = CVAE
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
 
 
 # ======================= Inference (CVAE) Parameters =========================
 
 
-class CVAEParams(types.CVAEParams):
+class CVAEParams(ConfigClass, base.CVAEParams):
+    cond_dim = 8  # x; dimension of photometry
+    data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
+    latent_dim = 4  # z
 
-    cond_dim: int = 8  # x; dimension of photometry
-    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
-    latent_dim: int = 4  # z
-
-    # Gaussian recognition model q_{phi}(z | y, x)
-    recognition_arch: arch_t = arch_t(
-        layer_sizes=[data_dim + cond_dim, 32],
+    # (conditional) Gaussian prior network p_{theta}(z | x)
+    prior = inference.StandardGaussianPrior
+    prior_arch = arch_t(
+        layer_sizes=[cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
         batch_norm=True)
 
-    # (conditional) Gaussian prior network p_{theta}(z | x)
-    prior_arch: arch_t = arch_t(
-        layer_sizes=[cond_dim, 32],
+    # Gaussian recognition model q_{phi}(z | y, x)
+    encoder = inference.GaussianEncoder
+    enc_arch = arch_t(
+        layer_sizes=[data_dim + cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
@@ -201,7 +207,8 @@ class CVAEParams(types.CVAEParams):
 
     # generator network arch: p_{theta}(y | z, x)
     # Assume Gaussian parameters
-    generator_arch: arch_t = arch_t(
+    decoder = inference.GaussianDecoder
+    dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32],
         activations=nn.ReLU(),
         head_sizes=[data_dim, data_dim],
@@ -239,6 +246,10 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
     if p.console_level > logging.NOTSET:
         handlers.append('console')
 
+    console_stream = 'ext://sys.stdout'
+    if p.console_level > 20:
+        console_stream = 'ext://sys.stderr'
+
     return {
         'version': 1,
         'disable_existing_loggers': False,
@@ -257,7 +268,7 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
                 'class': 'logging.StreamHandler',
                 'formatter': 'standard',
                 'level': p.console_level,
-                'stream': 'ext://sys.stderr'
+                'stream': console_stream
             },
             'console_debug': {
                 'class': 'logging.StreamHandler',

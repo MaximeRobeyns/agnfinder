@@ -44,11 +44,13 @@ def test_create_QuasarTemplate():
             recreate_template=True)
         assert re == "Data location ./data/asdf does not exist"
 
+
 def test_load_QuasarTemplate():
     params = cfg.QuasarTemplateParams()
     qt = QuasarTemplate(template_loc=params.interpolated_quasar_loc)
     assert not qt._load_error
     assert qt._interpolated_template is not None
+
 
 def test_create_TorusModel():
     now = time.time()
@@ -63,6 +65,7 @@ def test_create_TorusModel():
     assert tm._interpolated_template is not None
     assert os.path.exists(params.interpolated_torus_loc)
     assert os.path.getmtime(params.interpolated_torus_loc) - now > 0
+
 
 def test_load_TorusModel():
     params = cfg.QuasarTemplateParams()
