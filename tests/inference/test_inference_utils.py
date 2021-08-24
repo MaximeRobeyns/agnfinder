@@ -17,11 +17,14 @@
 """Test inference utilities."""
 
 import torch as t
+import collections
 
+from torch.utils.data import Dataset
 from agnfinder.types import Tensor
 from agnfinder.inference.utils import GalaxyDataset, load_simulated_data
 
 fpath = './data/testdata/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
+
 
 def test_GalaxyDataset():
     dset = GalaxyDataset(file=fpath, transforms=[t.from_numpy])
@@ -43,9 +46,15 @@ def test_GalaxyDataset():
     assert ys.shape == t.Size([200, 9])
 
     t1 = t.from_numpy
-    t2 = lambda x: x.to(dtype=t.float64)
-    t3 = lambda x: x*0
-    t4 = lambda x: x+10
+
+    def t2(x: Tensor) -> Tensor:
+        return x.to(dtype=t.float64)
+
+    def t3(x: Tensor) -> Tensor:
+        return x*0
+
+    def t4(x: Tensor) -> Tensor:
+        return x*10
 
     dset = GalaxyDataset(file=fpath, transforms=[t1, t2, t3, t4])
     xs, ys = dset[0]
@@ -73,5 +82,10 @@ def test_load_simulated_data():
         assert y.shape == t.Size((128, 9))
         break
 
-    assert len(train.dataset) == 500
-    assert len(test.dataset) == 500
+    train_ds: Dataset = train.dataset
+    test_ds: Dataset = test.dataset
+    assert isinstance(train_ds, collections.Sized)
+    assert isinstance(test_ds, collections.Sized)
+
+    assert len(train_ds) == 500
+    assert len(test_ds) == 500

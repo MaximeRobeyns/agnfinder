@@ -33,5 +33,4 @@ def test_FreeParams():
         assert hasattr(fp, k)
 
     assert fp.log.shape == (9,)
-    assert fp.params.shape == (9,2)
-
+    assert fp.params.shape == (9, 2)

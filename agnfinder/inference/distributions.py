@@ -35,11 +35,17 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
     """
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
-        super(_CVAE_Dist, self).__init__()
+        _CVAE_RDist.__init__(self)
         mean = mean.to(self.device, self.dtype)
         std = std.to(self.device, self.dtype)
-        super(dist.Normal, self).__init__(mean, std)
+        dist.Normal.__init__(self, mean, std)
         assert self.has_rsample
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return dist.Normal.log_prob(self, value)
+
+    def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        return dist.Normal.rsample(self, sample_shape)
 
 
 # Simple distributions ========================================================
@@ -49,5 +55,11 @@ class Gaussian(_CVAE_Dist, dist.Normal):
     """Univariate Gaussian distribution"""
 
     def __init__(self, mean: Tensor, log_std: Tensor) -> None:
-        super(_CVAE_Dist, self).__init__()
-        super(dist.Normal, self).__init__(mean, t.exp(log_std))
+        _CVAE_Dist.__init__(self)
+        dist.Normal.__init__(self, mean, t.exp(log_std))
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return dist.Normal.log_prob(self, value)
+
+    def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        return dist.Normal.sample(self, sample_shape)

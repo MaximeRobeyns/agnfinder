@@ -18,14 +18,14 @@
 
 import logging
 import torch as t
+
+from typing import Union
+
 import agnfinder.inference.distributions as dist
-
-from typing import Union, Optional
-
 from agnfinder import config as cfg
 from agnfinder.types import Tensor, DistParams
 from agnfinder.inference.utils import load_simulated_data
-from agnfinder.inference.base import CVAEPrior, CVAEEnc, CVAEDec, \
+from agnfinder.inference.base import CVAE, CVAEPrior, CVAEEnc, CVAEDec, \
                                      _CVAE_Dist, _CVAE_RDist
 
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
     # initialise the model
-    cvae = cp.model(cp, device=ip.device, dtype=ip.dtype)
+    cvae = ip.model(cp, device=ip.device, dtype=ip.dtype)
     logging.info('Initialised CVAE network')
 
     # load the generated (theta, photometry) dataset

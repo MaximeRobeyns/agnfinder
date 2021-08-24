@@ -21,6 +21,7 @@ import torch.nn as nn
 
 from agnfinder.types import Filters, FilterSet, arch_t
 
+
 def test_Filters():
 
     f: FilterSet = Filters.Euclid
@@ -37,6 +38,7 @@ def test_Filters():
     assert f.dim == 12
     assert f.value == 'all'
     assert f == 'all'
+
 
 def test_arch_t():
 

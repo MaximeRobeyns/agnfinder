@@ -23,12 +23,14 @@ import time
 import torch as t
 import torch.nn as nn
 import logging
-from typing import Any, Union, Type
+from typing import Any, Union
 from logging.config import dictConfig
 
-import agnfinder.types as types
-import agnfinder.inference as inference
-from agnfinder.types import Tensor, ConfigClass, arch_t, paramspace_t, \
+import agnfinder.inference.base as base
+import agnfinder.inference.inference as inference
+
+from agnfinder.inference.base import CVAE, cvae_t
+from agnfinder.types import Tensor, ConfigClass, paramspace_t, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters
@@ -56,6 +58,7 @@ class FreeParameters(ConfigClass):
 
 
 # =========================== Sampling Parameters =============================
+
 
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
@@ -172,16 +175,14 @@ class InferenceParams(ConfigClass):
     # Alternative device configurations:
     # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # t.device("cuda")
+    model: cvae_t = CVAE
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
 
 
 # ======================= Inference (CVAE) Parameters =========================
 
 
-class CVAEParams(types.CVAEParams):
-
-    model = inference.base.CVAE
-
+class CVAEParams(ConfigClass, base.CVAEParams):
     cond_dim = 8  # x; dimension of photometry
     data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
     latent_dim = 4  # z

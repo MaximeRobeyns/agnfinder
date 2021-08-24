@@ -22,17 +22,18 @@ import abc
 import torch as t
 import torch.nn as nn
 
-from typing import Union, Optional
+from typing import Union, Optional, Type
 from torch.utils.data import DataLoader
 
-from agnfinder.types import Tensor, DistParams, arch_t, CVAEParams
+from agnfinder.types import Tensor, DistParams, arch_t
 
 
 class MLP(nn.Module):
+    """A base neural network class for simple feed-forward architectures."""
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        """Base neural network class for simple feed-forward architectures.
+        """Initialises a neural network based on the description in `arch`.
 
         Args:
             arch: neural network architecture description
@@ -228,13 +229,101 @@ class CVAEDec(MLP, abc.ABC):
         return self.get_dist(dist_params)
 
 
+# CVAE Description ------------------------------------------------------------
+# This unfortunately cannot go in agnfinder.types for this causes a circular
+# dependency.
+
+
+class CVAEParams(abc.ABC):
+    """Configuration class for CVAE.
+
+    This defines some properties which must be provided, and additionally
+    performs some validation on those user-provided values.
+    """
+    def __init__(self):
+        super().__init__()
+        ri = self.enc_arch.in_shape
+        if ri != self.data_dim + self.cond_dim:
+            raise ValueError((
+                f'Input dimensions of encoder network ({ri}) '
+                f'must equal data_dim ({self.data_dim}) + '
+                f'cond_dim ({self.cond_dim}).'))
+
+        if self.prior_arch is not None:
+            pi = self.prior_arch.in_shape
+            if pi != self.cond_dim:
+                raise ValueError((
+                    f'Input dimensions of prior network ({pi}) '
+                    f'must equal cond_dim ({self.cond_dim})'))
+
+        gi = self.dec_arch.in_shape
+        if gi != self.latent_dim + self.cond_dim:
+            raise ValueError((
+                f'Input dimensions of decoder network ({gi}) '
+                f'must euqal latent_dim ({self.latent_dim}) + '
+                f'cond_dim ({self.cond_dim})'))
+
+    @property
+    def cond_dim(self) -> int:
+        """Length of 1D conditioning information vector"""
+        raise NotImplementedError
+
+    @property
+    def data_dim(self) -> int:
+        """Length of the perhaps (flattened) 1D data vector, y"""
+        raise NotImplementedError
+
+    @property
+    def latent_dim(self) -> int:
+        """Length of the latent vector, z"""
+        raise NotImplementedError
+
+    @property
+    def prior(self) -> Type[CVAEPrior]:
+        """Reference to the prior class to use."""
+        raise NotImplementedError
+
+    @property
+    def prior_arch(self) -> Optional[arch_t]:
+        """Architecture of 'prior network' p_{theta_z}(z | x)"""
+        return None
+
+    @property
+    def encoder(self) -> Type[CVAEEnc]:
+        """Reference to the encoder / recognition class to use"""
+        raise NotImplementedError
+
+    @property
+    def enc_arch(self) -> arch_t:
+        """Architecture of 'recognition network' q_{phi}(z | y, x)"""
+        raise NotImplementedError
+
+    @property
+    def decoder(self) -> Type[CVAEDec]:
+        """Reference to the decoder / generation class to use"""
+        raise NotImplementedError
+
+    @property
+    def dec_arch(self) -> arch_t:
+        """Architecture of 'generator network' p_{theta_y}(y | z, x)"""
+        raise NotImplementedError
+
+
+# Main CVAE Base Class ========================================================
+
+
 class CVAE(nn.Module, abc.ABC):
-    """Conditional VAE class
+    """The main base Conditional VAE class
 
     You must provide the following distributions in the configuration.
     - q_{phi}(z | y, x)   approximate posterior / encoder
     - p_{theta}(z | x)    prior / encoder
     - p_{theta}(y | z, x) generator / decoder
+
+    You can optionally override the `ELBO` method (for instance to implement KL
+    warmup). You can also override the `trainmodel` method to implement a
+    non-standard training procedure, as well as the `preprocess` method for
+    custom data pre-processing.
     """
 
     def __init__(self, cp: CVAEParams,
@@ -256,7 +345,8 @@ class CVAE(nn.Module, abc.ABC):
         self.encoder = cp.encoder(cp.enc_arch, device, dtype)
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
 
-        nets: list[MLP] = [self.prior, self.encoder, self.decoder]
+        nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
+                                   if isinstance(n, MLP)]
         self.opt = t.optim.Adam([param for n in nets for param in n.parameters()])
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -276,15 +366,16 @@ class CVAE(nn.Module, abc.ABC):
 
     def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
                    log_every: int = 100) -> None:
-        """
-        This is a potentially better way of organising the training process
-        and encapsulating the functionality of the prior, encoder and
-        decoder distributions for better modularity and separation of
-        concerns.
+        """Trains the CVAE
+
+        Args:
+            train_loader: DataLoader for training data
+            epochs: number of epochs to train for
+            log_every: logging frequency (iterations, not epochs)
         """
         b = train_loader.batch_size  # batch size
         assert isinstance(b, int)
-        ipe = len(train_loader) * b  # iterations per epoch
+        ipe = len(train_loader) * b  # 'iterations per epoch'
         t = epochs * ipe
 
         for e in range(epochs):
@@ -337,3 +428,8 @@ class CVAE(nn.Module, abc.ABC):
             Tensor: the batch of single-datapoint ELBOs
         """
         return logpy + logpz - logqz
+
+
+# For use in configuration file.
+cvae_t = Type[CVAE]
+
