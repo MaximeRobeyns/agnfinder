@@ -113,7 +113,6 @@ class MNIST_img_params(CVAEParams):
     data_dim = 28*28  # y; size of MNIST image
     latent_dim = 2  # z
 
-    # Gaussian prior network p_{theta}(z | x)
     prior = StandardGaussianPrior
     prior_arch = None
 

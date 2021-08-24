@@ -439,7 +439,7 @@ and therefore evaluating the density proceeds exactly as before:
           repetition of the full-covariance Gaussian approach outlined above.
 
 Likelihood
-----------
+~~~~~~~~~~
 
 We have yet to specify a form for :math:`p`. Recall that in our conditional LVM,
 the marginal likelihood is found by marginalising out the latent variable
@@ -523,7 +523,7 @@ get
     \mathcal{L}_{\text{logpz}} &= \log p(z \vert x) =
     \sum_{i=1}^{n} \log \mathcal{N}(z_{i}; \mu_{i}, \sigma_{i}) \\
     &= - \sum_{i=1}^{n} \frac{1}{2} \left(\log (2\pi\sigma_{i}^2) +
-    \big(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\big)\right).
+    (z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\right).
 
 Once again, in the above :math:`n` is the dimension of the latent vector
 :math:`z \in \mathbb{R}^{n}`.
@@ -569,124 +569,252 @@ convenience I have tried to abstract away the common code into a base ``CVAE``
 class, so as to offer a framework with which to implement variations on the
 (C)VAE described above.
 
-Architecture Description
-~~~~~~~~~~~~~~~~~~~~~~~~
+The files relevant to CVAE implementation are structured as follows::
 
-To implement a CVAE, we have three networks;
+    agnfinder
+    ├── types.py              # arch_t definition
+    ├── inference             # Inference related code
+    │   ├── base.py           # Base CVAE classes to extend
+    │   ├── distributions.py  # Distribution objects for CVAE
+    │   ├── inference.py      # Concrete Prior, Encoder, Decoder, CVAE
+    │   └── utils.py
+    └── config.py             # InferenceParams and CVAEParams
+
+Architecture Description ``types.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are up to three different neural networks needed to implement the CVAE:
 
 - the recognition or *encoder* network :math:`q_{\phi}(z \vert y, x)`,
 - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
 - the generation or *decoder* network :math:`p_{\theta}(y \vert z, x)`
 
-Implementation begins in the ``config.py`` file, where the neural network
-architectures for each of the above may be described by an instance of an
-``arch_t`` class. These are passed to the constructor of the ``CVAE`` base class
-for you, where the corresponding networks will be initialised.
+For easy modification and quick comparisons, these networks are described along
+with the other CVAE parameters in the CVAE `configuration
+<#cvae-configuration-config-py>`_ (described later).
 
-The constructor of the ``arch_t`` class has the following signature::
+By specifying the MLP architectures through instances of ``arch_t`` classes in
+the configuration, this prevents writing repetitive code and keeps the neural
+network definitions close together.
 
-    def __init__(self, layer_sizes: list[int], head_sizes: list[int],
-                 activations: Union[nn.Module, list[nn.Module]],
-                 head_activations: Optional[list[Optional[nn.Module]]] = None,
-                 batch_norm: bool = True):
-         pass
+The ``arch_t`` constructor has the following signature:
 
-and as a generic example, you could use it as follows::
+.. py:function:: arch_t.__init__(self, layer_sizes: list[int], head_sizes: list[int], activations: Union[nn.Module, list[nn.Module]], head_activations: Optional[list[Optional[nn.Module]]] = None, batch_norm: bool = True) -> None
 
-    >>> arch_t(layer_sizes=[28*28, 256], head_sizes=[10, 2], \
-    ...        activations=nn.ReLU(), \
-    ...        head_activations=[nn.Softmax(), None] \
-    ...        batch_norm=False)
+    Describes a (non-convolutional) MLP architecture.
 
-For a CVAE-specific example, here are some networks that you might use for
-MNIST::
+    :param list[int] layer_sizes: size of input, and hidden layers.
+    :param list[int] head_sizes: size of output layer(s)
+    :param nn.Module | list[nn.Module] activations: instances of activation functions to apply to input / hidden layers. The same activation is re-used for all layers if this is not a list.
+    :param Optional[list[Optional[nn.Module]]] head_activations: Optional list of activation functions to apply to outputs. Can be ``None``, or a list of optional instances of activation functions.
+    :param bool batch_norm: whether to apply batch normalisation at each layer.
 
-    # Gaussian recognition model q_{phi}(z | y, x)
-    recognition_arch: arch_t = arch_t(
-            [data_dim + cond_dim, 256], [latent_dim, latent_dim], nn.ReLU())
+    :raises ValueError: if too few layer sizes are provided (minimum input and output)
+    :raises ValueError: if len(layer_sizes) != len(activations) when activations is a list
+    :raises ValueError: if an activation function does not extend nn.Module
+    :raises ValueError: if head_sizes is not list of int of length at least one
+    :raises ValueError: if len(head_sizes) != len(head_activations)
 
-    # Gaussian prior network p_{theta}(z | x)
-    prior_arch: arch_t(
-        [cond_dim, 256], [latent_dim, latent_dim], nn.ReLU(), batch_norm=False)
+    :Example:
 
-    # generator network arch: p_{theta}(y | z, x)
-    generator_arch: arch_t = arch_t(
-        [latent_dim + cond_dim, 256], [data_dim, data_dim], nn.ReLU(),
-        [nn.Sigmoid(), None])
+        ANN with 1 hidden layer, ReLU activations, no batch normalisation,
+        and 2 output heads with different activation functions
+
+        >>> arch_t(layer_sizes=[28*28, 256], head_sizes=[10, 2], \
+        ...        activations=nn.ReLU(), \
+        ...        head_activations=[nn.Softmax(), nn.ReLU()] \
+        ...        batch_norm=False)
+
+    :Example:
+
+        ANN with 1 hidden layer, ReLU activations, no output activation &
+        batch normalisation:
+
+        >>> arch_t([512, 256], [10], nn.ReLU())
+
+    :Example:
+
+        ANN with two output heads, one without and one with activation,
+        respectively:
+
+        >>> arch_t([2**i for i in range(10, 5, -1)], [10, 2], \
+        ...        activations=nn.ReLU(),
+        ...        head_activations=[None, nn.Softmax()])
 
 
-CVAE Implementation
-~~~~~~~~~~~~~~~~~~~
+Base CVAE Classes ``base.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The base ``CVAE`` class has a number of abstract methods, which should hopefully
-be useful in guiding new CVAE implementations by providing a 'checklist' of
-methods to implement. These abstract methods are:
+This file contains the base classes that implement standard, repetitive code and
+give structure to the concrete CVAE classes which extend them.
 
-1. **preprocess**
+Most of these classes define abstract properties and methods which need to be
+implemented by the inheriting class.
 
-   The ``preprocess`` method has the following signature::
+If any of the classes listed below seem opaque or mystifying, it may be worth
+having a read through this file to see what's happening in the background.
 
-        def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]
+- ``_CVAE_Dist`` is a base distribution class which accepts a list of parameters
+  (type aliased to ``DistParams = list[Tensor]``) and has abstract ``log_prob``
+  and ``sample`` methods. It is perfectly valid to implement these by wrapping
+  these existing methods in a standard PyTorch Distribution.
 
-   This allows you to apply any required transformations, and send the data to a
-   particular device before the training process.
+- ``_CVAE_RDist`` is almost identical to the above, however all the methods
+  should be implemented using reparametrised sampling. The abstract methods are
+  ``log_prob`` and ``rsample``.
 
-2. **recognition_params**
+- ``CVAEPrior`` is the base implementation of a prior distribution
+  :math:`p_{\theta_{z}}(z \vert x)`. The constructor accepts an (optional)
+  neural network architecture description, which will automatically be
+  instantiated. There is one abstract method for inheriting classes to
+  implement: ``get_dist``, which accepts the output of the prior network
+  :math:`f_{\text{prior}}(\theta_{z}, x)` passed to the constructor as
+  argument (``None`` if no network is used in the prior) and returns a
+  correspondingly parametrised ``_CVAE_Dist`` object. .
 
-   This method is used to return the parameters which are later used to perform
-   reparametrised sampling. For example, if :math:`q` is isotropic Gaussian,
-   then you should calculate and return the mean and diagonal covariance. The
-   signature is::
+- ``CVAEEnc`` is the base implementation of the recognition or *encoder* network
+  :math:`q_{\phi}(z \vert y, x)`. As previously, the constructor accepts a
+  neural network architecture description of type ``arch_t``, except this time
+  it is not optional. The only abstract methods to implement is also
+  ``get_dist``, which takes the outputs of the encoder network as arguments, and
+  returns a ``_CVAE_RDist``. Recall that we must have a reparametrised
+  distribution as the encoder distribution in order for SGD optimisation of the
+  ELBO to work.
 
-    def recognition_params(self, y: Tensor, x: Tensor) -> DistParam
+- ``CVAEDec`` is the base implementation of the generator or *decoder* network
+  :math:`p_{\theta_{y}}(y \vert z, x)`. The constructor accepts an ``arch_t``
+  network description, and the abstract ``get_dist`` method this time returns a
+  ``_CVAE_Dist``.
 
-   Note that ``DistParam`` is an alias for ``list[Tensor]``.
+- ``CVAE`` is the main base CVAE class, which handles the standard training
+  procedure. You may override the ``preprocess`` method, which applies a
+  transformation to the output of the DataLoader before each training iteration;
+  the ``ELBO`` method which combines the log probability of all three
+  distributions, as well as the ``trainmodel`` method. While there should be no
+  need to modify it, it can be useful to see how all the components described
+  above come together in the main training loop:
 
-3. **prior**
+.. code-block:: python
+    :caption: Main CVAE training loop
+    :linenos:
 
-   This method returns the prior distribution---you do not have to use the
-   provided ``x`` tensor. The signature is::
+    for e in range(epochs):
+        for i, (x, y) in enumerate(train_loader):
 
-    prior(self, x: Tensor) -> Distribution
+            x, y = self.preprocess(x, y)
 
-   where ``Distribution`` is an alias for the base PyTorch distribution class.
+            q = self.encoder(y, x)
+            z = q.sample()
 
-4. **generator**
+            pr = self.prior(x)
 
-   Similar to the above, except now we are returning the 'generator'
-   distribution. The signature is::
+            p = self.decoder(z, x)
 
-    generator(self, z: Tensor, x: Tensor) -> Distribution
+            logpy = p.log_prob(y)
+            logpz = pr.log_prob(z)
+            logqz = q.log_prob(z)
 
-5. **rsample**
+            ELBO = self.ELBO(logpy, logpz, logqz, iteration_num, total_iters)
 
-   Performs reparametrised sampling. You usually call ``recognition_params`` as
-   a first step, and also sample some :math:`\hat{\epsilon} \sim p(\epsilon)`.
+            loss = -(ELBO.mean(0))
+            self.opt.zero_grad()
+            loss.backward()
+            self.opt.step()
 
-   For convenience, the ``CVAE`` base class provides a ``self.EKS(batch_shape: int)``
-   callable, which samples a ``[batch_shape, latent_dim]`` tensor from a
-   standard Gaussian.
+CVAE Distributions ``distributions.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   The signature of ``rsample`` is as follows::
+The point of separating the distributions into their own classes, which are all
+collected in this file is that this maximises code re-use, and makes it
+effortless to experiment and perform ablation studies with different
+distributions by changing a single line in the main configuration.
 
-    rsample(self, y: Tensor, x: Tensor) -> tuple[Tensor, DistParam]
+Classes in this file should either extend ``_CVAE_Dist`` or ``_CVAE_RDist``.
 
-   The returned the ``DistParams`` are passed into the ``kl_div`` method
-   (below), and by convention should include the sampled :math:`\epsilon` term
-   at index 0.
+AGNFinder CVAE Classes ``inference.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-6. **kl_div**
+This is where the concrete ``CVAEPrior``, ``CVAEEnc`` and ``CVAEDec`` classes
+(respectively, :math:`p_{\theta}(z \vert x)`, :math:`q_{\phi}(z \vert y, x)` and
+:math:`p_{\theta}(y \vert z, x)`) are defined.
 
-   This final abstract method returns the KL divergence term in the ELBO. It is
-   provided with ``z`` the latent vector obtained from ``rsample``, ``x`` the
-   conditioning information and ``rparams`` which was returned from ``rsample``.
+Any changes to the vanilla CVAE training procedure, ELBO calculation or
+preprocessing can also be performed by extending the base ``CVAE`` class.
 
-   The full signature is::
+Utility Classes ``utils.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def kl_div(self, z: Tensor, x: Tensor, rparams: DistParam) -> Tensor
+Contains data loaders for galaxy data. It is better to perform any data
+transformations here (once, before of running the inference code), rather than in
+the ``CVAE.preprocess`` method, which is run once at the beginning of each
+iteration of each epoch.
 
-For more descriptions and details on the workings of the ``CVAE`` base class,
-please see ``/agnfinder/inference/base.py``.
+CVAE Configuration ``config.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The components of the CVAE implementation are structured in the way that they
+are mainly because this affords us a very flexible way to compose different
+components of the model. Hence with minimal changes to the configuration file,
+we can perform fast experimentation using tested components.
+
+There are two main configuration classes relating to the inference code. The
+first, ``InferenceParams`` relates to high-level details:
+
+.. code-block:: python
+    :caption: InferenceParams example configuration
+    :linenos:
+    :emphasize-lines: 7
+
+    class InferenceParams(ConfigClass):
+        epochs: int = 8
+        batch_size: int = 32
+        split_ratio: float = 0.9  # train / test split ratio
+        dtype: t.dtype = t.float64
+        device: t.device = t.device("cpu")
+        model: cvae_t = CVAE
+        dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
+
+On line 7, we specify a reference to a class extending ``CVAE`` in ``base.py``
+(or ``CVAE`` itself).
+
+The model is parametrised by ``CVAEParams``, which is a condensed description of
+the entire CVAE
+
+.. code-block:: python
+    :caption: CVAEParams example
+    :linenos:
+
+    class CVAEParams(ConfigClass, base.CVAEParams):
+        cond_dim = 8  # x; dimension of photometry (Euclid)
+        data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
+        latent_dim = 4  # z
+
+        # Standard Gaussian prior p_{theta}(z | x)
+        prior = inference.StandardGaussianPrior
+        prior_arch = None
+
+        # Gaussian recognition model q_{phi}(z | y, x)
+        encoder = inference.GaussianEncoder
+        enc_arch = arch_t(
+            layer_sizes=[data_dim + cond_dim, 32],
+            activations=nn.ReLU(),
+            head_sizes=[latent_dim, latent_dim],
+            head_activations=None,
+            batch_norm=True)
+
+        # generator network arch: p_{theta}(y | z, x)
+        decoder = inference.GaussianDecoder
+        dec_arch = arch_t(
+            layer_sizes=[latent_dim + cond_dim, 32],
+            activations=nn.ReLU(),
+            head_sizes=[data_dim, data_dim],
+            head_activations=None,
+            batch_norm=False)
+
+Hopefully the above is mostly self explanatory. The only slight subtlety is that
+you must ensure that the number of outputs of the distribution networks
+(the length of the ``head_sizes`` array) matches the number of parameters that
+the corresponding distribution is expecting.
 
 References
 ----------

@@ -27,7 +27,7 @@ There are broadly two components;
   some of the existing ones, please see the `inference <inference.html>`_ page.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
    :caption: Contents:
    :numbered:
 

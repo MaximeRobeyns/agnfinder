@@ -246,6 +246,10 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
     if p.console_level > logging.NOTSET:
         handlers.append('console')
 
+    console_stream = 'ext://sys.stdout'
+    if p.console_level > 20:
+        console_stream = 'ext://sys.stderr'
+
     return {
         'version': 1,
         'disable_existing_loggers': False,
@@ -264,7 +268,7 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
                 'class': 'logging.StreamHandler',
                 'formatter': 'standard',
                 'level': p.console_level,
-                'stream': 'ext://sys.stderr'
+                'stream': console_stream
             },
             'console_debug': {
                 'class': 'logging.StreamHandler',

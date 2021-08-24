@@ -351,7 +351,8 @@ class CVAE(nn.Module, abc.ABC):
 
         nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
                                    if n.is_module]
-        self.opt = t.optim.Adam([param for n in nets for param in n.parameters()])
+        self.opt = t.optim.Adam([param for n in nets for param in n.parameters()],
+                                lr=1e-3)
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         """Perform any necessary pre-processing to the data before training.
@@ -367,6 +368,26 @@ class CVAE(nn.Module, abc.ABC):
             tuple[Tensor, Tensor]: the transformed data.
         """
         return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
+
+    def ELBO(self, logpy: Tensor, logpz: Tensor, logqz: Tensor, i: int, tot: int
+             ) -> Tensor:
+        """Compute and return the ELBO.
+
+        You could override this method to, for instance, anneal the temperature
+        of the KL term during training.
+
+        Args:
+            logpy: log-likelihood term; log p_{theta}(y | z, x)
+            logpz: log prior term; log p_{theta}(z | x)
+            logqz: log approx posterior term; log q_{phi}(z | y, x)
+            i: current iteration
+            t: total number of iterstions in training process
+
+        Returns:
+            Tensor: the batch of single-datapoint ELBOs
+        """
+        return logpy + logpz - logqz
+
 
     def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
                    log_every: int = 100) -> None:
@@ -399,11 +420,8 @@ class CVAE(nn.Module, abc.ABC):
                 p = self.decoder(z, x)
 
                 logpy = p.log_prob(y)
-                print(f'logpy shape: {logpy.shape}')
                 logpz = pr.log_prob(z)
-                print(f'logpz shape: {logpz.shape}')
                 logqz = q.log_prob(z)
-                print(f'logqz shape: {logqz.shape}')
 
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
@@ -416,26 +434,6 @@ class CVAE(nn.Module, abc.ABC):
                     logging.info(
                         "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
                         .format(e, epochs, i, len(train_loader)-1, loss.item()))
-
-
-    def ELBO(self, logpy: Tensor, logpz: Tensor, logqz: Tensor, i: int, tot: int
-             ) -> Tensor:
-        """Compute and return the ELBO.
-
-        You could override this method to, for instance, anneal the temperature
-        of the KL term during training.
-
-        Args:
-            logpy: log-likelihood term; log p_{theta}(y | z, x)
-            logpz: log prior term; log p_{theta}(z | x)
-            logqz: log approx posterior term; log q_{phi}(z | y, x)
-            i: current iteration
-            t: total number of iterstions in training process
-
-        Returns:
-            Tensor: the batch of single-datapoint ELBOs
-        """
-        return logpy + logpz - logqz
 
 
 # For use in configuration file.
