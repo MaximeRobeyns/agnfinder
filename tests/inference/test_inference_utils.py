@@ -45,13 +45,15 @@ def test_GalaxyDataset():
     assert xs.shape == t.Size([200, 8])
     assert ys.shape == t.Size([200, 9])
 
+    # Test transformations
+
     t1 = t.from_numpy
 
     def t2(x: Tensor) -> Tensor:
         return x.to(dtype=t.float64)
 
     def t3(x: Tensor) -> Tensor:
-        return x*0
+        return x*0 + 1
 
     def t4(x: Tensor) -> Tensor:
         return x*10

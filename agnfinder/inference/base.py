@@ -19,6 +19,7 @@ photometry.
 """
 
 import abc
+import logging
 import torch as t
 import torch.nn as nn
 
@@ -41,6 +42,7 @@ class MLP(nn.Module):
             dtype: datatype to use for parameters
         """
         super().__init__()
+        self.is_module: bool = True
         self._arch = arch  # keep a record of arch description
         layer_sizes = arch.layer_sizes
 
@@ -171,10 +173,12 @@ class CVAEPrior(MLP, abc.ABC):
                  dtype: t.dtype = t.float64) -> None:
         if arch is not None:
             MLP.__init__(self, arch, device, dtype)
+        else:
+            self.is_module: bool = False
         abc.ABC.__init__(self)
 
     def __call__(self, x: Tensor) -> _CVAE_Dist:
-        if self.MLP is not None:
+        if self.is_module:
             dist_params = self.forward(x)
             return self.get_dist(dist_params)
         return self.get_dist()
@@ -346,7 +350,7 @@ class CVAE(nn.Module, abc.ABC):
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
 
         nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
-                                   if isinstance(n, MLP)]
+                                   if n.is_module]
         self.opt = t.optim.Adam([param for n in nets for param in n.parameters()])
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -395,8 +399,11 @@ class CVAE(nn.Module, abc.ABC):
                 p = self.decoder(z, x)
 
                 logpy = p.log_prob(y)
+                print(f'logpy shape: {logpy.shape}')
                 logpz = pr.log_prob(z)
+                print(f'logpz shape: {logpz.shape}')
                 logqz = q.log_prob(z)
+                print(f'logqz shape: {logqz.shape}')
 
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
@@ -406,8 +413,9 @@ class CVAE(nn.Module, abc.ABC):
                 self.opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
-                    print("Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}".format(
-                        e, epochs, i, len(train_loader)-1, loss.item()))
+                    logging.info(
+                        "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
+                        .format(e, epochs, i, len(train_loader)-1, loss.item()))
 
 
     def ELBO(self, logpy: Tensor, logpz: Tensor, logqz: Tensor, i: int, tot: int
@@ -432,4 +440,3 @@ class CVAE(nn.Module, abc.ABC):
 
 # For use in configuration file.
 cvae_t = Type[CVAE]
-

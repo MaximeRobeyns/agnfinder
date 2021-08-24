@@ -96,7 +96,6 @@ class StandardGaussianPrior(CVAEPrior):
     def get_dist(self, dist_params=None) -> _CVAE_Dist:
         return dist.Gaussian(t.zeros(1), t.ones(1))
 
-
 class GaussianEncoder(CVAEEnc):
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list)
@@ -226,4 +225,3 @@ def test_cvae_MNIST():
     # also write date / time in title of plot
 
     # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-    assert False

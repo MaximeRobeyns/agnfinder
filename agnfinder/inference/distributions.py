@@ -27,7 +27,7 @@ from agnfinder.inference.base import _CVAE_Dist, _CVAE_RDist
 
 
 class R_Gaussian(_CVAE_RDist, dist.Normal):
-    """Reparametrised univariate Gaussian distribution
+    """Reparametrised factorised Gaussian distribution
 
     Here we simply make use of PyTorch's existing Normal distribution, which
     implements the abstract methods required by _CVAE_RDist: log_prob and
@@ -42,7 +42,7 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
         assert self.has_rsample
 
     def log_prob(self, value: Tensor) -> Tensor:
-        return dist.Normal.log_prob(self, value)
+        return dist.Normal.log_prob(self, value).sum(-1)
 
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return dist.Normal.rsample(self, sample_shape)
@@ -52,14 +52,14 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
 
 
 class Gaussian(_CVAE_Dist, dist.Normal):
-    """Univariate Gaussian distribution"""
+    """Factorised Gaussian distribution"""
 
     def __init__(self, mean: Tensor, log_std: Tensor) -> None:
         _CVAE_Dist.__init__(self)
         dist.Normal.__init__(self, mean, t.exp(log_std))
 
     def log_prob(self, value: Tensor) -> Tensor:
-        return dist.Normal.log_prob(self, value)
+        return dist.Normal.log_prob(self, value).sum(-1)
 
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return dist.Normal.sample(self, sample_shape)
