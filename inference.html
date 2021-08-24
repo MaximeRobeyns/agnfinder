@@ -92,7 +92,7 @@
               
             
             
-              <p class="caption" role="heading"><span class="caption-text">General Topics:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
@@ -101,15 +101,19 @@
 <li class="toctree-l3"><a class="reference internal" href="#latent-variable-models">3.1.1. Latent Variable Models</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#lvm-objective">3.1.2. LVM Objective</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#sgd-elbo-optimisation">3.1.3. SGD ELBO Optimisation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#likelihood">3.1.4. Likelihood</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#likelihood">3.2. Likelihood</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#implementation">3.3. Implementation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#architecture-description">3.3.1. Architecture Description</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cvae-implementation">3.3.2. CVAE Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation">3.2. Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#architecture-description-types-py">3.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#base-cvae-classes-base-py">3.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cvae-distributions-distributions-py">3.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#agnfinder-cvae-classes-inference-py">3.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#utility-classes-utils-py">3.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cvae-configuration-config-py">3.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#references">3.4. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">3.3. References</a></li>
 </ul>
 </li>
 </ul>
@@ -505,9 +509,8 @@ such as Normalising Flows or Inverse Autoregressive Flows.</p>
 repetition of the full-covariance Gaussian approach outlined above.</p>
 </div>
 </div>
-</div>
 <div class="section" id="likelihood">
-<h2><span class="section-number">3.2. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h2>
+<h3><span class="section-number">3.1.4. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h3>
 <p>We have yet to specify a form for <span class="math notranslate nohighlight">\(p\)</span>. Recall that in our conditional LVM,
 the marginal likelihood is found by marginalising out the latent variable</p>
 <div class="math notranslate nohighlight">
@@ -535,8 +538,9 @@ right’, but we might not all have the same intuitions for galaxy parameters…
 <p><em>Bernoulli likelihood:</em></p>
 <img alt="Laplace likelihood" src="_images/bernoulli_likelihood.png" />
 </div>
+</div>
 <div class="section" id="implementation">
-<h2><span class="section-number">3.3. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
+<h2><span class="section-number">3.2. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
 <p>We now have all the components we need to actually optimise the ELBO using SGD.
 We can re-arrange the ELBO as</p>
 <div class="math notranslate nohighlight">
@@ -545,7 +549,7 @@ We can re-arrange the ELBO as</p>
  - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right] \\
    &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
    \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
-   &amp;\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpx}} +
+   &amp;\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpy}} +
    \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]\end{split}\]</div>
 <p>We have already derived the expression for evaluating <span class="math notranslate nohighlight">\(\log q_{\phi}(z
 \vert y, x)\)</span>:</p>
@@ -565,7 +569,7 @@ get</p>
 \mathcal{L}_{\text{logpz}} &amp;= \log p(z \vert x) =
 \sum_{i=1}^{n} \log \mathcal{N}(z_{i}; \mu_{i}, \sigma_{i}) \\
 &amp;= - \sum_{i=1}^{n} \frac{1}{2} \left(\log (2\pi\sigma_{i}^2) +
-\big(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\big)\right).\end{split}\]</div>
+(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\right).\end{split}\]</div>
 <p>Once again, in the above <span class="math notranslate nohighlight">\(n\)</span> is the dimension of the latent vector
 <span class="math notranslate nohighlight">\(z \in \mathbb{R}^{n}\)</span>.</p>
 <p>Finally for the log likelihood term <span class="math notranslate nohighlight">\(\mathcal{L}_{\text{logpy}}\)</span>, we
@@ -599,121 +603,245 @@ re-activate later in training.</p>
 <hr class="docutils" />
 <p>There are a fair number of moving parts involved with implementing a CVAE. For
 convenience I have tried to abstract away the common code into a base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code>
-class, so as to offer a framework wich which to implement variations on the
+class, so as to offer a framework with which to implement variations on the
 (C)VAE described above.</p>
-<div class="section" id="architecture-description">
-<h3><span class="section-number">3.3.1. </span>Architecture Description<a class="headerlink" href="#architecture-description" title="Permalink to this headline">¶</a></h3>
-<p>Thus to implement a CVAE, we have three networks;</p>
-<ul class="simple">
-<li><p>the recognition network <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>,</p></li>
-<li><p>the (conditional) prior network <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span></p></li>
-<li><p>the generation network <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span></p></li>
-</ul>
-<p>Implementation begins in the <code class="docutils literal notranslate"><span class="pre">config.py</span></code> file, where the neural network
-architectures for each of the above may be described by an instance of an
-<code class="docutils literal notranslate"><span class="pre">arch_t</span></code> class. These are passed to the constructor of the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class
-for you, where the corresponding networks will be initialised.</p>
-<p>The constructor of the <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> class has the following signature:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer_sizes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">head_sizes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-             <span class="n">activations</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]],</span>
-             <span class="n">head_activations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-             <span class="n">batch_norm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
-     <span class="k">pass</span>
+<p>The files relevant to CVAE implementation are structured as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>agnfinder
+├── types.py              # arch_t definition
+├── inference             # Inference related code
+│   ├── base.py           # Base CVAE classes to extend
+│   ├── distributions.py  # Distribution objects for CVAE
+│   ├── inference.py      # Concrete Prior, Encoder, Decoder, CVAE
+│   └── utils.py
+└── config.py             # InferenceParams and CVAEParams
 </pre></div>
 </div>
-<p>and as a generic example, you could use it as follows:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">(</span><span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
+<div class="section" id="architecture-description-types-py">
+<h3><span class="section-number">3.2.1. </span>Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code><a class="headerlink" href="#architecture-description-types-py" title="Permalink to this headline">¶</a></h3>
+<p>There are up to three different neural networks needed to implement the CVAE:</p>
+<ul class="simple">
+<li><p>the recognition or <em>encoder</em> network <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>,</p></li>
+<li><p>the (conditional) prior network <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span></p></li>
+<li><p>the generation or <em>decoder</em> network <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span></p></li>
+</ul>
+<p>For easy modification and quick comparisons, these networks are described along
+with the other CVAE parameters in the CVAE <a class="reference external" href="#cvae-configuration-config-py">configuration</a> (described later).</p>
+<p>By specifying the MLP architectures through instances of <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> classes in
+the configuration, this prevents writing repetitive code and keeps the neural
+network definitions close together.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> constructor has the following signature:</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="arch_t.__init__">
+<span class="sig-prename descclassname"><span class="pre">arch_t.</span></span><span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_sizes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_sizes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">,</span> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_activations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_norm</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#arch_t.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Describes a (non-convolutional) MLP architecture.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>layer_sizes</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – size of input, and hidden layers.</p></li>
+<li><p><strong>head_sizes</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – size of output layer(s)</p></li>
+<li><p><strong>activations</strong> (<em>nn.Module</em><em> | </em><em>list</em><em>[</em><em>nn.Module</em><em>]</em>) – instances of activation functions to apply to input / hidden layers. The same activation is re-used for all layers if this is not a list.</p></li>
+<li><p><strong>head_activations</strong> (<em>Optional</em><em>[</em><em>list</em><em>[</em><em>Optional</em><em>[</em><em>nn.Module</em><em>]</em><em>]</em><em>]</em>) – Optional list of activation functions to apply to outputs. Can be <code class="docutils literal notranslate"><span class="pre">None</span></code>, or a list of optional instances of activation functions.</p></li>
+<li><p><strong>batch_norm</strong> (<em>bool</em>) – whether to apply batch normalisation at each layer.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ValueError</strong> – if too few layer sizes are provided (minimum input and output)</p></li>
+<li><p><strong>ValueError</strong> – if len(layer_sizes) != len(activations) when activations is a list</p></li>
+<li><p><strong>ValueError</strong> – if an activation function does not extend nn.Module</p></li>
+<li><p><strong>ValueError</strong> – if head_sizes is not list of int of length at least one</p></li>
+<li><p><strong>ValueError</strong> – if len(head_sizes) != len(head_activations)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Example</dt>
+<dd class="field-odd"><p>ANN with 1 hidden layer, ReLU activations, no batch normalisation,
+and 2 output heads with different activation functions</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">(</span><span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
 <span class="gp">... </span>       <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span> \
-<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">(),</span> <span class="kc">None</span><span class="p">]</span> \
+<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">(),</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()]</span> \
 <span class="gp">... </span>       <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>For a CVAE-specific example, here are some networks that you might use for
-MNIST:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Gaussian recognition model q_{phi}(z | y, x)</span>
-<span class="n">recognition_arch</span><span class="p">:</span> <span class="n">arch_t</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
-        <span class="p">[</span><span class="n">data_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
+</dd>
+<dt class="field-even">Example</dt>
+<dd class="field-even"><p>ANN with 1 hidden layer, ReLU activations, no output activation &amp;
+batch normalisation:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">([</span><span class="mi">512</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
+</pre></div>
+</div>
+</dd>
+<dt class="field-odd">Example</dt>
+<dd class="field-odd"><p>ANN with two output heads, one without and one with activation,
+respectively:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">([</span><span class="mi">2</span><span class="o">**</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)],</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
+<span class="gp">... </span>       <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">()])</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
 
-<span class="c1"># Gaussian prior network p_{theta}(z | x)</span>
-<span class="n">prior_arch</span><span class="p">:</span> <span class="n">arch_t</span><span class="p">(</span>
-    <span class="p">[</span><span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span> <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-<span class="c1"># generator network arch: p_{theta}(y | z, x)</span>
-<span class="n">generator_arch</span><span class="p">:</span> <span class="n">arch_t</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
-    <span class="p">[</span><span class="n">latent_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="n">data_dim</span><span class="p">,</span> <span class="n">data_dim</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
-    <span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">(),</span> <span class="kc">None</span><span class="p">])</span>
+</div>
+<div class="section" id="base-cvae-classes-base-py">
+<h3><span class="section-number">3.2.2. </span>Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code><a class="headerlink" href="#base-cvae-classes-base-py" title="Permalink to this headline">¶</a></h3>
+<p>This file contains the base classes that implement standard, repetitive code and
+give structure to the concrete CVAE classes which extend them.</p>
+<p>Most of these classes define abstract properties and methods which need to be
+implemented by the inheriting class.</p>
+<p>If any of the classes listed below seem opaque or mystifying, it may be worth
+having a read through this file to see what’s happening in the background.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> is a base distribution class which accepts a list of parameters
+(type aliased to <code class="docutils literal notranslate"><span class="pre">DistParams</span> <span class="pre">=</span> <span class="pre">list[Tensor]</span></code>) and has abstract <code class="docutils literal notranslate"><span class="pre">log_prob</span></code>
+and <code class="docutils literal notranslate"><span class="pre">sample</span></code> methods. It is perfectly valid to implement these by wrapping
+these existing methods in a standard PyTorch Distribution.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code> is almost identical to the above, however all the methods
+should be implemented using reparametrised sampling. The abstract methods are
+<code class="docutils literal notranslate"><span class="pre">log_prob</span></code> and <code class="docutils literal notranslate"><span class="pre">rsample</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CVAEPrior</span></code> is the base implementation of a prior distribution
+<span class="math notranslate nohighlight">\(p_{\theta_{z}}(z \vert x)\)</span>. The constructor accepts an (optional)
+neural network architecture description, which will automatically be
+instantiated. There is one abstract method for inheriting classes to
+implement: <code class="docutils literal notranslate"><span class="pre">get_dist</span></code>, which accepts the output of the prior network
+<span class="math notranslate nohighlight">\(f_{\text{prior}}(\theta_{z}, x)\)</span> passed to the constructor as
+argument (<code class="docutils literal notranslate"><span class="pre">None</span></code> if no network is used in the prior) and returns a
+correspondingly parametrised <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> object. .</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> is the base implementation of the recognition or <em>encoder</em> network
+<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>. As previously, the constructor accepts a
+neural network architecture description of type <code class="docutils literal notranslate"><span class="pre">arch_t</span></code>, except this time
+it is not optional. The only abstract methods to implement is also
+<code class="docutils literal notranslate"><span class="pre">get_dist</span></code>, which takes the outputs of the encoder network as arguments, and
+returns a <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>. Recall that we must have a reparametrised
+distribution as the encoder distribution in order for SGD optimisation of the
+ELBO to work.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CVAEDec</span></code> is the base implementation of the generator or <em>decoder</em> network
+<span class="math notranslate nohighlight">\(p_{\theta_{y}}(y \vert z, x)\)</span>. The constructor accepts an <code class="docutils literal notranslate"><span class="pre">arch_t</span></code>
+network description, and the abstract <code class="docutils literal notranslate"><span class="pre">get_dist</span></code> method this time returns a
+<code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CVAE</span></code> is the main base CVAE class, which handles the standard training
+procedure. You may override the <code class="docutils literal notranslate"><span class="pre">preprocess</span></code> method, which applies a
+transformation to the output of the DataLoader before each training iteration;
+the <code class="docutils literal notranslate"><span class="pre">ELBO</span></code> method which combines the log probability of all three
+distributions, as well as the <code class="docutils literal notranslate"><span class="pre">trainmodel</span></code> method. While there should be no
+need to modify it, it can be useful to see how all the components described
+above come together in the main training loop:</p></li>
+</ul>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">Main CVAE training loop</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+<span class="linenos"> 2</span>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">train_loader</span><span class="p">):</span>
+<span class="linenos"> 3</span>
+<span class="linenos"> 4</span>        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span>        <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="linenos"> 7</span>        <span class="n">z</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+<span class="linenos"> 8</span>
+<span class="linenos"> 9</span>        <span class="n">pr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="linenos">10</span>
+<span class="linenos">11</span>        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="linenos">12</span>
+<span class="linenos">13</span>        <span class="n">logpy</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+<span class="linenos">14</span>        <span class="n">logpz</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="linenos">15</span>        <span class="n">logqz</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+<span class="linenos">16</span>
+<span class="linenos">17</span>        <span class="n">ELBO</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ELBO</span><span class="p">(</span><span class="n">logpy</span><span class="p">,</span> <span class="n">logpz</span><span class="p">,</span> <span class="n">logqz</span><span class="p">,</span> <span class="n">iteration_num</span><span class="p">,</span> <span class="n">total_iters</span><span class="p">)</span>
+<span class="linenos">18</span>
+<span class="linenos">19</span>        <span class="n">loss</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">ELBO</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="linenos">20</span>        <span class="bp">self</span><span class="o">.</span><span class="n">opt</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+<span class="linenos">21</span>        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="linenos">22</span>        <span class="bp">self</span><span class="o">.</span><span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
-<div class="section" id="cvae-implementation">
-<h3><span class="section-number">3.3.2. </span>CVAE Implementation<a class="headerlink" href="#cvae-implementation" title="Permalink to this headline">¶</a></h3>
-<p>The base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> class has a number of abstract methods, which should hopefully
-be useful in guiding new CVAE implementations by providing a ‘checklist’ of
-methods to implement. These abstract methods are:</p>
-<ol class="arabic">
-<li><p><strong>preprocess</strong></p>
-<p>The <code class="docutils literal notranslate"><span class="pre">preprocess</span></code> method has the following signature:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]</span>
+</div>
+<div class="section" id="cvae-distributions-distributions-py">
+<h3><span class="section-number">3.2.3. </span>CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code><a class="headerlink" href="#cvae-distributions-distributions-py" title="Permalink to this headline">¶</a></h3>
+<p>The point of separating the distributions into their own classes, which are all
+collected in this file is that this maximises code re-use, and makes it
+effortless to experiment and perform ablation studies with different
+distributions by changing a single line in the main configuration.</p>
+<p>Classes in this file should either extend <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> or <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>.</p>
+</div>
+<div class="section" id="agnfinder-cvae-classes-inference-py">
+<h3><span class="section-number">3.2.4. </span>AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code><a class="headerlink" href="#agnfinder-cvae-classes-inference-py" title="Permalink to this headline">¶</a></h3>
+<p>This is where the concrete <code class="docutils literal notranslate"><span class="pre">CVAEPrior</span></code>, <code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> and <code class="docutils literal notranslate"><span class="pre">CVAEDec</span></code> classes
+(respectively, <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span>, <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> and
+<span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span>) are defined.</p>
+<p>Any changes to the vanilla CVAE training procedure, ELBO calculation or
+preprocessing can also be performed by extending the base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> class.</p>
+</div>
+<div class="section" id="utility-classes-utils-py">
+<h3><span class="section-number">3.2.5. </span>Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code><a class="headerlink" href="#utility-classes-utils-py" title="Permalink to this headline">¶</a></h3>
+<p>Contains data loaders for galaxy data. It is better to perform any data
+transformations here (once, before of running the inference code), rather than in
+the <code class="docutils literal notranslate"><span class="pre">CVAE.preprocess</span></code> method, which is run once at the beginning of each
+iteration of each epoch.</p>
+</div>
+<div class="section" id="cvae-configuration-config-py">
+<h3><span class="section-number">3.2.6. </span>CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code><a class="headerlink" href="#cvae-configuration-config-py" title="Permalink to this headline">¶</a></h3>
+<p>The components of the CVAE implementation are structured in the way that they
+are mainly because this affords us a very flexible way to compose different
+components of the model. Hence with minimal changes to the configuration file,
+we can perform fast experimentation using tested components.</p>
+<p>There are two main configuration classes relating to the inference code. The
+first, <code class="docutils literal notranslate"><span class="pre">InferenceParams</span></code> relates to high-level details:</p>
+<div class="literal-block-wrapper docutils container" id="id7">
+<div class="code-block-caption"><span class="caption-text">InferenceParams example configuration</span><a class="headerlink" href="#id7" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">class</span> <span class="nc">InferenceParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">):</span>
+<span class="linenos">2</span>    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="linenos">3</span>    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="linenos">4</span>    <span class="n">split_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>  <span class="c1"># train / test split ratio</span>
+<span class="linenos">5</span>    <span class="n">dtype</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">float64</span>
+<span class="linenos">6</span>    <span class="n">device</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="hll"><span class="linenos">7</span>    <span class="n">model</span><span class="p">:</span> <span class="n">cvae_t</span> <span class="o">=</span> <span class="n">CVAE</span>
+</span><span class="linenos">8</span>    <span class="n">dataset_loc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5&#39;</span>
 </pre></div>
 </div>
-<p>This allows you to apply any required transformations, and send the data to a
-particular device before the training process.</p>
-</li>
-<li><p><strong>recognition_params</strong></p>
-<p>This method is used to return the parameters which are later used to perform
-reparametrised sampling. For example, if <span class="math notranslate nohighlight">\(q\)</span> is isotropic Gaussian,
-then you should calculate and return the mean and diagonal covariance. The
-signature is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">recognition_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DistParam</span>
+</div>
+<p>On line 7, we specify a reference to a class extending <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> in <code class="docutils literal notranslate"><span class="pre">base.py</span></code>
+(or <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> itself).</p>
+<p>The model is parametrised by <code class="docutils literal notranslate"><span class="pre">CVAEParams</span></code>, which is a condensed description of
+the entire CVAE</p>
+<div class="literal-block-wrapper docutils container" id="id8">
+<div class="code-block-caption"><span class="caption-text">CVAEParams example</span><a class="headerlink" href="#id8" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">class</span> <span class="nc">CVAEParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">CVAEParams</span><span class="p">):</span>
+<span class="linenos"> 2</span>    <span class="n">cond_dim</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># x; dimension of photometry (Euclid)</span>
+<span class="linenos"> 3</span>    <span class="n">data_dim</span> <span class="o">=</span> <span class="mi">9</span>  <span class="c1"># y; len(FreeParameters()); dimensions of physical params</span>
+<span class="linenos"> 4</span>    <span class="n">latent_dim</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># z</span>
+<span class="linenos"> 5</span>
+<span class="linenos"> 6</span>    <span class="c1"># Standard Gaussian prior p_{theta}(z | x)</span>
+<span class="linenos"> 7</span>    <span class="n">prior</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">StandardGaussianPrior</span>
+<span class="linenos"> 8</span>    <span class="n">prior_arch</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="linenos"> 9</span>
+<span class="linenos">10</span>    <span class="c1"># Gaussian recognition model q_{phi}(z | y, x)</span>
+<span class="linenos">11</span>    <span class="n">encoder</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">GaussianEncoder</span>
+<span class="linenos">12</span>    <span class="n">enc_arch</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
+<span class="linenos">13</span>        <span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">data_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span>
+<span class="linenos">14</span>        <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+<span class="linenos">15</span>        <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span>
+<span class="linenos">16</span>        <span class="n">head_activations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="linenos">17</span>        <span class="n">batch_norm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="linenos">18</span>
+<span class="linenos">19</span>    <span class="c1"># generator network arch: p_{theta}(y | z, x)</span>
+<span class="linenos">20</span>    <span class="n">decoder</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">GaussianDecoder</span>
+<span class="linenos">21</span>    <span class="n">dec_arch</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
+<span class="linenos">22</span>        <span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">latent_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span>
+<span class="linenos">23</span>        <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+<span class="linenos">24</span>        <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">data_dim</span><span class="p">,</span> <span class="n">data_dim</span><span class="p">],</span>
+<span class="linenos">25</span>        <span class="n">head_activations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="linenos">26</span>        <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Note that <code class="docutils literal notranslate"><span class="pre">DistParam</span></code> is an alias for <code class="docutils literal notranslate"><span class="pre">list[Tensor]</span></code>.</p>
-</li>
-<li><p><strong>prior</strong></p>
-<p>This method returns the prior distribution—you do not have to use the
-provided <code class="docutils literal notranslate"><span class="pre">x</span></code> tensor. The signature is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">prior</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Distribution</span>
-</pre></div>
 </div>
-<p>where <code class="docutils literal notranslate"><span class="pre">Distribution</span></code> is an alias for the base PyTorch distribution class.</p>
-</li>
-<li><p><strong>generator</strong></p>
-<p>Similar to the above, except now we are returning the ‘generator’
-distribution. The signature is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">generator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Distribution</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>rsample</strong></p>
-<p>Performs reparametrised sampling. You usually call <code class="docutils literal notranslate"><span class="pre">recognition_params</span></code> as
-a first step, and also sample some <span class="math notranslate nohighlight">\(\hat{\epsilon} \sim p(\epsilon)\)</span>.</p>
-<p>For convenience, the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class provides a <code class="docutils literal notranslate"><span class="pre">self.EKS(batch_shape:</span> <span class="pre">int)</span></code>
-callable, which samples a <code class="docutils literal notranslate"><span class="pre">[batch_shape,</span> <span class="pre">latent_dim]</span></code> tensor from a
-standard Gaussian.</p>
-<p>The signature of <code class="docutils literal notranslate"><span class="pre">rsample</span></code> is as follows:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">DistParam</span><span class="p">]</span>
-</pre></div>
-</div>
-<p>The returned the <code class="docutils literal notranslate"><span class="pre">DistParams</span></code> are passed into the <code class="docutils literal notranslate"><span class="pre">kl_div</span></code> method
-(below), and by convention should include the sampled <span class="math notranslate nohighlight">\(\epsilon\)</span> term
-at index 0.</p>
-</li>
-<li><p><strong>kl_div</strong></p>
-<p>This final abstract method returns the KL divergence term in the ELBO. It is
-provided with <code class="docutils literal notranslate"><span class="pre">z</span></code> the latent vector obtained from <code class="docutils literal notranslate"><span class="pre">rsample</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code> the
-conditioning information and <code class="docutils literal notranslate"><span class="pre">rparams</span></code> which was returned from <code class="docutils literal notranslate"><span class="pre">rsample</span></code>.</p>
-<p>The full signature is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">kl_div</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">rparams</span><span class="p">:</span> <span class="n">DistParam</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span>
-</pre></div>
-</div>
-</li>
-</ol>
-<p>For more descriptions and details on the workings of the <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> base class,
-please see <code class="docutils literal notranslate"><span class="pre">/agnfinder/inference/base.py</span></code>.</p>
+<p>Hopefully the above is mostly self explanatory. The only slight subtlety is that
+you must ensure that the number of outputs of the distribution networks
+(the length of the <code class="docutils literal notranslate"><span class="pre">head_sizes</span></code> array) matches the number of parameters that
+the corresponding distribution is expecting.</p>
 </div>
 </div>
 <div class="section" id="references">
-<h2><span class="section-number">3.4. </span>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<h2><span class="section-number">3.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
 <dl class="citation">
 <dt class="label" id="cvae2015"><span class="brackets"><a class="fn-backref" href="#id2">CVAE2015</a></span></dt>
 <dd><p>Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. ‘Learning Structured
@@ -735,8 +863,8 @@ Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
 no. 4 (2019): 307–92. <a class="reference external" href="https://doi.org/10.1561/2200000056">https://doi.org/10.1561/2200000056</a>.</p>
 </dd>
 <dt class="label" id="lvae2016"><span class="brackets"><a class="fn-backref" href="#id5">LVAE2016</a></span></dt>
-<dd><p>Sø nderby, Casper Kaae, Tapani Raiko, Lars Maalø e, Sø ren Kaae Sø
-nderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
+<dd><p>Sønderby, Casper Kaae, Tapani Raiko, Lars Maaløe, Søren Kaae
+Sønderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
 Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
 2016.
 <a class="reference external" href="https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html">https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html</a>.</p>

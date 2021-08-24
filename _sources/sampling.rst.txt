@@ -8,5 +8,3 @@ Photometry Sampling
    <https://ui.adsabs.harvard.edu/abs/2021ApJS..254...22J/abstract>`_ paper, or
    consult their `documentation
    <https://prospect.readthedocs.io/_/downloads/en/latest/pdf/>`_.
-
-
