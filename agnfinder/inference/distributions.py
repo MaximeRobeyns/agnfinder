@@ -38,8 +38,6 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
         _CVAE_RDist.__init__(self)
-        mean = mean.to(self.device, self.dtype)
-        std = std.to(self.device, self.dtype)
         dist.Normal.__init__(self, mean, std)
         assert self.has_rsample
 
@@ -57,10 +55,10 @@ class _Manual_R_Gaussian(_CVAE_RDist):
     """
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
-        mean, std = distutils.broadcast_all(mean, std)
-        super(_CVAE_RDist, self).__init__(batch_shape=mean.size())
-        self.mean = mean.to(self.device, self.dtype)
-        self.std = std.to(self.device, self.dtype)
+        assert mean.device == std.device
+        assert mean.dtype == std.dtype
+        self.mean, self.std = distutils.broadcast_all(mean, std)
+        super(_CVAE_RDist, self).__init__(batch_shape=self.mean.size())
 
     def log_prob(self, _: Tensor) -> Tensor:
         log2pi = math.log(2 * math.pi)
@@ -68,7 +66,8 @@ class _Manual_R_Gaussian(_CVAE_RDist):
 
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         shape = self._extended_shape(sample_shape)
-        self.last_eps = t.randn(shape, device=self.device, dtype=self.dtype)
+        # create eps on same device / dtype as mean parameter.
+        self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
         return self.mean + self.last_eps * self.std
 
 
@@ -114,5 +113,4 @@ class _Manual_Gaussian(_CVAE_Dist):
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         shape = self._extended_shape(sample_shape)
         with t.no_grad():
-            n = t.normal(self.mean.expand(shape), self.std.expand(shape))
-            return n.to(self.device, self.dtype)
+            return t.normal(self.mean.expand(shape), self.std.expand(shape))

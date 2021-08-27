@@ -23,8 +23,8 @@ import logging
 import torch as t
 import torch.nn as nn
 
-from typing import Union, Optional, Type
 from torch.utils.data import DataLoader
+from typing import Union, Optional, Type, Callable
 
 from agnfinder.types import Tensor, DistParams, arch_t
 
@@ -67,7 +67,6 @@ class MLP(nn.Module):
                                      module=arch.head_activations[i])
             this_head.to(device=device, dtype=dtype)
             self.heads.append(this_head)
-        print(f'Initialising network: {self}')
 
     def forward(self, x: Tensor) -> Union[Tensor, DistParams]:
         """Forward pass through the network
@@ -105,7 +104,14 @@ class MLP(nn.Module):
 
 
 class _CVAE_Dist(object):
-    """Base distribution class for use with encoder, decoder and prior"""
+    """Base distribution class for use with encoder, decoder and prior
+
+    Note: currently the dtype/device is the same as is being used for the rest
+        of training. However, if the PRNG is only available on a different
+        device, this may make sampling slow (e.g. GPU training, where PRNG is
+        on CPU will cause lots of data transfers). TODO: implement more
+        granular device/dtype control.
+    """
 
     def __init__(self, batch_shape: t.Size =t.Size(),
                  event_shape: t.Size =t.Size(),
@@ -156,7 +162,7 @@ class _CVAE_RDist(_CVAE_Dist):
     """
 
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
-        return self.rsample(sample_shape)
+        return self.rsample(sample_shape).to(self.device, self.dtype)
 
     @abc.abstractmethod
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
@@ -186,6 +192,7 @@ class CVAEPrior(MLP, abc.ABC):
             self._parameters = {}
             self._modules = {}
         self.latent_dim = latent_dim
+        self.device, self.dtype = device, dtype
 
     def __call__(self, x: Tensor) -> _CVAE_Dist:
         if self.is_module:
@@ -209,6 +216,7 @@ class CVAEEnc(MLP, abc.ABC):
                  dtype: t.dtype = t.float64) -> None:
         abc.ABC.__init__(self)
         MLP.__init__(self, arch, device, dtype)
+        self.device, self.dtype = device, dtype
 
     def __call__(self, y: Tensor, x: Tensor) -> _CVAE_RDist:
         return self.get_dist(
@@ -231,6 +239,7 @@ class CVAEDec(MLP, abc.ABC):
                  dtype: t.dtype = t.float64) -> None:
         abc.ABC.__init__(self)
         MLP.__init__(self, arch, device, dtype)
+        self.device, self.dtype = device, dtype
 
     def __call__(self, z: Tensor, x: Tensor) -> _CVAE_Dist:
         return self.get_dist(
@@ -340,27 +349,27 @@ class CVAE(nn.Module, abc.ABC):
 
     def __init__(self, cp: CVAEParams,
                  device: t.device = t.device('cpu'),
-                 dtype: t.dtype = t.float64) -> None:
+                 dtype: t.dtype = t.float64,
+                 logging_callbacks: list[Callable] = []) -> None:
         """Initialise a CVAE
 
         Args:
             cp: CVAE parameters (usually from config.py)
             device: device on which to store the model
             dtype: data type to use in Tensors
+            logging_callbacks: list of callables accepting this CVAE instance
         """
         super().__init__()  # init nn.Module, ABC
         self.device = device
         self.dtype = dtype
-        self.latent_dim: int = cp.latent_dim
+        self.latent_dim = cp.latent_dim
+        self.logging_callbacks = logging_callbacks
 
         self.prior = cp.prior(cp.prior_arch, cp.latent_dim, device, dtype)
         self.encoder = cp.encoder(cp.enc_arch, device, dtype)
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
 
-        # nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
-        #                            if n.is_module]
-        # print(f'CVAE trainable networks: {nets}')
-        # self.opt = t.optim.Adam(self.parameters())
+        self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         """Perform any necessary pre-processing to the data before training.
@@ -396,7 +405,7 @@ class CVAE(nn.Module, abc.ABC):
         """
         return logpy + logpz - logqz
 
-    def trainmodel(self, train_loader: DataLoader, opt: t.optim.Optimizer,
+    def trainmodel(self, train_loader: DataLoader,# opt: t.optim.Optimizer,
                    epochs: int = 10, log_every: int = 100) -> None:
         """Trains the CVAE
 
@@ -433,13 +442,15 @@ class CVAE(nn.Module, abc.ABC):
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
                 loss = -(ELBO.mean(0))
-                opt.zero_grad()
-                # self.opt.zero_grad()
+                # opt.zero_grad()
+                self.opt.zero_grad()
                 loss.backward()
-                # self.opt.step()
-                opt.step()
+                self.opt.step()
+                # opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
+                    # Run through all logging functions
+                    [cb(self) for cb in self.logging_callbacks]
                     logging.info(
                         "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
                         .format(e, epochs, i, len(train_loader)-1, loss.item()))

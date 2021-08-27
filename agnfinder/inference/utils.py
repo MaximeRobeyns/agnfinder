@@ -22,10 +22,12 @@ import logging
 import torch as t
 import numpy as np
 
-from torch.utils.data import Dataset, DataLoader, random_split
+from torchvision import datasets, transforms
 from typing import Any, Callable, Optional, Union
+from torch.utils.data import Dataset, DataLoader, random_split
 
 from agnfinder.types import Tensor, tensor_like
+
 
 
 class GalaxyDataset(Dataset):
@@ -110,3 +112,48 @@ def load_simulated_data(
     test_loader = DataLoader(test_set, **test_kwargs)
 
     return train_loader, test_loader
+
+
+# Testing Utilities -----------------------------------------------------------
+# The following functions are for use in the accompanying unit tests and
+# notebooks.
+
+
+def _load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
+               device: t.device = t.device('cpu')
+               ) -> tuple[DataLoader, DataLoader]:
+    """(Down)load MNIST dataset in ./data/testdata, and return training and
+    test DataLoaders using specified batch_size.
+    """
+
+    cuda_kwargs = {'num_workers': 1}  # , 'pin_memory': True}
+    train_kwargs = {'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
+    test_kwargs = {'batch_size': batch_size, 'shuffle': False} | cuda_kwargs
+
+    transform = transforms.Compose([
+        lambda x: np.array(x),
+        transforms.ToTensor(),
+        lambda x: x.to(device, dtype)
+    ])
+
+    train_set = datasets.MNIST('./data/testdata', train=True, download=True,
+                               transform=transform)
+    test_set = datasets.MNIST('./data/testdata', train=False, download=True,
+                              transform=transform)
+
+    train_loader = DataLoader(train_set, **train_kwargs)
+    test_loader = DataLoader(test_set, **test_kwargs)
+
+    return train_loader, test_loader
+
+
+def _onehot(idx: Tensor, n: int) -> Tensor:
+    """Turns an index into a one-hot encoded vector, of length n"""
+    assert t.max(idx).item() < n
+
+    if idx.dim() == 1:
+        idx = idx.unsqueeze(1)
+    onehot = t.zeros(idx.size(0), n).to(idx.device)
+    onehot.scatter_(1, idx, 1)
+
+    return onehot

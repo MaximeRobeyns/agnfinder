@@ -171,7 +171,7 @@ class InferenceParams(ConfigClass):
     batch_size: int = 32
     split_ratio: float = 0.9  # train / test split ratio
     dtype: t.dtype = t.float64
-    device: t.device = t.device("cpu")
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # Alternative device configurations:
     # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # t.device("cuda")

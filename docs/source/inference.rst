@@ -140,8 +140,8 @@ samples and the photometric observations.
 
 As above, our objective is to find some :math:`\theta \in \Theta` such that
 :math:`p_{\theta}(y \vert x) \approx p^{*}(y \vert x)`, and this can be acheived
-by maximising the (log) marginal likelihood of the :math:`N` training observations
-under our model:
+by maximising the (log) marginal likelihood of the :math:`N` iid. training
+observations under our model:
 
 .. math::
    :label: LVMObjective
@@ -258,7 +258,7 @@ objective that we try to maximise which, for completeness, is
 
     \mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
     \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
-     - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right]
+     - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].
 
 From the above, we can see that the ELBO optimises two quantities that we care
 about concurrently:
@@ -290,7 +290,7 @@ Monte Carlo approximation of the expectation:
    \nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) -
    \log q_{\phi}(z \vert y, x)\big) \right] \\
    &\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta}
-   \log p_{\theta}(y, z \vert x)
+   \log p_{\theta}(y, z \vert x).
 
 However, when trying to get unbiased gradients of the ELBO wrt. the variational
 parameters :math:`\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)`, we can no
@@ -346,7 +346,8 @@ Hence we may draw samples from :math:`q_{\phi}(z \vert y, x)` as follows:
    z &= \mu + \sigma \odot \epsilon
 
 where :math:`\odot` represents an element-wise product and
-:math:`f_{\text{enc}}` is the '*encoder*' neural network.
+:math:`f_{\text{enc}}` is the '*encoder*' neural network. The neural network
+directly outputs the log standard deviation for more stable training.
 
 To evaluate the density of some :math:`z` under this distribution, we first find
 the Jacobian of this transformation, which in this isotropic Gaussian case is
@@ -405,7 +406,7 @@ triangular matrix is the product of the diagonal elements, we get:
 .. math::
 
    \log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
-   \sum_{i=1}^{n} \log \vert L_{ii} \vert
+   \sum_{i=1}^{n} \log \vert L_{ii} \vert.
 
 As an implementation point, we can output a matrix :math:`L` with the desired
 properties from a neural network by constructing it as:
@@ -497,7 +498,7 @@ We can re-arrange the ELBO as
        &= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
        \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
        &\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpy}} +
-       \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]
+       \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big].
 
 We have already derived the expression for evaluating :math:`\log q_{\phi}(z
 \vert y, x)`:
@@ -589,13 +590,14 @@ There are up to three different neural networks needed to implement the CVAE:
 - the (conditional) prior network :math:`p_{\theta}(z \vert x)`
 - the generation or *decoder* network :math:`p_{\theta}(y \vert z, x)`
 
-For easy modification and quick comparisons, these networks are described along
+For easy modification and quick comparisons, these networks are specified along
 with the other CVAE parameters in the CVAE `configuration
 <#cvae-configuration-config-py>`_ (described later).
 
 By specifying the MLP architectures through instances of ``arch_t`` classes in
-the configuration, this prevents writing repetitive code and keeps the neural
-network definitions close together.
+the configuration, we can avoid having to write the same neural network
+initialisation code and further this keeps the neural network definitions close
+together for easy comparison.
 
 The ``arch_t`` constructor has the following signature:
 
@@ -609,11 +611,11 @@ The ``arch_t`` constructor has the following signature:
     :param Optional[list[Optional[nn.Module]]] head_activations: Optional list of activation functions to apply to outputs. Can be ``None``, or a list of optional instances of activation functions.
     :param bool batch_norm: whether to apply batch normalisation at each layer.
 
-    :raises ValueError: if too few layer sizes are provided (minimum input and output)
-    :raises ValueError: if len(layer_sizes) != len(activations) when activations is a list
+    :raises ValueError: if ``layer_sizes`` is an empty list (minimum: one input layer)
+    :raises ValueError: if ``len(layer_sizes) != len(activations)`` when activations is a list
     :raises ValueError: if an activation function does not extend nn.Module
-    :raises ValueError: if head_sizes is not list of int of length at least one
-    :raises ValueError: if len(head_sizes) != len(head_activations)
+    :raises ValueError: if ``head_sizes`` is not ``list[int]`` of length at least one
+    :raises ValueError: if ``len(head_sizes) != len(head_activations)``
 
     :Example:
 
@@ -675,7 +677,7 @@ having a read through this file to see what's happening in the background.
 - ``CVAEEnc`` is the base implementation of the recognition or *encoder* network
   :math:`q_{\phi}(z \vert y, x)`. As previously, the constructor accepts a
   neural network architecture description of type ``arch_t``, except this time
-  it is not optional. The only abstract methods to implement is also
+  it is not optional. The only abstract method to implement is also
   ``get_dist``, which takes the outputs of the encoder network as arguments, and
   returns a ``_CVAE_RDist``. Recall that we must have a reparametrised
   distribution as the encoder distribution in order for SGD optimisation of the
@@ -727,7 +729,7 @@ CVAE Distributions ``distributions.py``
 The point of separating the distributions into their own classes, which are all
 collected in this file is that this maximises code re-use, and makes it
 effortless to experiment and perform ablation studies with different
-distributions by changing a single line in the main configuration.
+distributions by changing a few lines in the main configuration.
 
 Classes in this file should either extend ``_CVAE_Dist`` or ``_CVAE_RDist``.
 
