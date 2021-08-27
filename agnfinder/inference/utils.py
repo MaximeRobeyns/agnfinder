@@ -126,10 +126,6 @@ def _load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
     test DataLoaders using specified batch_size.
     """
 
-    cuda_kwargs = {'num_workers': 1}  # , 'pin_memory': True}
-    train_kwargs = {'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
-    test_kwargs = {'batch_size': batch_size, 'shuffle': False} | cuda_kwargs
-
     transform = transforms.Compose([
         lambda x: np.array(x),
         transforms.ToTensor(),
@@ -141,8 +137,8 @@ def _load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
     test_set = datasets.MNIST('./data/testdata', train=False, download=True,
                               transform=transform)
 
-    train_loader = DataLoader(train_set, **train_kwargs)
-    test_loader = DataLoader(test_set, **test_kwargs)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 
     return train_loader, test_loader
 

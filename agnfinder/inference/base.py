@@ -405,8 +405,8 @@ class CVAE(nn.Module, abc.ABC):
         """
         return logpy + logpz - logqz
 
-    def trainmodel(self, train_loader: DataLoader,# opt: t.optim.Optimizer,
-                   epochs: int = 10, log_every: int = 100) -> None:
+    def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
+                   log_every: int = 100) -> None:
         """Trains the CVAE
 
         Args:
@@ -414,7 +414,8 @@ class CVAE(nn.Module, abc.ABC):
             epochs: number of epochs to train for
             log_every: logging frequency (iterations, not epochs)
         """
-        b = train_loader.batch_size  # batch size
+        self.train()
+        b = train_loader.batch_size
         assert isinstance(b, int)
         ipe = len(train_loader) * b  # 'iterations per epoch'
         t = epochs * ipe
@@ -426,8 +427,7 @@ class CVAE(nn.Module, abc.ABC):
 
                 # Get q_{phi}(z | y, x)
                 q: _CVAE_RDist = self.encoder(y, x)
-                # Sample latent from q
-                z = q.rsample()  # equivalent to calling q.sample()
+                z = q.rsample()
 
                 # Get p_{theta}(z | x)
                 pr: _CVAE_Dist = self.prior(x)
@@ -455,6 +455,25 @@ class CVAE(nn.Module, abc.ABC):
                         "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
                         .format(e, epochs, i, len(train_loader)-1, loss.item()))
 
+    def test_generator(self, test_loader: DataLoader) -> float:
+        """Test the generator network, p_{theta}(y | z, x)
+
+        Args:
+            test_loader: data loader for test set
+
+        Returns:
+            float: test loss
+        """
+        self.eval()
+        loss = 0.
+        for x, y in test_loader:
+            x, y = self.preprocess(x, y)
+            pr: _CVAE_Dist = self.prior(x)
+            z = pr.sample(t.Size((x.size(0),)))
+            p: _CVAE_Dist = self.decoder(z, x)
+            NLL = p.log_prob(y)
+            loss -= NLL.mean(0)
+        return loss / len(test_loader)
 
 # For use in configuration file.
 cvae_t = Type[CVAE]

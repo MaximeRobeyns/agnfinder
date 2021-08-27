@@ -55,7 +55,6 @@ def test_load_QuasarTemplate():
 def test_create_TorusModel():
     now = time.time()
     params = cfg.QuasarTemplateParams()
-    print(params)
     tm = TorusModel(
         params=params,
         template_loc=params.interpolated_torus_loc,

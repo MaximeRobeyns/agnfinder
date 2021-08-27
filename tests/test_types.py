@@ -43,6 +43,9 @@ def test_Filters():
 def test_arch_t():
 
     with pytest.raises(ValueError):
+        _ = arch_t([], [1], [])
+
+    with pytest.raises(ValueError):
         # test len(layer_sizes) /= len(activations)
         _ = arch_t([1,2,3], [4], [nn.ReLU()])
 

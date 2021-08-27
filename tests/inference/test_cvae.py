@@ -26,64 +26,23 @@ Need to test
 - generation (conditional generation of digit given label)
 """
 
-import math
 import pytest
+import warnings
 import torch as t
 import torch.nn as nn
 
-from typing import Optional, Union
-from torch.utils.data import DataLoader
-from torchvision import transforms, datasets
-from torch.profiler import profile, record_function, ProfilerActivity
+from typing import Union
 
 import agnfinder.inference.distributions as dist
 
 from agnfinder.types import arch_t, DistParams, Tensor
+from agnfinder.inference import utils
 from agnfinder.inference.base import CVAE, CVAEParams, \
                                      CVAEDec, CVAEEnc, CVAEPrior, \
                                      _CVAE_Dist, _CVAE_RDist
 
 
-# testing utilities -----------------------------------------------------------
-
-
-def load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
-               device: t.device = t.device('cpu')
-               ) -> tuple[DataLoader, DataLoader]:
-    """(Down)load MNIST dataset in ./data/testdata, and return training and
-    test DataLoaders using specified batch_size.
-    """
-
-    cuda_kwargs = {'num_workers': 1}  # , 'pin_memory': True}
-    train_kwargs = {'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
-    test_kwargs = {'batch_size': batch_size, 'shuffle': False} | cuda_kwargs
-
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        lambda x: x.to(device, dtype)
-    ])
-
-    train_set = datasets.MNIST('./data/testdata', train=True, download=True,
-                               transform=transform)
-    test_set = datasets.MNIST('./data/testdata', train=False, download=True,
-                              transform=transform)
-
-    train_loader = DataLoader(train_set, **train_kwargs)
-    test_loader = DataLoader(test_set, **test_kwargs)
-
-    return train_loader, test_loader
-
-
-def onehot(idx: Tensor, n: int) -> Tensor:
-    """Turns an index into a one-hot encoded vector, of length n"""
-    assert t.max(idx).item() < n
-
-    if idx.dim() == 1:
-        idx = idx.unsqueeze(1)
-    onehot = t.zeros(idx.size(0), n).to(idx.device)
-    onehot.scatter_(1, idx, 1)
-
-    return onehot
+warnings.filterwarnings('ignore', category=UserWarning)  # see torchvision pr #4184
 
 
 # Testing MNIST CVAE definition -----------------------------------------------
@@ -93,19 +52,35 @@ def onehot(idx: Tensor, n: int) -> Tensor:
 
 
 class StandardGaussianPrior(CVAEPrior):
-    def get_dist(self, dist_params=None) -> _CVAE_Dist:
-        return dist.Gaussian(t.zeros(1), t.ones(1))
+    def get_dist(self, _) -> _CVAE_Dist:
+        mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
+        std = t.ones(self.latent_dim, device=self.device, dtype=self.dtype)
+        return dist.Gaussian(mean, std)
+
 
 class GaussianEncoder(CVAEEnc):
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
-        assert isinstance(dist_params, list)
-        return dist.R_Gaussian(dist_params[0], t.exp(dist_params[1]))
+        assert isinstance(dist_params, list) and len(dist_params) == 2
+        [mean, log_std] = dist_params
+        std = t.exp(log_std)
+        return dist.R_Gaussian(mean, std)
 
 
 class GaussianDecoder(CVAEDec):
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, list)
-        return dist.Gaussian(dist_params[0], t.exp(dist_params[1]))
+        assert isinstance(dist_params, list) and len(dist_params) == 2
+        [mean, log_std] = dist_params
+        std = t.exp(log_std)
+        return dist.Gaussian(mean, std)
+
+
+class MultinomialDecoder(CVAEDec):
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
+        assert isinstance(dist_params, Tensor)
+        return dist.Multinomial(dist_params)
+
+
+# Image MNIST -----------------------------------------------------------------
 
 
 class MNIST_img_params(CVAEParams):
@@ -118,28 +93,51 @@ class MNIST_img_params(CVAEParams):
 
     encoder = GaussianEncoder
     enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
-                      nn.ReLU(), batch_norm=False)
+                      nn.ReLU())
 
     decoder = GaussianDecoder
     dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim, data_dim],
-                      nn.ReLU(), [nn.Sigmoid(), None], batch_norm=False)
+                      nn.ReLU(), [nn.Sigmoid(), nn.ReLU()])
 
 
 class MNIST_img_cvae(CVAE):
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
-        # for the inputs, x is pixel data, and y are integer MNIST labels.
-        #
-        # But here we want x to be one-hot encoded labels, and y to be pixel
-        # data. So we apply this pre-processing, and switch the order when we
-        # return.
-
         if x.dim() > 2:
             x = x.view(-1, 28*28)
-
-        switched_x = onehot(y, 10).to(self.device, self.dtype)
+        switched_x = utils._onehot(y, 10).to(self.device, self.dtype)
         switched_y = x.to(self.device, self.dtype)
         return switched_x, switched_y
+
+
+# Label MNIST -----------------------------------------------------------------
+
+
+class MNIST_label_params(CVAEParams):
+    cond_dim = 28*28  # x; dimension of MNIST image pixel data
+    data_dim = 10  # y; size of one-hot encoded digit labels
+    latent_dim = 2  # z
+
+    prior = StandardGaussianPrior
+    prior_arch = None
+
+    encoder = GaussianEncoder
+    enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
+                       nn.ReLU())
+
+    decoder = MultinomialDecoder
+    dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim],
+                       nn.ReLU(), [nn.Softmax()])
+
+
+class MNIST_label_cvae(CVAE):
+
+    def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
+        if x.dim() > 2:
+            x = x.view(-1, 28*28)
+        x = x.to(self.device, self.dtype)
+        y = utils._onehot(y, 10).to(self.device, self.dtype)
+        return x, y
 
 
 # Testing ---------------------------------------------------------------------
@@ -203,24 +201,53 @@ def test_cvae_params():
 
 def test_cvae_initialisation():
     """Tests that we can initialise a CVAE"""
+    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
-    p = MNIST_img_params()
+    ip = MNIST_img_params()
+    _ = MNIST_img_cvae(ip, device=device, dtype=t.float64)
 
-    _ = MNIST_img_cvae(p, device=t.device('cpu'), dtype=t.float64)
+    lp = MNIST_label_params()
+    _ = MNIST_label_cvae(lp, device=device, dtype=t.float64)
 
     assert True  # haven't fallen over yet, great success!!
 
 
 @pytest.mark.slow
-def test_cvae_MNIST():
-    p = MNIST_img_params()
-    cvae = MNIST_img_cvae(p, device=t.device('cpu'), dtype=t.float64)
-    train_loader, _ = load_mnist()
+def test_cvae_MNIST_img():
+    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
-    # with profile(activities=[ProfilerActivity.CPU], record_shapes=True, use_cuda=True) as prof:
-    cvae.trainmodel(train_loader, epochs=1)
+    ip = MNIST_img_params()
+    cvae = MNIST_img_cvae(ip, device=device, dtype=t.float64)
+    train_loader, test_loader = utils._load_mnist()
 
-    # generate samples of images from [0..9], and save to image for visual inspection.
-    # also write date / time in title of plot
+    initial_loss = cvae.test_generator(test_loader)
+    print('done initial loss')
+    # train for just 1 epoch to keep things speedy
+    cvae.trainmodel(train_loader)
+    print('done train model')
+    final_loss = cvae.test_generator(test_loader)
+    print('done final loss')
 
-    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    # Assert that loss is lower after a spot of training...
+    # This isn't *hugely* informative, but it's good enough for a basic test
+    assert initial_loss > final_loss
+
+    # Perhaps generate samples of images from [0..9], and save to image
+    # for visual inspection. Also write date / time in title of plot
+
+@pytest.mark.slow
+def test_cvae_MNIST_label():
+    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+
+    lp = MNIST_label_params()
+    cvae = MNIST_label_cvae(lp, device=device, dtype=t.float64)
+    train_loader, test_loader = utils._load_mnist()
+
+    initial_loss = cvae.test_generator(test_loader)
+    # train for just 1 epoch to keep things speedy(ish)
+    cvae.trainmodel(train_loader)
+    final_loss = cvae.test_generator(test_loader)
+
+    # Assert that loss is lower after a spot of training...
+    # This isn't *hugely* informative, but it's good enough for a basic test
+    assert initial_loss > final_loss
