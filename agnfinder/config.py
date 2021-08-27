@@ -254,10 +254,10 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
         # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
         'formatters': {
             'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(message)s'
+                'format': '[%(levelname)s] %(message)s'
             },
             'debug': {
-                'format': '[Dbg: %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
+                'format': '[Dbg: %(asctime)s %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
             },
         },
         'handlers': {

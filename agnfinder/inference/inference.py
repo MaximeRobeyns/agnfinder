@@ -30,23 +30,38 @@ from agnfinder.inference.base import CVAE, CVAEPrior, CVAEEnc, CVAEDec, \
 
 
 class StandardGaussianPrior(CVAEPrior):
+    """
+    A standard Gaussian distribution, whose dimension matches the length of the
+    latent code z.
+    """
     def get_dist(self, _: Optional[Union[Tensor, DistParams]]=None) -> _CVAE_Dist:
-        return dist.Gaussian(t.zeros(self.latent_dim), t.ones(self.latent_dim))
+        mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
+        std = t.ones(self.latent_dim, device=self.device, dtype=self.dtype)
+        return dist.Gaussian(mean, std)
 
 
 class GaussianEncoder(CVAEEnc):
+    """
+    A factorised Gaussian encoder; the distribution returned by this encoder
+    implements reparametrised sampling and log_prob methods.
+    """
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
-        assert isinstance(dist_params, list)
-        mean = dist_params[0]
-        std = t.exp(dist_params[1])  # log_std output from network
+        assert isinstance(dist_params, list) and len(dist_params) == 2
+        [mean, log_std] = dist_params
+        std = t.exp(log_std)
         return dist.R_Gaussian(mean, std)
 
 
 class GaussianDecoder(CVAEDec):
+    """
+    A factorised Gaussian decoder. This corresponds to using a Gaussian
+    likelihood in ML training; or equivalently minimising an MSE loss between
+    the target data and the reconstruction.
+    """
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, list)
-        mean = dist_params[0]
-        std = t.exp(dist_params[1])  # log_std is output from network
+        assert isinstance(dist_params, list) and len(dist_params) == 2
+        [mean, log_std] = dist_params
+        std = t.exp(log_std)
         return dist.Gaussian(mean, std)
 
 

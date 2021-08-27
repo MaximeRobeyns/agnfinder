@@ -75,7 +75,7 @@ class _Manual_R_Gaussian(_CVAE_RDist):
 
 
 class Gaussian(_CVAE_Dist, dist.Normal):
-    """Factorised Gaussian distribution (PyTorch implementation)"""
+    """Factorised Gaussian distribution (PyTorch wrapper)"""
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
         _CVAE_Dist.__init__(self)
@@ -87,6 +87,20 @@ class Gaussian(_CVAE_Dist, dist.Normal):
 
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return dist.Normal.sample(self, sample_shape)
+
+
+class Multinomial(_CVAE_Dist, dist.Multinomial):
+    """Multinomial distribution (PyTorch wrapper)"""
+
+    def __init__(self, params: Tensor) -> None:
+        _CVAE_Dist.__init__(self)
+        dist.Multinomial.__init__(self, 1, params)
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return dist.Multinomial.log_prob(self, value)
+
+    def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        return dist.Multinomial.sample(self, sample_shape)
 
 
 class _Manual_Gaussian(_CVAE_Dist):
