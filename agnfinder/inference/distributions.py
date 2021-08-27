@@ -16,8 +16,10 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Common distributions for use in CVAE."""
 
+import math
 import torch as t
 import torch.distributions as dist
+import torch.distributions.utils as distutils
 
 from agnfinder.types import Tensor
 from agnfinder.inference.base import _CVAE_Dist, _CVAE_RDist
@@ -42,24 +44,75 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
         assert self.has_rsample
 
     def log_prob(self, value: Tensor) -> Tensor:
-        return dist.Normal.log_prob(self, value).sum(-1)
+        return dist.Normal.log_prob(self, value).sum(1)
 
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return dist.Normal.rsample(self, sample_shape)
+
+
+class _Manual_R_Gaussian(_CVAE_RDist):
+    """
+    Home baked reparametrised Gaussian distribution---this should be
+    identical to the PyTorch wrapper above.
+    """
+
+    def __init__(self, mean: Tensor, std: Tensor) -> None:
+        mean, std = distutils.broadcast_all(mean, std)
+        super(_CVAE_RDist, self).__init__(batch_shape=mean.size())
+        self.mean = mean.to(self.device, self.dtype)
+        self.std = std.to(self.device, self.dtype)
+
+    def log_prob(self, _: Tensor) -> Tensor:
+        log2pi = math.log(2 * math.pi)
+        return -t.sum(0.5 * (log2pi + t.pow(self.last_eps, 2.)) + t.log(self.std), 1)
+
+    def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        shape = self._extended_shape(sample_shape)
+        self.last_eps = t.randn(shape, device=self.device, dtype=self.dtype)
+        return self.mean + self.last_eps * self.std
 
 
 # Simple distributions ========================================================
 
 
 class Gaussian(_CVAE_Dist, dist.Normal):
-    """Factorised Gaussian distribution"""
+    """Factorised Gaussian distribution (PyTorch implementation)"""
 
-    def __init__(self, mean: Tensor, log_std: Tensor) -> None:
+    def __init__(self, mean: Tensor, std: Tensor) -> None:
         _CVAE_Dist.__init__(self)
-        dist.Normal.__init__(self, mean, t.exp(log_std))
+        dist.Normal.__init__(self, mean, std)
 
     def log_prob(self, value: Tensor) -> Tensor:
-        return dist.Normal.log_prob(self, value).sum(-1)
+        # product of univariate Gaussian densities
+        return dist.Normal.log_prob(self, value).sum(1)
 
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return dist.Normal.sample(self, sample_shape)
+
+
+class _Manual_Gaussian(_CVAE_Dist):
+    """
+    Roll-your-own implementation of a factorised Gaussian distribution---once
+    again, this should be identical to the PyTorch wrapper above.
+    """
+
+    def __init__(self, mean: Tensor, std: Tensor) -> None:
+        mean, std = distutils.broadcast_all(mean, std)
+        _CVAE_Dist.__init__(self, batch_shape=mean.size(), device=mean.device,
+                            dtype=mean.dtype)
+        self.mean = mean.to(self.device, self.dtype)
+        self.std = std.to(self.device, self.dtype)
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        var = self.std ** 2
+        return -t.sum(0.5 * (
+                        t.log(2. * math.pi * var) +
+                        (value - self.mean)**2
+                        / var)
+                     , 1)
+
+    def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        shape = self._extended_shape(sample_shape)
+        with t.no_grad():
+            n = t.normal(self.mean.expand(shape), self.std.expand(shape))
+            return n.to(self.device, self.dtype)

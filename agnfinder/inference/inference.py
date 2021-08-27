@@ -19,7 +19,7 @@
 import logging
 import torch as t
 
-from typing import Union
+from typing import Union, Optional
 
 import agnfinder.inference.distributions as dist
 from agnfinder import config as cfg
@@ -30,20 +30,24 @@ from agnfinder.inference.base import CVAE, CVAEPrior, CVAEEnc, CVAEDec, \
 
 
 class StandardGaussianPrior(CVAEPrior):
-    def get_dist(self, dist_params = None) -> _CVAE_Dist:
-        return dist.Gaussian(t.zeros(1), t.ones(1))
+    def get_dist(self, _: Optional[Union[Tensor, DistParams]]=None) -> _CVAE_Dist:
+        return dist.Gaussian(t.zeros(self.latent_dim), t.ones(self.latent_dim))
 
 
 class GaussianEncoder(CVAEEnc):
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list)
-        return dist.R_Gaussian(dist_params[0], t.exp(dist_params[1]))
+        mean = dist_params[0]
+        std = t.exp(dist_params[1])  # log_std output from network
+        return dist.R_Gaussian(mean, std)
 
 
 class GaussianDecoder(CVAEDec):
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, list)
-        return dist.Gaussian(dist_params[0], t.exp(dist_params[1]))
+        mean = dist_params[0]
+        std = t.exp(dist_params[1])  # log_std is output from network
+        return dist.Gaussian(mean, std)
 
 
 if __name__ == '__main__':

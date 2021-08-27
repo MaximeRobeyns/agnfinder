@@ -50,12 +50,15 @@ class MLP(nn.Module):
         for i, (j, k) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
             self.MLP.add_module(name=f'L{i}', module=nn.Linear(j, k))
             if arch.batch_norm:
+                # TODO fix batch norm
                 self.MLP.add_module(name=f'BN{i}', module=nn.BatchNorm1d(k))
             self.MLP.add_module(name=f'A{i}', module=arch.activations[i])
         self.MLP.to(device=device, dtype=dtype)
 
+        # TODO implement more efficient multi-headed architecture (not list based)
+
         h_n = layer_sizes[-1]
-        self.heads: list[nn.Module] = []
+        self.heads: nn.ModuleList = nn.ModuleList()
         for i, h in enumerate(arch.head_sizes):
             this_head = nn.Sequential()
             this_head.add_module(name=f'H{i}', module=nn.Linear(h_n, h))
@@ -64,6 +67,7 @@ class MLP(nn.Module):
                                      module=arch.head_activations[i])
             this_head.to(device=device, dtype=dtype)
             self.heads.append(this_head)
+        print(f'Initialising network: {self}')
 
     def forward(self, x: Tensor) -> Union[Tensor, DistParams]:
         """Forward pass through the network
@@ -77,6 +81,7 @@ class MLP(nn.Module):
                 the output of a head.
         """
         y = self.MLP(x)
+        heads = []
         heads = [h(y) for h in self.heads]
         if len(heads) == 1:
             return heads[0]
@@ -99,10 +104,11 @@ class MLP(nn.Module):
         return r
 
 
-class _CVAE_Dist():
+class _CVAE_Dist(object):
     """Base distribution class for use with encoder, decoder and prior"""
 
-    def __init__(self, batch_shape=t.Size(), event_shape=t.Size(),
+    def __init__(self, batch_shape: t.Size =t.Size(),
+                 event_shape: t.Size =t.Size(),
                  device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
         self._batch_shape = batch_shape
@@ -113,7 +119,7 @@ class _CVAE_Dist():
     def __call__(self, *args, **kwargs):
         self.log_prob(*args, **kwargs)
 
-    def _extended_shape(self, sample_shape=t.Size()):
+    def _extended_shape(self, sample_shape=t.Size()) -> t.Size:
         """
         Returns the size of the sample returned by the distribution, given
         a `sample_shape`. Note, that the batch and event shapes of a distribution
@@ -121,11 +127,11 @@ class _CVAE_Dist():
         returned shape is upcast to (1,).
 
         Args:
-            sample_shape (t.Size): the size of the sample to be drawn.
+            sample_shape: the size of the sample to be drawn.
         """
         if not isinstance(sample_shape, t.Size):
             sample_shape = t.Size(sample_shape)
-        return sample_shape + self._batch_shape + self._event_shape
+        return t.Size(sample_shape + self._batch_shape + self._event_shape)
 
     @abc.abstractmethod
     def log_prob(self, value: Tensor) -> Tensor:
@@ -169,19 +175,22 @@ class CVAEPrior(MLP, abc.ABC):
     p_{theta}(z | x)
     """
     def __init__(self, arch: Optional[arch_t],
+                 latent_dim: int,
                  device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
+        abc.ABC.__init__(self)
         if arch is not None:
             MLP.__init__(self, arch, device, dtype)
         else:
             self.is_module: bool = False
-        abc.ABC.__init__(self)
+            self._parameters = {}
+            self._modules = {}
+        self.latent_dim = latent_dim
 
     def __call__(self, x: Tensor) -> _CVAE_Dist:
         if self.is_module:
-            dist_params = self.forward(x)
-            return self.get_dist(dist_params)
-        return self.get_dist()
+            return self.get_dist(self.forward(x))
+        return self.get_dist(None)
 
     @abc.abstractmethod
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
@@ -198,13 +207,13 @@ class CVAEEnc(MLP, abc.ABC):
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
+        MLP.__init__(self, arch, device, dtype)
 
     def __call__(self, y: Tensor, x: Tensor) -> _CVAE_RDist:
-        tmp = t.cat((y, x), -1)
-        dist_params = self.forward(tmp)
-        return self.get_dist(dist_params)
+        return self.get_dist(
+                    self.forward(
+                        t.cat((y, x), -1)))
 
     @abc.abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
@@ -220,23 +229,22 @@ class CVAEDec(MLP, abc.ABC):
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        MLP.__init__(self, arch, device, dtype)
         abc.ABC.__init__(self)
+        MLP.__init__(self, arch, device, dtype)
+
+    def __call__(self, z: Tensor, x: Tensor) -> _CVAE_Dist:
+        return self.get_dist(
+                    self.forward(
+                        t.cat((z, x), -1)))
 
     @abc.abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         raise NotImplementedError
 
-    def __call__(self, z: Tensor, x: Tensor) -> _CVAE_Dist:
-        tmp = t.cat((z, x), -1)
-        dist_params = self.forward(tmp)
-        return self.get_dist(dist_params)
-
 
 # CVAE Description ------------------------------------------------------------
 # This unfortunately cannot go in agnfinder.types for this causes a circular
 # dependency.
-
 
 class CVAEParams(abc.ABC):
     """Configuration class for CVAE.
@@ -345,14 +353,14 @@ class CVAE(nn.Module, abc.ABC):
         self.dtype = dtype
         self.latent_dim: int = cp.latent_dim
 
-        self.prior = cp.prior(cp.prior_arch, device, dtype)
+        self.prior = cp.prior(cp.prior_arch, cp.latent_dim, device, dtype)
         self.encoder = cp.encoder(cp.enc_arch, device, dtype)
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
 
-        nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
-                                   if n.is_module]
-        self.opt = t.optim.Adam([param for n in nets for param in n.parameters()],
-                                lr=1e-3)
+        # nets: list[MLP] = [n for n in [self.prior, self.encoder, self.decoder] \
+        #                            if n.is_module]
+        # print(f'CVAE trainable networks: {nets}')
+        # self.opt = t.optim.Adam(self.parameters())
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         """Perform any necessary pre-processing to the data before training.
@@ -388,9 +396,8 @@ class CVAE(nn.Module, abc.ABC):
         """
         return logpy + logpz - logqz
 
-
-    def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
-                   log_every: int = 100) -> None:
+    def trainmodel(self, train_loader: DataLoader, opt: t.optim.Optimizer,
+                   epochs: int = 10, log_every: int = 100) -> None:
         """Trains the CVAE
 
         Args:
@@ -409,15 +416,15 @@ class CVAE(nn.Module, abc.ABC):
                 x, y = self.preprocess(x, y)
 
                 # Get q_{phi}(z | y, x)
-                q = self.encoder(y, x)
+                q: _CVAE_RDist = self.encoder(y, x)
                 # Sample latent from q
-                z = q.sample()
+                z = q.rsample()  # equivalent to calling q.sample()
 
                 # Get p_{theta}(z | x)
-                pr = self.prior(x)
+                pr: _CVAE_Dist = self.prior(x)
 
                 # Get p_{theta}(y | z, x)
-                p = self.decoder(z, x)
+                p: _CVAE_Dist = self.decoder(z, x)
 
                 logpy = p.log_prob(y)
                 logpz = pr.log_prob(z)
@@ -426,9 +433,11 @@ class CVAE(nn.Module, abc.ABC):
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
                 loss = -(ELBO.mean(0))
-                self.opt.zero_grad()
+                opt.zero_grad()
+                # self.opt.zero_grad()
                 loss.backward()
-                self.opt.step()
+                # self.opt.step()
+                opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
                     logging.info(

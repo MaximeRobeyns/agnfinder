@@ -189,18 +189,15 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
     prior = inference.StandardGaussianPrior
-    prior_arch = arch_t(
-        layer_sizes=[cond_dim, 32],
-        activations=nn.ReLU(),
-        head_sizes=[latent_dim, latent_dim],
-        head_activations=None,
-        batch_norm=True)
+    prior_arch = None
+    # arch_t([cond_dim, 32], activations=nn.ReLU(), head_sizes=[latent_dim, latent_dim])
 
     # Gaussian recognition model q_{phi}(z | y, x)
     encoder = inference.GaussianEncoder
     enc_arch = arch_t(
         layer_sizes=[data_dim + cond_dim, 32],
         activations=nn.ReLU(),
+        # mean and log_std
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
         batch_norm=True)
@@ -211,6 +208,7 @@ class CVAEParams(ConfigClass, base.CVAEParams):
     dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32],
         activations=nn.ReLU(),
+        # mean and log_std
         head_sizes=[data_dim, data_dim],
         head_activations=None,
         batch_norm=True)
