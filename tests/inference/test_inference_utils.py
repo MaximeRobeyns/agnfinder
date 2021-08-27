@@ -17,6 +17,7 @@
 """Test inference utilities."""
 
 import torch as t
+import warnings
 import collections
 
 from torch.utils.data import Dataset
@@ -25,6 +26,7 @@ from agnfinder.inference.utils import GalaxyDataset, load_simulated_data
 
 fpath = './data/testdata/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
 
+warnings.filterwarnings('ignore', category=UserWarning)  # see torchvision pr #4184
 
 def test_GalaxyDataset():
     dset = GalaxyDataset(file=fpath, transforms=[t.from_numpy])

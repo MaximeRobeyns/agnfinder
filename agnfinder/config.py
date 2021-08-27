@@ -171,7 +171,7 @@ class InferenceParams(ConfigClass):
     batch_size: int = 32
     split_ratio: float = 0.9  # train / test split ratio
     dtype: t.dtype = t.float64
-    device: t.device = t.device("cpu")
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # Alternative device configurations:
     # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     # t.device("cuda")
@@ -189,18 +189,15 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
     prior = inference.StandardGaussianPrior
-    prior_arch = arch_t(
-        layer_sizes=[cond_dim, 32],
-        activations=nn.ReLU(),
-        head_sizes=[latent_dim, latent_dim],
-        head_activations=None,
-        batch_norm=True)
+    prior_arch = None
+    # arch_t([cond_dim, 32], activations=nn.ReLU(), head_sizes=[latent_dim, latent_dim])
 
     # Gaussian recognition model q_{phi}(z | y, x)
     encoder = inference.GaussianEncoder
     enc_arch = arch_t(
         layer_sizes=[data_dim + cond_dim, 32],
         activations=nn.ReLU(),
+        # mean and log_std
         head_sizes=[latent_dim, latent_dim],
         head_activations=None,
         batch_norm=True)
@@ -211,6 +208,7 @@ class CVAEParams(ConfigClass, base.CVAEParams):
     dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32],
         activations=nn.ReLU(),
+        # mean and log_std
         head_sizes=[data_dim, data_dim],
         head_activations=None,
         batch_norm=True)
@@ -256,10 +254,10 @@ def get_logging_config(p: LoggingParams) -> dict[str, Any]:
         # see: https://docs.python.org/3/library/logging.html#logrecord-attributes
         'formatters': {
             'standard': {
-                'format': '%(asctime)s [%(levelname)s] %(message)s'
+                'format': '[%(levelname)s] %(message)s'
             },
             'debug': {
-                'format': '[Dbg: %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
+                'format': '[Dbg: %(asctime)s %(levelname)s] %(message)s (in %(filename)s:%(lineno)d)'
             },
         },
         'handlers': {

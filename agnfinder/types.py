@@ -190,19 +190,25 @@ class arch_t(ConfigClass):
         """A class to describe a (non-convolutional) MLP architecture.
 
         Args:
-            layer_sizes: size of input, [hidden] layers.
+            layer_sizes: size of input, and hidden layers.
             head_sizes: size of output layer(s)
-            activations: instances of activation functions extending nn.Module.
+            activations: instances of activation functions to apply to input /
+                hidden layers. The same activation is re-used for all layers if
+                this is not a list.
+            head_activations: Optional list of activation functions to apply to
+                outputs. Can be ``None``, or a list of optional instances of
+                activation functions.
             batch_norm: whether to apply batch normalisation at each layer.
 
         Raises:
-            ValueError: if too few layer sizes are provided (minimum input and
-                output)
-            ValueError: if len(layer_sizes) != len(activations) when
+            ValueError: if ``layer_sizes`` is an empty list (minimum: one input
+                layer)
+            ValueError: if ``len(layer_sizes) != len(activations)`` when
                 activations is a list
             ValueError: if an activation function does not extend nn.Module
-            ValueError: if head_sizes is not list of int of length at least one
-            ValueError: if len(head_sizes) != len(head_activations)
+            ValueError: if ``head_sizes`` is not ``list[int]`` of length at
+                least one
+            ValueError: if ``len(head_sizes) != len(head_activations)``
 
         Examples:
 
@@ -228,10 +234,10 @@ class arch_t(ConfigClass):
 
         """
 
-        if len(layer_sizes) <= 1:
+        if len(layer_sizes) == 0:
             raise ValueError((
-                'At least 2 layer sizes must be given (in_shape, out_shape); '
-                f'{len(layer_sizes)} provided.'))
+                'layer_sizes cannot be an empty list: at the very least, '
+                'the input shape must be specified.'))
 
         self._activations: list[nn.Module] = []
         self._layer_sizes: list[int] = layer_sizes

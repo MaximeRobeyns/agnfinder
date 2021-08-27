@@ -3,6 +3,7 @@ fsps==0.4.1
 GPy>=1.10.0
 h5py>=3.3.0
 ipywidgets>=7.6.3
+ipympl
 matplotlib>=3.4.2
 numpy>=1.21.0
 pandas>=1.3.0
