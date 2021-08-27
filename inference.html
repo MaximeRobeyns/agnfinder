@@ -282,8 +282,8 @@ over the physical galaxy parameters <span class="math notranslate nohighlight">\
 samples and the photometric observations.</p>
 <p>As above, our objective is to find some <span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> such that
 <span class="math notranslate nohighlight">\(p_{\theta}(y \vert x) \approx p^{*}(y \vert x)\)</span>, and this can be acheived
-by maximising the (log) marginal likelihood of the <span class="math notranslate nohighlight">\(N\)</span> training observations
-under our model:</p>
+by maximising the (log) marginal likelihood of the <span class="math notranslate nohighlight">\(N\)</span> iid. training
+observations under our model:</p>
 <div class="math notranslate nohighlight" id="equation-lvmobjective">
 <span class="eqno">(1)<a class="headerlink" href="#equation-lvmobjective" title="Permalink to this equation">¶</a></span>\[ \underset{\theta \in \Theta}{\mathrm{argmax}}
  \sum_{i=1}^{N} \log p_{\theta}(y_{i} \vert x_{i})
@@ -371,7 +371,7 @@ objective that we try to maximise which, for completeness, is</p>
 <div class="math notranslate nohighlight">
 \[\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
 \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
- - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right]\]</div>
+ - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\]</div>
 <p>From the above, we can see that the ELBO optimises two quantities that we care
 about concurrently:</p>
 <ol class="arabic simple">
@@ -399,7 +399,7 @@ Monte Carlo approximation of the expectation:</p>
 \nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) -
 \log q_{\phi}(z \vert y, x)\big) \right] \\
 &amp;\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta}
-\log p_{\theta}(y, z \vert x)\end{split}\]</div>
+\log p_{\theta}(y, z \vert x).\end{split}\]</div>
 <p>However, when trying to get unbiased gradients of the ELBO wrt. the variational
 parameters <span class="math notranslate nohighlight">\(\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)\)</span>, we can no
 longer commute the derivative with the expectation:
@@ -441,7 +441,8 @@ Hence we may draw samples from <span class="math notranslate nohighlight">\(q_{\
 (\mu, \log \sigma) &amp;= f_{\text{enc}}(\phi, y, x) \\
 z &amp;= \mu + \sigma \odot \epsilon\end{split}\]</div>
 <p>where <span class="math notranslate nohighlight">\(\odot\)</span> represents an element-wise product and
-<span class="math notranslate nohighlight">\(f_{\text{enc}}\)</span> is the ‘<em>encoder</em>’ neural network.</p>
+<span class="math notranslate nohighlight">\(f_{\text{enc}}\)</span> is the ‘<em>encoder</em>’ neural network. The neural network
+directly outputs the log standard deviation for more stable training.</p>
 <p>To evaluate the density of some <span class="math notranslate nohighlight">\(z\)</span> under this distribution, we first find
 the Jacobian of this transformation, which in this isotropic Gaussian case is
 <span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon} = \text{diag}(\sigma)\)</span>. The
@@ -484,7 +485,7 @@ determinant of the Jacobian of the above simple.  The Jacobian is
 triangular matrix is the product of the diagonal elements, we get:</p>
 <div class="math notranslate nohighlight">
 \[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
-\sum_{i=1}^{n} \log \vert L_{ii} \vert\]</div>
+\sum_{i=1}^{n} \log \vert L_{ii} \vert.\]</div>
 <p>As an implementation point, we can output a matrix <span class="math notranslate nohighlight">\(L\)</span> with the desired
 properties from a neural network by constructing it as:</p>
 <div class="math notranslate nohighlight">
@@ -550,7 +551,7 @@ We can re-arrange the ELBO as</p>
    &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
    \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
    &amp;\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpy}} +
-   \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big]\end{split}\]</div>
+   \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big].\end{split}\]</div>
 <p>We have already derived the expression for evaluating <span class="math notranslate nohighlight">\(\log q_{\phi}(z
 \vert y, x)\)</span>:</p>
 <div class="math notranslate nohighlight">
@@ -624,11 +625,12 @@ class, so as to offer a framework with which to implement variations on the
 <li><p>the (conditional) prior network <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span></p></li>
 <li><p>the generation or <em>decoder</em> network <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span></p></li>
 </ul>
-<p>For easy modification and quick comparisons, these networks are described along
+<p>For easy modification and quick comparisons, these networks are specified along
 with the other CVAE parameters in the CVAE <a class="reference external" href="#cvae-configuration-config-py">configuration</a> (described later).</p>
 <p>By specifying the MLP architectures through instances of <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> classes in
-the configuration, this prevents writing repetitive code and keeps the neural
-network definitions close together.</p>
+the configuration, we can avoid having to write the same neural network
+initialisation code and further this keeps the neural network definitions close
+together for easy comparison.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> constructor has the following signature:</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="arch_t.__init__">
@@ -646,11 +648,11 @@ network definitions close together.</p>
 </dd>
 <dt class="field-even">Raises</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – if too few layer sizes are provided (minimum input and output)</p></li>
-<li><p><strong>ValueError</strong> – if len(layer_sizes) != len(activations) when activations is a list</p></li>
+<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">layer_sizes</span></code> is an empty list (minimum: one input layer)</p></li>
+<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">len(layer_sizes)</span> <span class="pre">!=</span> <span class="pre">len(activations)</span></code> when activations is a list</p></li>
 <li><p><strong>ValueError</strong> – if an activation function does not extend nn.Module</p></li>
-<li><p><strong>ValueError</strong> – if head_sizes is not list of int of length at least one</p></li>
-<li><p><strong>ValueError</strong> – if len(head_sizes) != len(head_activations)</p></li>
+<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">head_sizes</span></code> is not <code class="docutils literal notranslate"><span class="pre">list[int]</span></code> of length at least one</p></li>
+<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">len(head_sizes)</span> <span class="pre">!=</span> <span class="pre">len(head_activations)</span></code></p></li>
 </ul>
 </dd>
 <dt class="field-odd">Example</dt>
@@ -710,7 +712,7 @@ correspondingly parametrised <code class="docutils literal notranslate"><span cl
 <li><p><code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> is the base implementation of the recognition or <em>encoder</em> network
 <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>. As previously, the constructor accepts a
 neural network architecture description of type <code class="docutils literal notranslate"><span class="pre">arch_t</span></code>, except this time
-it is not optional. The only abstract methods to implement is also
+it is not optional. The only abstract method to implement is also
 <code class="docutils literal notranslate"><span class="pre">get_dist</span></code>, which takes the outputs of the encoder network as arguments, and
 returns a <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>. Recall that we must have a reparametrised
 distribution as the encoder distribution in order for SGD optimisation of the
@@ -760,7 +762,7 @@ above come together in the main training loop:</p></li>
 <p>The point of separating the distributions into their own classes, which are all
 collected in this file is that this maximises code re-use, and makes it
 effortless to experiment and perform ablation studies with different
-distributions by changing a single line in the main configuration.</p>
+distributions by changing a few lines in the main configuration.</p>
 <p>Classes in this file should either extend <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> or <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>.</p>
 </div>
 <div class="section" id="agnfinder-cvae-classes-inference-py">
