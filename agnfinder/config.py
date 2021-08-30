@@ -30,6 +30,7 @@ import agnfinder.inference.base as base
 import agnfinder.inference.inference as inference
 
 from agnfinder.inference.base import CVAE, cvae_t
+from agnfinder.inference.utils import Squareplus
 from agnfinder.types import Tensor, ConfigClass, paramspace_t, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
@@ -172,9 +173,6 @@ class InferenceParams(ConfigClass):
     split_ratio: float = 0.9  # train / test split ratio
     dtype: t.dtype = t.float64
     device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
-    # Alternative device configurations:
-    # t.device("cuda") if t.cuda.is_available() else t.device("cpu")
-    # t.device("cuda")
     model: cvae_t = CVAE
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
 
@@ -196,21 +194,18 @@ class CVAEParams(ConfigClass, base.CVAEParams):
     encoder = inference.GaussianEncoder
     enc_arch = arch_t(
         layer_sizes=[data_dim + cond_dim, 32],
-        activations=nn.ReLU(),
-        # mean and log_std
-        head_sizes=[latent_dim, latent_dim],
-        head_activations=None,
+        activations=nn.SiLU(),
+        head_sizes=[latent_dim, latent_dim, latent_dim**2], # mean and log_std
+        head_activations=[None, nn.ReLU(), nn.ReLU()],
         batch_norm=True)
 
-    # generator network arch: p_{theta}(y | z, x)
-    # Assume Gaussian parameters
-    decoder = inference.GaussianDecoder
+    # Gaussian generator network arch: p_{theta}(y | z, x)
+    decoder = inference.FactorisedGaussianDecoder
     dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32],
-        activations=nn.ReLU(),
-        # mean and log_std
         head_sizes=[data_dim, data_dim],
-        head_activations=None,
+        activations=nn.SiLU(),
+        head_activations=[None, Squareplus(1.2)],
         batch_norm=True)
 
 

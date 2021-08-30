@@ -82,15 +82,13 @@ class R_MVN(_CVAE_RDist):
                          dtype=mean.dtype)
         assert mean.device == L.device
         assert mean.dtype == L.dtype
-        # NOTE could flatten L, and then reshape it later, but this seems
-        # inefficient. Instead we raise an error if it has the wrong shape.
-        #
+        # TODO implement broadcast_all
         # old_L_shape = L.shape
         # self.mean, self.L = distutils.broadcast_all(mean, L.flatten(-2))
         # self.L = self.L.view(old_L_shape)
         self.mean = mean
-        self.L = L
         self.std = L.sum(-1)
+        self.cov = t.bmm(L, L.transpose(-2, -1))
 
     def log_prob(self, _:Tensor) -> Tensor:
         log2pi = math.log(2 * math.pi)
@@ -99,7 +97,7 @@ class R_MVN(_CVAE_RDist):
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         shape = self._extended_shape(sample_shape)
         self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
-        cov = self.L @ self.last_eps.unsqueeze(-1)
+        cov = self.cov @ self.last_eps.unsqueeze(-1)
         return self.mean + cov.squeeze()
 
 
@@ -160,8 +158,20 @@ class Manual_Gaussian(_CVAE_Dist):
             return t.normal(self.mean.expand(shape), self.std.expand(shape))
 
 
-# TODO create a standard (simplified) multivariate normal Gaussian distribution
-# class MVN():
+class MVN(_CVAE_Dist, dist.MultivariateNormal):
+    """Multivariate Gaussian
+
+    Warning: very slow / expensive.
+    """
+    def __init__(self, mean: Tensor, L: Tensor) -> None:
+        _CVAE_Dist.__init__(self)
+        dist.MultivariateNormal.__init__(self, mean, scale_tril=L)
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return dist.MultivariateNormal.log_prob(self, value)
+
+    def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        return dist.MultivariateNormal.sample(self, sample_shape)
 
 
 class Multinomial(_CVAE_Dist, dist.Multinomial):
