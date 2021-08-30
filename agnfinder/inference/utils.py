@@ -19,7 +19,9 @@
 import os
 import h5py
 import logging
+import warnings
 import torch as t
+import torch.nn as nn
 import numpy as np
 
 from torchvision import datasets, transforms
@@ -27,7 +29,6 @@ from typing import Any, Callable, Optional, Union
 from torch.utils.data import Dataset, DataLoader, random_split
 
 from agnfinder.types import Tensor, tensor_like
-
 
 
 class GalaxyDataset(Dataset):
@@ -114,6 +115,28 @@ def load_simulated_data(
     return train_loader, test_loader
 
 
+class Squareplus(nn.Module):
+    def __init__(self, a=2):
+        super().__init__()
+        self.a = a
+    def forward(self, x):
+        """The 'squareplus' activation function: has very similar properties to
+        softplus, but is computationally cheaper and more configurable.
+            - squareplus(0) = 1 (softplus(0) = ln 2)
+            - gradient diminishes more slowly for negative inputs.
+            - ReLU = (x + sqrt(x^2))/2
+            - 'squareplus' becomes smoother with higher 'a'
+        """
+        return (x + t.sqrt(t.square(x)+self.a*self.a))/2
+
+
+def squareplus_f(x, a=2):
+    """Functional version of the 'squareplus' activation function. See
+    `Squareplus` for more information.
+    """
+    return (x + t.sqrt(t.square(x)+a*a))/2
+
+
 # Testing Utilities -----------------------------------------------------------
 # The following functions are for use in the accompanying unit tests and
 # notebooks.
@@ -125,6 +148,7 @@ def _load_mnist(batch_size: int = 64, dtype: t.dtype = t.float64,
     """(Down)load MNIST dataset in ./data/testdata, and return training and
     test DataLoaders using specified batch_size.
     """
+    warnings.filterwarnings('ignore', category=UserWarning)  # see torchvision pr #4184
 
     transform = transforms.Compose([
         lambda x: np.array(x),

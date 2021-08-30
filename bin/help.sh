@@ -23,7 +23,7 @@ cat << EOF
 
 AGNfinder: Detect AGN from photometry in XXL data.
 
-Please use 'make target' where 'target' is one of:
+Please run 'make <target>' where '<target>' is one of:
 
     alltest     To run all the program's tests (including slow running ones)
     docs        To compile the documentation (requires Docker)

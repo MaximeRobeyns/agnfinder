@@ -48,17 +48,18 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
         return dist.Normal.rsample(self, sample_shape)
 
 
-class _Manual_R_Gaussian(_CVAE_RDist):
+class Manual_R_Gaussian(_CVAE_RDist):
     """
     Home baked reparametrised Gaussian distribution---this should be
     identical to the PyTorch wrapper above.
     """
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
-        assert mean.device == std.device
-        assert mean.dtype == std.dtype
         self.mean, self.std = distutils.broadcast_all(mean, std)
-        super(_CVAE_RDist, self).__init__(batch_shape=self.mean.size())
+        super().__init__(batch_shape=self.mean.size(), device=self.mean.device,
+                         dtype=self.mean.dtype)
+        assert self.mean.device == self.std.device
+        assert self.mean.dtype == self.std.dtype
 
     def log_prob(self, _: Tensor) -> Tensor:
         log2pi = math.log(2 * math.pi)
@@ -69,6 +70,37 @@ class _Manual_R_Gaussian(_CVAE_RDist):
         # create eps on same device / dtype as mean parameter.
         self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
         return self.mean + self.last_eps * self.std
+
+
+class R_MVN(_CVAE_RDist):
+    """
+    Reparametrised multivariate normal distribution (implementing only
+    essential methods)
+    """
+    def __init__(self, mean: Tensor, L: Tensor) -> None:
+        super().__init__(batch_shape=mean.size(), device=mean.device,
+                         dtype=mean.dtype)
+        assert mean.device == L.device
+        assert mean.dtype == L.dtype
+        # NOTE could flatten L, and then reshape it later, but this seems
+        # inefficient. Instead we raise an error if it has the wrong shape.
+        #
+        # old_L_shape = L.shape
+        # self.mean, self.L = distutils.broadcast_all(mean, L.flatten(-2))
+        # self.L = self.L.view(old_L_shape)
+        self.mean = mean
+        self.L = L
+        self.std = L.sum(-1)
+
+    def log_prob(self, _:Tensor) -> Tensor:
+        log2pi = math.log(2 * math.pi)
+        return -t.sum(0.5 * (log2pi + t.pow(self.last_eps, 2.)) + t.log(self.std), 1)
+
+    def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        shape = self._extended_shape(sample_shape)
+        self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
+        cov = self.L @ self.last_eps.unsqueeze(-1)
+        return self.mean + cov.squeeze()
 
 
 # Simple distributions ========================================================
@@ -89,32 +121,30 @@ class Gaussian(_CVAE_Dist, dist.Normal):
         return dist.Normal.sample(self, sample_shape)
 
 
-class Multinomial(_CVAE_Dist, dist.Multinomial):
-    """Multinomial distribution (PyTorch wrapper)"""
-
-    def __init__(self, params: Tensor) -> None:
+class Laplace(_CVAE_Dist, dist.Laplace):
+    def __init__(self, loc: Tensor, scale: Tensor) -> None:
         _CVAE_Dist.__init__(self)
-        dist.Multinomial.__init__(self, 1, params)
+        dist.Laplace.__init__(self, loc, scale)
 
     def log_prob(self, value: Tensor) -> Tensor:
-        return dist.Multinomial.log_prob(self, value)
+        return dist.Laplace.log_prob(self, value).sum(1)
 
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
-        return dist.Multinomial.sample(self, sample_shape)
+        return dist.Laplace.sample(self, sample_shape)
 
 
-class _Manual_Gaussian(_CVAE_Dist):
+class Manual_Gaussian(_CVAE_Dist):
     """
     Roll-your-own implementation of a factorised Gaussian distribution---once
     again, this should be identical to the PyTorch wrapper above.
     """
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
-        mean, std = distutils.broadcast_all(mean, std)
-        _CVAE_Dist.__init__(self, batch_shape=mean.size(), device=mean.device,
-                            dtype=mean.dtype)
-        self.mean = mean.to(self.device, self.dtype)
-        self.std = std.to(self.device, self.dtype)
+        self.mean, self.std = distutils.broadcast_all(mean, std)
+        _CVAE_Dist.__init__(self, batch_shape=self.mean.size(), device=self.mean.device,
+                            dtype=self.mean.dtype)
+        assert self.mean.device == self.std.device
+        assert self.mean.dtype == self.std.dtype
 
     def log_prob(self, value: Tensor) -> Tensor:
         var = self.std ** 2
@@ -128,3 +158,21 @@ class _Manual_Gaussian(_CVAE_Dist):
         shape = self._extended_shape(sample_shape)
         with t.no_grad():
             return t.normal(self.mean.expand(shape), self.std.expand(shape))
+
+
+# TODO create a standard (simplified) multivariate normal Gaussian distribution
+# class MVN():
+
+
+class Multinomial(_CVAE_Dist, dist.Multinomial):
+    """Multinomial distribution (PyTorch wrapper)"""
+
+    def __init__(self, params: Tensor) -> None:
+        _CVAE_Dist.__init__(self)
+        dist.Multinomial.__init__(self, 1, params)
+
+    def log_prob(self, value: Tensor) -> Tensor:
+        return dist.Multinomial.log_prob(self, value)
+
+    def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
+        return dist.Multinomial.sample(self, sample_shape)

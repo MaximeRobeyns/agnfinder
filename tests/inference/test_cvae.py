@@ -27,7 +27,6 @@ Need to test
 """
 
 import pytest
-import warnings
 import torch as t
 import torch.nn as nn
 
@@ -40,9 +39,6 @@ from agnfinder.inference import utils
 from agnfinder.inference.base import CVAE, CVAEParams, \
                                      CVAEDec, CVAEEnc, CVAEPrior, \
                                      _CVAE_Dist, _CVAE_RDist
-
-
-warnings.filterwarnings('ignore', category=UserWarning)  # see torchvision pr #4184
 
 
 # Testing MNIST CVAE definition -----------------------------------------------
@@ -127,7 +123,7 @@ class MNIST_label_params(CVAEParams):
 
     decoder = MultinomialDecoder
     dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim],
-                       nn.ReLU(), [nn.Softmax()])
+                       nn.ReLU(), [nn.Softmax(dim=1)])
 
 
 class MNIST_label_cvae(CVAE):
@@ -223,7 +219,7 @@ def test_cvae_MNIST_img():
     initial_loss = cvae.test_generator(test_loader)
     print('done initial loss')
     # train for just 1 epoch to keep things speedy
-    cvae.trainmodel(train_loader)
+    cvae.trainmodel(train_loader, epochs=1)
     print('done train model')
     final_loss = cvae.test_generator(test_loader)
     print('done final loss')
@@ -245,7 +241,7 @@ def test_cvae_MNIST_label():
 
     initial_loss = cvae.test_generator(test_loader)
     # train for just 1 epoch to keep things speedy(ish)
-    cvae.trainmodel(train_loader)
+    cvae.trainmodel(train_loader, epochs=1)
     final_loss = cvae.test_generator(test_loader)
 
     # Assert that loss is lower after a spot of training...

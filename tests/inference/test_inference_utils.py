@@ -26,8 +26,6 @@ from agnfinder.inference.utils import GalaxyDataset, load_simulated_data
 
 fpath = './data/testdata/photometry_simulation_1000n_z_0p0000_to_4p0000.hdf5'
 
-warnings.filterwarnings('ignore', category=UserWarning)  # see torchvision pr #4184
-
 def test_GalaxyDataset():
     dset = GalaxyDataset(file=fpath, transforms=[t.from_numpy])
     assert len(dset) == 1000

@@ -403,6 +403,15 @@ class CVAE(nn.Module, abc.ABC):
         Returns:
             Tensor: the batch of single-datapoint ELBOs
         """
+        if logpy.isnan().any():
+            logging.warn('logpy is NaN')
+            logpy = logpy.nan_to_num()
+        if logpz.isnan().any():
+            logging.warn('logpz is NaN')
+            logpz = logpz.nan_to_num()
+        if logqz.isnan().any():
+            logging.warn('logqz is NaN')
+            logqz = logqz.nan_to_num()
         return logpy + logpz - logqz
 
     def trainmodel(self, train_loader: DataLoader, epochs: int = 10,
@@ -465,7 +474,7 @@ class CVAE(nn.Module, abc.ABC):
             float: test loss
         """
         self.eval()
-        loss = 0.
+        loss = t.zeros(1, device=self.device, dtype=self.dtype)
         for x, y in test_loader:
             x, y = self.preprocess(x, y)
             pr: _CVAE_Dist = self.prior(x)
@@ -473,7 +482,7 @@ class CVAE(nn.Module, abc.ABC):
             p: _CVAE_Dist = self.decoder(z, x)
             NLL = p.log_prob(y)
             loss -= NLL.mean(0)
-        return loss / len(test_loader)
+        return float(loss / len(test_loader))
 
 # For use in configuration file.
 cvae_t = Type[CVAE]

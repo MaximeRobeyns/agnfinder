@@ -40,7 +40,7 @@ class StandardGaussianPrior(CVAEPrior):
         return dist.Gaussian(mean, std)
 
 
-class GaussianEncoder(CVAEEnc):
+class FactorisedGaussianEncoder(CVAEEnc):
     """
     A factorised Gaussian encoder; the distribution returned by this encoder
     implements reparametrised sampling and log_prob methods.
@@ -50,6 +50,18 @@ class GaussianEncoder(CVAEEnc):
         [mean, log_std] = dist_params
         std = t.exp(log_std)
         return dist.R_Gaussian(mean, std)
+
+
+class GaussianEncoder(CVAEEnc):
+    """A full-covariance Gaussian encoder."""
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
+        assert isinstance(dist_params, list) and len(dist_params) == 3
+        [mean, log_std, L] = dist_params
+        L = L.reshape((-1, log_std.size(-1), log_std.size(-1)))
+        std_diag = t.diag_embed(t.exp(log_std))
+        assert std_diag.shape == L.shape
+        L = t.tril(L, -1) + std_diag
+        return dist.R_MVN(mean, L)
 
 
 class GaussianDecoder(CVAEDec):
