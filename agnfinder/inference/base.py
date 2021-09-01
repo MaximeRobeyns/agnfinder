@@ -300,6 +300,11 @@ class CVAEParams(abc.ABC):
         raise NotImplementedError
 
     @property
+    def adam_lr(self) -> float:
+        """Learning rate to use with Adam optimizer"""
+        return 1e-3
+
+    @property
     def prior(self) -> Type[CVAEPrior]:
         """Reference to the prior class to use."""
         raise NotImplementedError
@@ -369,7 +374,7 @@ class CVAE(nn.Module, abc.ABC):
         self.encoder = cp.encoder(cp.enc_arch, device, dtype)
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
 
-        self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
+        self.opt = t.optim.Adam(self.parameters(), lr=cp.adam_lr)
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         """Perform any necessary pre-processing to the data before training.

@@ -115,6 +115,24 @@ class FactorisedGaussianDecoder(CVAEDec):
         return dist.Gaussian(mean, std)
 
 
+class MultinomialDecoder(CVAEDec):
+    """
+    A multinomial decoder. We shouldn't need this for galaxy data, but it's
+    here for tests and notebooks using MNIST.
+
+    Example architecture is:
+
+    >>> arch = arch_t(layer_sizes=[latent_dim + cond_dim, ...],
+    ...               head_sizes=[data_dim],  # p parameter for multinomial
+    ...               activations=SiLU(),
+    ...               head_activations=[nn.Softmax()]) # relative probs
+
+    """
+    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
+        assert isinstance(dist_params, t.Tensor)
+        return dist.Multinomial(dist_params)
+
+
 class LaplaceDecoder(CVAEDec):
     """
     A Laplace likelihood.

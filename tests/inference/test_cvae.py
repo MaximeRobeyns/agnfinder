@@ -30,50 +30,11 @@ import pytest
 import torch as t
 import torch.nn as nn
 
-from typing import Union
+import agnfinder.inference as inf
 
-import agnfinder.inference.distributions as dist
-
-from agnfinder.types import arch_t, DistParams, Tensor
+from agnfinder.types import arch_t, Tensor
 from agnfinder.inference import utils
-from agnfinder.inference.base import CVAE, CVAEParams, \
-                                     CVAEDec, CVAEEnc, CVAEPrior, \
-                                     _CVAE_Dist, _CVAE_RDist
-
-
-# Testing MNIST CVAE definition -----------------------------------------------
-# x = 10 dimensional one-hot encoded image labels ('conditioning info')
-# y = 28*28 = 784 dimensional pixel data ('data')
-# z = 2 dimensional latent vector
-
-
-class StandardGaussianPrior(CVAEPrior):
-    def get_dist(self, _) -> _CVAE_Dist:
-        mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
-        std = t.ones(self.latent_dim, device=self.device, dtype=self.dtype)
-        return dist.Gaussian(mean, std)
-
-
-class GaussianEncoder(CVAEEnc):
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
-        assert isinstance(dist_params, list) and len(dist_params) == 2
-        [mean, log_std] = dist_params
-        std = t.exp(log_std)
-        return dist.R_Gaussian(mean, std)
-
-
-class GaussianDecoder(CVAEDec):
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, list) and len(dist_params) == 2
-        [mean, log_std] = dist_params
-        std = t.exp(log_std)
-        return dist.Gaussian(mean, std)
-
-
-class MultinomialDecoder(CVAEDec):
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, Tensor)
-        return dist.Multinomial(dist_params)
+from agnfinder.inference.base import CVAE, CVAEParams
 
 
 # Image MNIST -----------------------------------------------------------------
@@ -84,14 +45,14 @@ class MNIST_img_params(CVAEParams):
     data_dim = 28*28  # y; size of MNIST image
     latent_dim = 2  # z
 
-    prior = StandardGaussianPrior
+    prior = inf.StandardGaussianPrior
     prior_arch = None
 
-    encoder = GaussianEncoder
+    encoder = inf.FactorisedGaussianEncoder
     enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
                       nn.ReLU())
 
-    decoder = GaussianDecoder
+    decoder = inf.FactorisedGaussianDecoder
     dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim, data_dim],
                       nn.ReLU(), [nn.Sigmoid(), nn.ReLU()])
 
@@ -114,14 +75,14 @@ class MNIST_label_params(CVAEParams):
     data_dim = 10  # y; size of one-hot encoded digit labels
     latent_dim = 2  # z
 
-    prior = StandardGaussianPrior
+    prior = inf.StandardGaussianPrior
     prior_arch = None
 
-    encoder = GaussianEncoder
+    encoder = inf.FactorisedGaussianEncoder
     enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
                        nn.ReLU())
 
-    decoder = MultinomialDecoder
+    decoder = inf.MultinomialDecoder
     dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim],
                        nn.ReLU(), [nn.Softmax(dim=1)])
 
@@ -148,11 +109,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            prior = StandardGaussianPrior
+            prior = inf.StandardGaussianPrior
             prior_arch = arch_t([2, 1], [1], nn.ReLU())
-            encoder = GaussianEncoder
+            encoder = inf.FactorisedGaussianEncoder
             enc_arch = arch_t([2, 1], [1], nn.ReLU())
-            decoder = GaussianDecoder
+            decoder = inf.FactorisedGaussianDecoder
             dec_arch = arch_t([2, 1], [1], nn.ReLU())
         _ = P1()
 
@@ -162,11 +123,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            prior = StandardGaussianPrior
+            prior = inf.StandardGaussianPrior
             prior_arch = None
-            encoder = GaussianEncoder
+            encoder = inf.FactorisedGaussianEncoder
             enc_arch = arch_t([3, 1], [1, 1], nn.ReLU())
-            decoder = GaussianDecoder
+            decoder = inf.FactorisedGaussianDecoder
             dec_arch = arch_t([2, 1], [1, 1], nn.ReLU())
         _ = P2()
 
@@ -176,11 +137,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
-            prior = StandardGaussianPrior
+            prior = inf.StandardGaussianPrior
             prior_arch = None
-            encoder = GaussianEncoder
+            encoder = inf.FactorisedGaussianEncoder
             enc_arch = arch_t([2, 1], [1, 1], nn.ReLU())
-            decoder = GaussianDecoder
+            decoder = inf.FactorisedGaussianDecoder
             dec_arch = arch_t([3, 1], [1, 1], nn.ReLU())
         _ = P3()
 

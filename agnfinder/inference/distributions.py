@@ -78,6 +78,13 @@ class R_MVN(_CVAE_RDist):
     essential methods)
     """
     def __init__(self, mean: Tensor, L: Tensor) -> None:
+        """
+        Reparametrised multivariate normal (Gaussian) distribution.
+
+        Args:
+            mean: the mean vector
+            L: a lower-triangular matrix, such that LL^{T} = Sigma.
+        """
         super().__init__(batch_shape=mean.size(), device=mean.device,
                          dtype=mean.dtype)
         assert mean.device == L.device
