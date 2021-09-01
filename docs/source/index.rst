@@ -9,6 +9,9 @@ For instructions on how to install the project, please see the `installation
 <installation.html>`_ page. This page contains information for both users and
 developers.
 
+For configuration guidance and general usage, please see the `configuration
+<configuration.html>`_ page.
+
 This is a fork of the original AGNFinder project by Mike Walmsey and
 collaborators, which aims to use (conditional) generative modelling techniques to
 map from photometry to distributions over physical parameters :math:`\theta`.
@@ -32,6 +35,7 @@ There are broadly two components;
    :numbered:
 
    installation
+   configuration
    sampling
    inference
 
