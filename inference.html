@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>3. Inferring Galaxy Parameters &mdash; AGN Finder Documentation 0.1 documentation</title>
+  <title>4. Inferring Galaxy Parameters &mdash; AGN Finder Documentation 0.1 documentation</title>
   
 
   
@@ -44,7 +44,7 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="2. Photometry Sampling" href="sampling.html" /> 
+    <link rel="prev" title="3. Photometry Sampling" href="sampling.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -95,25 +95,26 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Inferring Galaxy Parameters</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#conditional-variational-autoencoders">3.1. (Conditional) Variational Autoencoders</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#latent-variable-models">3.1.1. Latent Variable Models</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#lvm-objective">3.1.2. LVM Objective</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sgd-elbo-optimisation">3.1.3. SGD ELBO Optimisation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#likelihood">3.1.4. Likelihood</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">2. Program Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">4. Inferring Galaxy Parameters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#conditional-variational-autoencoders">4.1. (Conditional) Variational Autoencoders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#latent-variable-models">4.1.1. Latent Variable Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lvm-objective">4.1.2. LVM Objective</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sgd-elbo-optimisation">4.1.3. SGD ELBO Optimisation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#likelihood">4.1.4. Likelihood</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#implementation">3.2. Implementation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#architecture-description-types-py">3.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#base-cvae-classes-base-py">3.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cvae-distributions-distributions-py">3.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#agnfinder-cvae-classes-inference-py">3.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#utility-classes-utils-py">3.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cvae-configuration-config-py">3.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation">4.2. Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#architecture-description-types-py">4.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#base-cvae-classes-base-py">4.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cvae-distributions-distributions-py">4.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#agnfinder-cvae-classes-inference-py">4.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#utility-classes-utils-py">4.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cvae-configuration-config-py">4.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#references">3.3. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">4.3. References</a></li>
 </ul>
 </li>
 </ul>
@@ -164,7 +165,7 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li><span class="section-number">3. </span>Inferring Galaxy Parameters</li>
+      <li><span class="section-number">4. </span>Inferring Galaxy Parameters</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -185,7 +186,7 @@
             
   <p id="inference"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
 <div class="section" id="inferring-galaxy-parameters">
-<h1><span class="section-number">3. </span>Inferring Galaxy Parameters<a class="headerlink" href="#inferring-galaxy-parameters" title="Permalink to this headline">¶</a></h1>
+<h1><span class="section-number">4. </span>Inferring Galaxy Parameters<a class="headerlink" href="#inferring-galaxy-parameters" title="Permalink to this headline">¶</a></h1>
 <p>The original motivation behind the <em>AGNFinder</em> project was to speed up Bayesin
 SED fitting.
 MCMC approaches need to evaluate the likelihood term <span class="math notranslate nohighlight">\(p(x \vert \theta)\)</span>
@@ -222,7 +223,7 @@ uncover causal relations in an unsupervised manner <a class="reference internal"
 simulated dataset <span class="math notranslate nohighlight">\(\mathcal{D}\)</span>. This may make this approach more robust
 to extrapolation, and use in different surveys.</p>
 <div class="section" id="conditional-variational-autoencoders">
-<h2><span class="section-number">3.1. </span>(Conditional) Variational Autoencoders<a class="headerlink" href="#conditional-variational-autoencoders" title="Permalink to this headline">¶</a></h2>
+<h2><span class="section-number">4.1. </span>(Conditional) Variational Autoencoders<a class="headerlink" href="#conditional-variational-autoencoders" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>To avoid a clash of notation, we will henceforth denote the physical
@@ -231,7 +232,7 @@ the machine learning nomenclature of denoting outputs to be predicted as
 <span class="math notranslate nohighlight">\(y\)</span>, and model parameters as <span class="math notranslate nohighlight">\(\theta\)</span>.</p>
 </div>
 <div class="section" id="latent-variable-models">
-<h3><span class="section-number">3.1.1. </span>Latent Variable Models<a class="headerlink" href="#latent-variable-models" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.1.1. </span>Latent Variable Models<a class="headerlink" href="#latent-variable-models" title="Permalink to this headline">¶</a></h3>
 <p>A variational autoencoder (VAE) is an example of a <em>latent variable model</em>
 (LVM). Latent variables, often denoted <span class="math notranslate nohighlight">\(z\)</span>, are unobserved variables which
 ideally represent some disentangled, semantically meaningful, and statistically
@@ -297,7 +298,7 @@ this intractable model evidence, referred to as the <em>evidence lower bound</em
 (ELBO).</p>
 </div>
 <div class="section" id="lvm-objective">
-<h3><span class="section-number">3.1.2. </span>LVM Objective<a class="headerlink" href="#lvm-objective" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.1.2. </span>LVM Objective<a class="headerlink" href="#lvm-objective" title="Permalink to this headline">¶</a></h3>
 <p>We will derive this lower bound twice, to appreciate two different intuitions.
 While we use the conditional form of the VAE throughout—which is certainly
 more verbose than the vanilla VAE derivations—I think that the consistency
@@ -385,7 +386,7 @@ model better.</p></li>
 </ol>
 </div>
 <div class="section" id="sgd-elbo-optimisation">
-<h3><span class="section-number">3.1.3. </span>SGD ELBO Optimisation<a class="headerlink" href="#sgd-elbo-optimisation" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.1.3. </span>SGD ELBO Optimisation<a class="headerlink" href="#sgd-elbo-optimisation" title="Permalink to this headline">¶</a></h3>
 <p>We wish to optimise this ELBO objective over both <span class="math notranslate nohighlight">\(\theta\)</span> and
 <span class="math notranslate nohighlight">\(\phi\)</span>. While the gradient <span class="math notranslate nohighlight">\(\nabla_{\theta, \phi}\mathcal{L}(\theta,
 \phi; y, x)\)</span> is in general intractable, we can use Monte Carlo approximations as
@@ -511,7 +512,7 @@ repetition of the full-covariance Gaussian approach outlined above.</p>
 </div>
 </div>
 <div class="section" id="likelihood">
-<h3><span class="section-number">3.1.4. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.1.4. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline">¶</a></h3>
 <p>We have yet to specify a form for <span class="math notranslate nohighlight">\(p\)</span>. Recall that in our conditional LVM,
 the marginal likelihood is found by marginalising out the latent variable</p>
 <div class="math notranslate nohighlight">
@@ -541,7 +542,7 @@ right’, but we might not all have the same intuitions for galaxy parameters…
 </div>
 </div>
 <div class="section" id="implementation">
-<h2><span class="section-number">3.2. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
+<h2><span class="section-number">4.2. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
 <p>We now have all the components we need to actually optimise the ELBO using SGD.
 We can re-arrange the ELBO as</p>
 <div class="math notranslate nohighlight">
@@ -618,7 +619,7 @@ class, so as to offer a framework with which to implement variations on the
 </pre></div>
 </div>
 <div class="section" id="architecture-description-types-py">
-<h3><span class="section-number">3.2.1. </span>Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code><a class="headerlink" href="#architecture-description-types-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.1. </span>Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code><a class="headerlink" href="#architecture-description-types-py" title="Permalink to this headline">¶</a></h3>
 <p>There are up to three different neural networks needed to implement the CVAE:</p>
 <ul class="simple">
 <li><p>the recognition or <em>encoder</em> network <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>,</p></li>
@@ -686,7 +687,7 @@ respectively:</p>
 
 </div>
 <div class="section" id="base-cvae-classes-base-py">
-<h3><span class="section-number">3.2.2. </span>Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code><a class="headerlink" href="#base-cvae-classes-base-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.2. </span>Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code><a class="headerlink" href="#base-cvae-classes-base-py" title="Permalink to this headline">¶</a></h3>
 <p>This file contains the base classes that implement standard, repetitive code and
 give structure to the concrete CVAE classes which extend them.</p>
 <p>Most of these classes define abstract properties and methods which need to be
@@ -758,7 +759,7 @@ above come together in the main training loop:</p></li>
 </div>
 </div>
 <div class="section" id="cvae-distributions-distributions-py">
-<h3><span class="section-number">3.2.3. </span>CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code><a class="headerlink" href="#cvae-distributions-distributions-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.3. </span>CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code><a class="headerlink" href="#cvae-distributions-distributions-py" title="Permalink to this headline">¶</a></h3>
 <p>The point of separating the distributions into their own classes, which are all
 collected in this file is that this maximises code re-use, and makes it
 effortless to experiment and perform ablation studies with different
@@ -766,7 +767,7 @@ distributions by changing a few lines in the main configuration.</p>
 <p>Classes in this file should either extend <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> or <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>.</p>
 </div>
 <div class="section" id="agnfinder-cvae-classes-inference-py">
-<h3><span class="section-number">3.2.4. </span>AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code><a class="headerlink" href="#agnfinder-cvae-classes-inference-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.4. </span>AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code><a class="headerlink" href="#agnfinder-cvae-classes-inference-py" title="Permalink to this headline">¶</a></h3>
 <p>This is where the concrete <code class="docutils literal notranslate"><span class="pre">CVAEPrior</span></code>, <code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> and <code class="docutils literal notranslate"><span class="pre">CVAEDec</span></code> classes
 (respectively, <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span>, <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> and
 <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span>) are defined.</p>
@@ -774,14 +775,14 @@ distributions by changing a few lines in the main configuration.</p>
 preprocessing can also be performed by extending the base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> class.</p>
 </div>
 <div class="section" id="utility-classes-utils-py">
-<h3><span class="section-number">3.2.5. </span>Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code><a class="headerlink" href="#utility-classes-utils-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.5. </span>Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code><a class="headerlink" href="#utility-classes-utils-py" title="Permalink to this headline">¶</a></h3>
 <p>Contains data loaders for galaxy data. It is better to perform any data
 transformations here (once, before of running the inference code), rather than in
 the <code class="docutils literal notranslate"><span class="pre">CVAE.preprocess</span></code> method, which is run once at the beginning of each
 iteration of each epoch.</p>
 </div>
 <div class="section" id="cvae-configuration-config-py">
-<h3><span class="section-number">3.2.6. </span>CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code><a class="headerlink" href="#cvae-configuration-config-py" title="Permalink to this headline">¶</a></h3>
+<h3><span class="section-number">4.2.6. </span>CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code><a class="headerlink" href="#cvae-configuration-config-py" title="Permalink to this headline">¶</a></h3>
 <p>The components of the CVAE implementation are structured in the way that they
 are mainly because this affords us a very flexible way to compose different
 components of the model. Hence with minimal changes to the configuration file,
@@ -843,7 +844,7 @@ the corresponding distribution is expecting.</p>
 </div>
 </div>
 <div class="section" id="references">
-<h2><span class="section-number">3.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<h2><span class="section-number">4.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
 <dl class="citation">
 <dt class="label" id="cvae2015"><span class="brackets"><a class="fn-backref" href="#id2">CVAE2015</a></span></dt>
 <dd><p>Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. ‘Learning Structured
@@ -881,7 +882,7 @@ Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="sampling.html" class="btn btn-neutral float-left" title="2. Photometry Sampling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sampling.html" class="btn btn-neutral float-left" title="3. Photometry Sampling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>
