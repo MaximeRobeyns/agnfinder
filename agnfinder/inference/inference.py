@@ -20,6 +20,7 @@ import logging
 import torch as t
 
 from typing import Union, Optional
+from torchvision import transforms
 
 import agnfinder.inference.distributions as dist
 from agnfinder import config as cfg
@@ -162,6 +163,7 @@ if __name__ == '__main__':
     # initialise the model
     cvae = ip.model(cp, device=ip.device, dtype=ip.dtype)
     logging.info('Initialised CVAE network')
+    logging.info(f'Saving to: {cvae.fpath()}')
 
     # load the generated (theta, photometry) dataset
     train_loader, test_loader = load_simulated_data(
@@ -169,8 +171,7 @@ if __name__ == '__main__':
         split_ratio=ip.split_ratio,
         batch_size=ip.batch_size,
         transforms=[
-            t.from_numpy,
-            lambda x: x.to(dtype=ip.dtype, device=ip.device)
+            transforms.ToTensor()
         ])
     logging.info('Created data loaders')
 
@@ -178,4 +179,6 @@ if __name__ == '__main__':
     cvae.trainmodel(train_loader, ip.epochs)
     logging.info('Trained CVAE')
 
-    # TODO evaluate and optionally output plots and figures
+    t.save(cvae, cvae.fpath())
+    logging.info(f'Saved model CVAE as: {cvae.fpath()}')
+

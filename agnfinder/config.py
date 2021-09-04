@@ -31,7 +31,7 @@ import agnfinder.inference.inference as inference
 
 from agnfinder.inference.base import CVAE, cvae_t
 from agnfinder.inference.utils import Squareplus
-from agnfinder.types import Tensor, ConfigClass, paramspace_t, arch_t, \
+from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters
@@ -40,7 +40,7 @@ from agnfinder.types import Tensor, ConfigClass, paramspace_t, arch_t, \
 # ============================= Free Parameters ===============================
 
 
-class FreeParameters(ConfigClass):
+class FreeParams(FreeParameters):
     # Keys prefixed by 'log_*' will be exponentiated later.
     redshift: tuple[float, float] = (0., 4.)
     # Mass of the galaxy
@@ -64,7 +64,7 @@ class FreeParameters(ConfigClass):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 10000
+    n_samples: int = 1000000
     redshift_min: float = 0.
     redshift_max: float = 4.
     save_dir: str = './data/cubes'
@@ -168,13 +168,13 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(ConfigClass):
-    epochs: int = 8
+    epochs: int = 1
     batch_size: int = 32
     split_ratio: float = 0.9  # train / test split ratio
     dtype: t.dtype = t.float64
     device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     model: cvae_t = CVAE
-    dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5'
+    dataset_loc: str = './data/cubes/photometry_simulation_1000000n_z_0p0000_to_4p0000.hdf5'
 
 
 # ======================= Inference (CVAE) Parameters =========================
@@ -183,7 +183,7 @@ class InferenceParams(ConfigClass):
 class CVAEParams(ConfigClass, base.CVAEParams):
     cond_dim = 8  # x; dimension of photometry
     data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
-    latent_dim = 4  # z
+    latent_dim = 2  # z
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
     prior = inference.StandardGaussianPrior
@@ -191,21 +191,22 @@ class CVAEParams(ConfigClass, base.CVAEParams):
     # arch_t([cond_dim, 32], activations=nn.ReLU(), head_sizes=[latent_dim, latent_dim])
 
     # Gaussian recognition model q_{phi}(z | y, x)
-    encoder = inference.GaussianEncoder
+    encoder = inference.FactorisedGaussianEncoder
     enc_arch = arch_t(
         layer_sizes=[data_dim + cond_dim, 32],
         activations=nn.SiLU(),
-        head_sizes=[latent_dim, latent_dim, latent_dim**2], # mean and log_std
-        head_activations=[None, nn.ReLU(), nn.ReLU()],
+        head_sizes=[latent_dim, latent_dim], # mean and log_std
+        head_activations=[None, Squareplus(0.2)],
         batch_norm=True)
+
 
     # Gaussian generator network arch: p_{theta}(y | z, x)
     decoder = inference.FactorisedGaussianDecoder
     dec_arch = arch_t(
-        layer_sizes=[latent_dim + cond_dim, 32],
+        layer_sizes=[latent_dim + cond_dim, 32, 16],
         head_sizes=[data_dim, data_dim],
         activations=nn.SiLU(),
-        head_activations=[None, Squareplus(1.2)],
+        head_activations=[None, Squareplus(0.8)],
         batch_norm=True)
 
 
@@ -325,31 +326,3 @@ def configure_logging(console_level: Union[int, None] = None,
     dictConfig(get_logging_config(lp))
     logging.info(
         f'\n\n{79*"~"}\n\n\tAGNFinder\n\t{time.ctime()}\n\n{79*"~"}\n\n')
-
-
-# TODO move to types and inherit from FreeParameters
-class FreeParams(FreeParameters):
-    def __init__(self):
-
-        raw_members = [
-            a for a in dir(self)
-            if not callable(getattr(self, a))
-            and not a.startswith("__")]
-
-        self.raw_params: paramspace_t = {}
-        self.params: Tensor = t.empty((0, 2), dtype=t.float64)
-        self.log: Tensor = t.empty((0, 1), dtype=t.bool)
-
-        for m in raw_members:
-            self.raw_params[m] = getattr(self, m)
-            self.log = t.cat(
-                (self.log, t.tensor([[1 if m.startswith('log') else 0]],
-                                    dtype=t.bool)))
-            self.params = t.cat(
-                (self.params, t.tensor([getattr(self, m)], dtype=t.float64)))
-
-        # Remove unnecessary singleton dimension in mask
-        self.log = self.log.squeeze(-1)
-
-    def __len__(self) -> int:
-        return len(self.raw_params)

@@ -191,6 +191,8 @@ class CVAEPrior(MLP, abc.ABC):
             self.is_module: bool = False
             self._parameters = {}
             self._modules = {}
+            self._buffers = {}
+            self._state_dict_hooks = {}
         self.latent_dim = latent_dim
         self.device, self.dtype = device, dtype
 
@@ -198,6 +200,9 @@ class CVAEPrior(MLP, abc.ABC):
         if self.is_module:
             return self.get_dist(self.forward(x))
         return self.get_dist(None)
+
+    def __repr__(self) -> str:
+        return type(self).__name__
 
     @abc.abstractmethod
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
@@ -223,6 +228,9 @@ class CVAEEnc(MLP, abc.ABC):
                     self.forward(
                         t.cat((y, x), -1)))
 
+    def __repr__(self) -> str:
+        return type(self).__name__
+
     @abc.abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         raise NotImplementedError
@@ -245,6 +253,9 @@ class CVAEDec(MLP, abc.ABC):
         return self.get_dist(
                     self.forward(
                         t.cat((z, x), -1)))
+
+    def __repr__(self) -> str:
+        return type(self).__name__
 
     @abc.abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
@@ -367,6 +378,7 @@ class CVAE(nn.Module, abc.ABC):
         super().__init__()  # init nn.Module, ABC
         self.device = device
         self.dtype = dtype
+        self.cp = cp
         self.latent_dim = cp.latent_dim
         self.logging_callbacks = logging_callbacks
 
@@ -488,6 +500,13 @@ class CVAE(nn.Module, abc.ABC):
             NLL = p.log_prob(y)
             loss -= NLL.mean(0)
         return float(loss / len(test_loader))
+
+    def fpath(self) -> str:
+        """Returns a file path to save the model to, based on parameters."""
+        # TODO generate a more unique model name based on network architectures.
+        name = f'{self.prior}_{self.encoder}_{self.decoder}'
+        return f'./results/models/{name}.pt'
+
 
 # For use in configuration file.
 cvae_t = Type[CVAE]

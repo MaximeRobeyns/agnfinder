@@ -1,5 +1,7 @@
 .. AGN Finder documentation master file
 
+`GitHub Project <https://github.com/MaximeRobeyns/agnfinder>`_
+
 AGN Finder documentation
 ========================
 

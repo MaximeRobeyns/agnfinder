@@ -177,6 +177,74 @@ class OptionalValue(Optional):
         return f'OptionalValue({repr(self.maybefloatvalue)})'
 
 
+# Free Parameter Configuration ------------------------------------------------
+
+
+class FreeParameters(ConfigClass):
+
+    def __init__(self):
+
+        # This list provides the order.
+        self.raw_members: list[str] = ['agn_eb_v', 'dust2', 'inclination',
+            'log_agn_mass', 'log_agn_torus_mass', 'log_mass', 'log_tau',
+            'redshift', 'tage']
+
+        self.raw_params: paramspace_t = {}
+        self.params: Tensor = t.empty((0, 2), dtype=t.float64)
+        self.log: Tensor = t.empty((0, 1), dtype=t.bool)
+
+        # fill in all the parameter values.
+        for m in self.raw_members:
+            self.raw_params[m] = getattr(self, m)
+            self.log = t.cat(
+                (self.log, t.tensor([[1 if m.startswith('log') else 0]],
+                                    dtype=t.bool)))
+            self.params = t.cat(
+                (self.params, t.tensor([getattr(self, m)], dtype=t.float64)))
+
+        # Remove unnecessary singleton dimension in mask
+        self.log = self.log.squeeze(-1)
+
+    def __len__(self) -> int:
+        return len(self.raw_params)
+
+    @property
+    def redshift(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def log_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def log_agn_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def log_agn_torus_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def dust2(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def tage(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def log_tau(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def agn_eb_v(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+    @property
+    def inclination(self) -> tuple[float, float]:
+        raise NotImplementedError
+
+
 # Feed-Forward MLP Architecture Description -----------------------------------
 
 

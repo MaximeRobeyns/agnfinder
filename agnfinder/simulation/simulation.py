@@ -71,11 +71,14 @@ class Simulator(object):
 
     def sample_theta(self) -> None:
         """Generates a dataset via latin hypercube sampling."""
+        logging.info((f'Drawing {self.n_samples} samples from '
+                      f'a {self.dims}-dimensional space...'))
         # Use latin hypercube sampling to generate photometry from across the
         # parameter space.
         self.hcube = utils.get_unit_latin_hypercube(
             self.dims, self.n_samples
         )
+        logging.info(f'Completed Latin-hypercube sampling.')
 
         # Shift normalised redshift parameter to lie within the desired range.
         self.hcube[:, 0] = utils.shift_redshift_theta(
@@ -132,8 +135,7 @@ class Simulator(object):
         with h5py.File(self.save_loc, 'w') as f:
             grp = f.create_group('samples')
             ds_x = grp.create_dataset('theta', data=self.theta.numpy())
-            # TODO does order matter?
-            # If so, are free_params in the correct order?
+
             ds_x.attrs['columns'] = list(self.free_params.raw_params.keys())
             ds_x.attrs['description'] = 'Parameters used by simulator'
 
