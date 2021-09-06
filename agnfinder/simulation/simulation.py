@@ -52,6 +52,7 @@ class Simulator(object):
         self.save_name = 'photometry_simulation_{}n_z_{}_to_{}.hdf5'.format(
             args.n_samples, rshift_min_string, rshift_max_string
         )
+        self.sim_tag = f'sim:z:{args.rshift_min:.4f}-{args.rshift_max:.4f}'
         self.save_dir: str = args.save_dir
         self.save_loc: str = os.path.join(self.save_dir, self.save_name)
 
@@ -67,18 +68,18 @@ class Simulator(object):
 
         # The hypercube of (denormalised) galaxy parameters
         self.theta: Tensor
-        logging.debug('Successfully initialised Simulator object')
+        logging.info(f'{self.sim_tag}: Initialised simulator')
 
     def sample_theta(self) -> None:
         """Generates a dataset via latin hypercube sampling."""
-        logging.info((f'Drawing {self.n_samples} samples from '
-                      f'a {self.dims}-dimensional space...'))
+        logging.info((f'{self.sim_tag}: Drawing {self.n_samples} samples from '
+                      f'{self.dims}-dimensional space...'))
         # Use latin hypercube sampling to generate photometry from across the
         # parameter space.
         self.hcube = utils.get_unit_latin_hypercube(
             self.dims, self.n_samples
         )
-        logging.info(f'Completed Latin-hypercube sampling.')
+        logging.info(f'{self.sim_tag}: Completed Latin-hypercube sampling.')
 
         # Shift normalised redshift parameter to lie within the desired range.
         self.hcube[:, 0] = utils.shift_redshift_theta(
@@ -89,7 +90,7 @@ class Simulator(object):
         # parameter space (taking logs if needed).
         self.theta = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
-        logging.debug('Sampled galaxy parameters')
+        logging.debug(f'{self.sim_tag}: Sampled galaxy parameters')
 
     def create_forward_model(self):
         """Initialises a Prospector problem, and obtains the forward model."""
@@ -103,7 +104,7 @@ class Simulator(object):
 
         self.forward_model = problem.get_forward_model()
         self.has_forward_model = True
-        logging.info('Created forward model')
+        logging.info(f'{self.sim_tag}: Created forward model')
 
     def run(self):
         """Run the sampling over all the galaxy parameters."""
@@ -115,7 +116,7 @@ class Simulator(object):
             self.create_forward_model()
 
         Y = np.zeros((self.n_samples, self.output_dim))
-        for n in tqdm.tqdm(range(len(self.theta))):
+        for n in tqdm.tqdm(range(len(self.theta)), self.sim_tag):
             Y[n] = self.forward_model(self.theta[n].numpy())
         self.galaxy_photometry = Y
         self.has_run = True
@@ -188,6 +189,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Find AGN')
     parser.add_argument(
+            '--concurrency', default=8, type=int)
+    parser.add_argument(
             '--n_samples', default=sp.n_samples, type=int)
     parser.add_argument(
             '--z-min', dest='rshift_min', default=sp.redshift_min, type=float)
@@ -204,6 +207,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logging.info(f'Simulation arguments are: {args}')
+
+    # begin concurrency different processes here.
 
     sim = Simulator(args, fp)
 

@@ -130,12 +130,12 @@ class QuasarTemplateParams(ConfigClass):
     results_dir: str = 'results'
 
     # quasar parameters
-    recreate_quasar_template: bool = True
+    recreate_quasar_template: bool = False
     quasar_data_loc: str = './data/quasar_template_shang.txt'
     interpolated_quasar_loc: str = './data/quasar_template_interpolated.dill'
 
     # dusty torus model paramteres
-    recreate_torus_template: bool = True
+    recreate_torus_template: bool = False
     torus_data_loc: str = './data/clumpy_models_201410_tvavg.hdf5'
     interpolated_torus_loc: str = './data/normalised_torus_model.dill'
 
@@ -155,7 +155,7 @@ class QuasarTemplateParams(ConfigClass):
 
 class ExtinctionTemplateParams(ConfigClass):
     results_dir: str = 'results'
-    recreate_extinction_template: bool = True
+    recreate_extinction_template: bool = False
     interpolated_smc_extinction_loc: str \
                        = './data/interpolated_smc_extinction.dill'
     smc_data_loc: str = './data/smc_extinction_prevot_1984.dat'

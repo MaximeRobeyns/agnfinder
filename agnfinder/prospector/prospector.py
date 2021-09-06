@@ -94,13 +94,10 @@ class Prospector(object):
                 theta = theta.squeeze()
                 assert theta.ndim == 1
 
-            # Check mass is of correct order
-            # TODO figure out why this assertion is not passing...
-            # if 'zred' in self.model.free_params:
-            #     mass_index = 1
-            # else:
-            #     mass_index = 0
-            # assert theta[mass_index] > 1e7
+            # Check mass is of correct order; >1e7.
+            # (From the `raw_members` array in types.py:FreeParameters, the
+            # mass parameter is at index 5)
+            assert theta[5] > 1e7
 
             model_photometry = self._calculate_photometry(theta)
 
