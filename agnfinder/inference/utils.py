@@ -53,7 +53,6 @@ class GalaxyDataset(Dataset):
         assert isinstance(samples, h5py.Group)
         xs = np.array(samples.get('simulated_y'))
         ys = np.array(samples.get('theta'))
-        print(samples.get('theta').attrs['columns'])
         self._x_dim, self._y_dim = xs.shape[-1], ys.shape[-1]
         self.dataset = np.concatenate((xs, ys), -1)
 

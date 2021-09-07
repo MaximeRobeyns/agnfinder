@@ -54,7 +54,6 @@ tensor_like = Union[np.ndarray, Tensor]
 
 # Filters ---------------------------------------------------------------------
 
-
 # 'Enum' for filter selection
 class FilterSet():
     def __init__(self, name: str, dim: int):

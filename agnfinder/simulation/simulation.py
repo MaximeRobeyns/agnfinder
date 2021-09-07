@@ -23,8 +23,9 @@ import os
 import tqdm
 import h5py
 import logging
-import argparse
 import numpy as np
+
+from multiprocessing import Pool
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
@@ -34,8 +35,24 @@ from agnfinder.prospector import Prospector
 
 class Simulator(object):
 
-    def __init__(self, args: argparse.Namespace, free_params: cfg.FreeParams):
+    def __init__(self, rshift_min: float, rshift_max: float,
+                 worker_idx: int = 0) -> None:
+        """Initialise the simulator class.
+
+        The majority of the arguments are obtained from the configuration file.
+
+        Args:
+            rshift_min: Minimum redshift value (must be non-negative)
+            rshift_max: Maximum redshift value for this cube
+            worker_idx: index of this process, if in worker pool
+        """
         super(Simulator, self).__init__()
+
+        free_params = cfg.FreeParams()
+        s_params = cfg.SamplingParams()
+        sps_params = cfg.SPSParams()
+
+        n_samples = int(s_params.n_samples / s_params.concurrency)
 
         self.hcube_sampled: bool = False
         self.has_forward_model: bool = False
@@ -47,39 +64,41 @@ class Simulator(object):
         self.dims: int = len(self.free_params)
 
         # Variables for saving results.
-        rshift_min_string = f'{args.rshift_min:.4f}'.replace('.', 'p')
-        rshift_max_string = f'{args.rshift_max:.4f}'.replace('.', 'p')
-        self.save_name = 'photometry_simulation_{}n_z_{}_to_{}.hdf5'.format(
-            args.n_samples, rshift_min_string, rshift_max_string
+        rshift_min_string = f'{rshift_min:.4f}'.replace('.', 'p')
+        rshift_max_string = f'{rshift_max:.4f}'.replace('.', 'p')
+        self.save_name = 'photometry_simulation_{}n_z_{}_to_{}_w_{}.hdf5'.format(
+            n_samples, rshift_min_string, rshift_max_string, worker_idx
         )
-        self.sim_tag = f'sim:z:{args.rshift_min:.4f}-{args.rshift_max:.4f}'
-        self.save_dir: str = args.save_dir
+        self.widx = worker_idx
+        self.save_dir: str = os.path.join(s_params.save_dir, "partials")
         self.save_loc: str = os.path.join(self.save_dir, self.save_name)
 
-        self.n_samples: int = args.n_samples
-        self.emulate_ssp: bool = args.emulate_ssp
-        self.noise: bool = args.noise
+        self.n_samples: int = n_samples
+        self.emulate_ssp: bool = sps_params.emulate_ssp
+        self.noise: bool = s_params.noise
 
-        self.filters: FilterSet = self._str_to_filter(args.filters)
+        self.filters: FilterSet = s_params.filters
         self.output_dim = self.filters.dim
 
-        self.rshift_range: tuple[float, float] = \
-            (args.rshift_min, args.rshift_max)
+        self.rshift_range: tuple[float, float] = (rshift_min, rshift_max)
 
         # The hypercube of (denormalised) galaxy parameters
         self.theta: Tensor
-        logging.info(f'{self.sim_tag}: Initialised simulator')
+        if self.widx == 0:
+            logging.info(f'Initialised simulator')
 
     def sample_theta(self) -> None:
         """Generates a dataset via latin hypercube sampling."""
-        logging.info((f'{self.sim_tag}: Drawing {self.n_samples} samples from '
-                      f'{self.dims}-dimensional space...'))
+        if self.widx == 0:
+            logging.info((f'Drawing {self.n_samples} samples from '
+                          f'{self.dims}-dimensional space...'))
         # Use latin hypercube sampling to generate photometry from across the
         # parameter space.
         self.hcube = utils.get_unit_latin_hypercube(
             self.dims, self.n_samples
         )
-        logging.info(f'{self.sim_tag}: Completed Latin-hypercube sampling.')
+        if self.widx == 0:
+            logging.info(f'Completed Latin-hypercube sampling.')
 
         # Shift normalised redshift parameter to lie within the desired range.
         self.hcube[:, 0] = utils.shift_redshift_theta(
@@ -90,7 +109,8 @@ class Simulator(object):
         # parameter space (taking logs if needed).
         self.theta = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
-        logging.debug(f'{self.sim_tag}: Sampled galaxy parameters')
+        if self.widx == 0:
+            logging.debug(f'Sampled galaxy parameters')
 
     def create_forward_model(self):
         """Initialises a Prospector problem, and obtains the forward model."""
@@ -104,7 +124,8 @@ class Simulator(object):
 
         self.forward_model = problem.get_forward_model()
         self.has_forward_model = True
-        logging.info(f'{self.sim_tag}: Created forward model')
+        if self.widx == 0:
+            logging.info(f'Created forward model')
 
     def run(self):
         """Run the sampling over all the galaxy parameters."""
@@ -116,10 +137,15 @@ class Simulator(object):
             self.create_forward_model()
 
         Y = np.zeros((self.n_samples, self.output_dim))
-        for n in tqdm.tqdm(range(len(self.theta)), self.sim_tag):
-            Y[n] = self.forward_model(self.theta[n].numpy())
+        if self.widx == 0:
+            for n in tqdm.tqdm(range(len(self.theta)), self.widx):
+                Y[n] = self.forward_model(self.theta[n].numpy())
+        else:
+            for n in range(len(self.theta)):
+                Y[n] = self.forward_model(self.theta[n].numpy())
         self.galaxy_photometry = Y
         self.has_run = True
+        logging.info(f'Worker {self.widx} finished simulation run')
 
     def save_samples(self):
         """Save the sampled parameter hypercube, and resulting photometry to
@@ -135,12 +161,14 @@ class Simulator(object):
 
         with h5py.File(self.save_loc, 'w') as f:
             grp = f.create_group('samples')
-            ds_x = grp.create_dataset('theta', data=self.theta.numpy())
 
-            ds_x.attrs['columns'] = list(self.free_params.raw_params.keys())
+            ds_x = grp.create_dataset('theta', data=self.theta.numpy())
+            ds_x.attrs['columns'] = self.free_params.raw_members
             ds_x.attrs['description'] = 'Parameters used by simulator'
 
+            # TODO should we be saving denormalised theta here?
             ds_x_norm = grp.create_dataset('normalised_theta', data=self.hcube)
+            ds_x_norm.attrs['columns'] = self.free_params.raw_members
             ds_x_norm.attrs['description'] = \
                 'Normalised parameters used by simulator'
 
@@ -148,16 +176,15 @@ class Simulator(object):
                 'simulated_y', data=self.galaxy_photometry)
             ds_y.attrs['description'] = 'Response of simulator'
 
-            if self.phot_wavelengths is not None:
-                ds_wavelengths = grp.create_dataset(
-                    'wavelengths', data=self.phot_wavelengths)
-                ds_wavelengths.attrs['description'] = \
-                    'Observer wavelengths to visualise simulator photometry'
-
-        logging.info(f'Saved samples to {self.save_loc}')
+            ds_wavelengths = grp.create_dataset(
+                'wavelengths', data=self.phot_wavelengths)
+            ds_wavelengths.attrs['description'] = \
+                'Observer wavelengths to visualise simulator photometry'
+        logging.debug(f'Saved partial samples to {self.save_loc}')
 
     def _str_to_filter(self, name: str) -> FilterSet:
         """Convenience method to convert filter name to filter.
+        NOTE: this is no longer used (since cli args no longer accepted)
 
         Args:
             name: The valid filter name
@@ -177,40 +204,19 @@ class Simulator(object):
         else:
             raise ValueError(f'Unrecognised filter name {name}')
 
-if __name__ == '__main__':
 
-    # Configure the root logger using the values in config.py:logging_config
-    cfg.configure_logging()
+def work_func(zmin: float, zmax: float, worker_idx: int) -> None:
+    """The entrypoint for the forked process in the worker pool to run the
+    sampling on a sub-cube.
 
-    # Get the defaults from config.py
-    sp = cfg.SamplingParams()
-    fp = cfg.FreeParams()
-    sps = cfg.SPSParams()
+    Args:
+        zmin: minimum redshift for this sub-cube
+        zmax: maximum redshift for this sub-cube
+        worker_idx: unique job index
+    """
 
-    parser = argparse.ArgumentParser(description='Find AGN')
-    parser.add_argument(
-            '--concurrency', default=8, type=int)
-    parser.add_argument(
-            '--n_samples', default=sp.n_samples, type=int)
-    parser.add_argument(
-            '--z-min', dest='rshift_min', default=sp.redshift_min, type=float)
-    parser.add_argument(
-            '--z-max', dest='rshift_max', default=sp.redshift_max, type=float)
-    parser.add_argument(
-            '--save-dir', dest='save_dir', type=str, default=sp.save_dir)
-    parser.add_argument(
-            '--emulate-ssp', default=sps.emulate_ssp, action='store_true')
-    parser.add_argument(
-            '--noise', default=False, action='store_true')
-    parser.add_argument(
-            '--filters', dest='filters', type=str, default=sp.filters.value)
-    args = parser.parse_args()
-
-    logging.info(f'Simulation arguments are: {args}')
-
-    # begin concurrency different processes here.
-
-    sim = Simulator(args, fp)
+    logging.info(f'Beginning worker process: {worker_idx}')
+    sim = Simulator(rshift_min=zmin, rshift_max=zmax, worker_idx=worker_idx)
 
     # Latin hypercube sampling for the galaxy parameters.
     sim.sample_theta()
@@ -223,3 +229,34 @@ if __name__ == '__main__':
 
     # Save the sample results to disk
     sim.save_samples()
+
+
+if __name__ == '__main__':
+
+    # Configure the root logger using the values in config.py:logging_config
+    cfg.configure_logging()
+
+    # Get the defaults from config.py
+    sp = cfg.SamplingParams()
+
+    # Ensure temporary save location is created and empty
+    utils.ensure_partials_dir(sp.save_dir)
+
+    # prepare job list
+    samples_per_cube: int = int(sp.n_samples / sp.concurrency)
+    inc: float = (sp.redshift_max - sp.redshift_min) / sp.concurrency
+    zrange: list[float] = [i  * inc for i in range(sp.concurrency+1)]
+    zlims: list[tuple[float, float]] = list(zip(zrange[:-1], zrange[1:]))
+    p_args: list[tuple[float, float, int]] = \
+        [(a, b, i) for i, (a, b) in enumerate(zlims)]
+
+    # assert split sampling space evenly between processes
+    assert len(zlims) == sp.concurrency
+
+    # run the actual simulation (in worker pool)
+    with Pool(sp.concurrency) as pool:
+        pool.starmap(work_func, p_args)
+
+    # join and save samples
+    utils.join_partial_samples(sp)
+

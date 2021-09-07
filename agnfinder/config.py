@@ -65,6 +65,7 @@ class FreeParams(FreeParameters):
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
     n_samples: int = 1000000
+    concurrency: int = os.cpu_count()
     redshift_min: float = 0.
     redshift_max: float = 4.
     save_dir: str = './data/cubes'
