@@ -25,6 +25,7 @@ import h5py
 import logging
 import numpy as np
 
+from typing import Optional, Type
 from multiprocessing import Pool
 
 from agnfinder import config as cfg
@@ -36,7 +37,9 @@ from agnfinder.prospector import Prospector
 class Simulator(object):
 
     def __init__(self, rshift_min: float, rshift_max: float,
-                 worker_idx: int = 0) -> None:
+                 worker_idx: int = 0, fp: cfg.FreeParams = cfg.FreeParams(),
+                 sp: cfg.SamplingParams = cfg.SamplingParams(),
+                 sps: cfg.SPSParams = cfg.SPSParams()) -> None:
         """Initialise the simulator class.
 
         The majority of the arguments are obtained from the configuration file.
@@ -45,22 +48,22 @@ class Simulator(object):
             rshift_min: Minimum redshift value (must be non-negative)
             rshift_max: Maximum redshift value for this cube
             worker_idx: index of this process, if in worker pool
+
+            fp: Free parameters for testing; do not override in normal use.
+            sp: Sampling parameters for testing; do not override in normal use.
+            sps: SPS parameters for testing; do not override in normal use.
         """
         super(Simulator, self).__init__()
 
-        free_params = cfg.FreeParams()
-        s_params = cfg.SamplingParams()
-        sps_params = cfg.SPSParams()
-
-        n_samples = int(s_params.n_samples / s_params.concurrency)
+        n_samples = int(sp.n_samples / sp.concurrency)
 
         self.hcube_sampled: bool = False
         self.has_forward_model: bool = False
         self.has_run: bool = False
 
         # Is this necessary?
-        self.lims: paramspace_t = free_params.raw_params
-        self.free_params = free_params
+        self.lims: paramspace_t = fp.raw_params
+        self.free_params = fp
         self.dims: int = len(self.free_params)
 
         # Variables for saving results.
@@ -70,14 +73,14 @@ class Simulator(object):
             n_samples, rshift_min_string, rshift_max_string, worker_idx
         )
         self.widx = worker_idx
-        self.save_dir: str = os.path.join(s_params.save_dir, "partials")
+        self.save_dir: str = os.path.join(sp.save_dir, "partials")
         self.save_loc: str = os.path.join(self.save_dir, self.save_name)
 
         self.n_samples: int = n_samples
-        self.emulate_ssp: bool = sps_params.emulate_ssp
-        self.noise: bool = s_params.noise
+        self.emulate_ssp: bool = sps.emulate_ssp
+        self.noise: bool = sp.noise
 
-        self.filters: FilterSet = s_params.filters
+        self.filters: FilterSet = sp.filters
         self.output_dim = self.filters.dim
 
         self.rshift_range: tuple[float, float] = (rshift_min, rshift_max)
