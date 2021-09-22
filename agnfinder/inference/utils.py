@@ -52,9 +52,9 @@ class GalaxyDataset(Dataset):
         samples = f.get('samples')
         assert isinstance(samples, h5py.Group)
         xs = np.array(samples.get('simulated_y'))
-        ys = np.array(samples.get('theta'))
+        ys = np.array(samples.get('normalised_theta'))
         self._x_dim, self._y_dim = xs.shape[-1], ys.shape[-1]
-        self.dataset = np.concatenate((xs, ys), -1)
+        self.dataset = np.concatenate((xs, ys), -1)  # concatenate cols
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -97,11 +97,11 @@ def load_simulated_data(
     """
     tbatch_size = test_batch_size if test_batch_size is not None else batch_size
 
-    cuda_kwargs = {'num_workers': 1}#, 'pin_memory': True}
+    cuda_kwargs = {'num_workers': 2}# , 'pin_memory': True}
     train_kwargs: dict[str, Any] = {
-        'batch_size': batch_size, 'shuffle': False} | cuda_kwargs
+        'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
     test_kwargs: dict[str, Any] = {
-        'batch_size': tbatch_size, 'shuffle': False} | cuda_kwargs
+        'batch_size': tbatch_size, 'shuffle': True} | cuda_kwargs
 
     dataset = GalaxyDataset(file=path, transforms=transforms)
 

@@ -25,7 +25,6 @@ import h5py
 import logging
 import numpy as np
 
-from typing import Optional, Type
 from multiprocessing import Pool
 
 from agnfinder import config as cfg
@@ -72,12 +71,14 @@ class Simulator(object):
         self.save_name = 'photometry_simulation_{}n_z_{}_to_{}_w_{}.hdf5'.format(
             n_samples, rshift_min_string, rshift_max_string, worker_idx
         )
-        self.widx = worker_idx
+        self.worker_idx = worker_idx
         self.save_dir: str = os.path.join(sp.save_dir, "partials")
         self.save_loc: str = os.path.join(self.save_dir, self.save_name)
 
         self.n_samples: int = n_samples
         self.emulate_ssp: bool = sps.emulate_ssp
+        self.catalogue_loc: str = "" if sps.catalogue_loc is None \
+                                  else sps.catalogue_loc
         self.noise: bool = sp.noise
 
         self.filters: FilterSet = sp.filters
@@ -87,12 +88,12 @@ class Simulator(object):
 
         # The hypercube of (denormalised) galaxy parameters
         self.theta: Tensor
-        if self.widx == 0:
+        if self.worker_idx == 0:
             logging.info(f'Initialised simulator')
 
     def sample_theta(self) -> None:
         """Generates a dataset via latin hypercube sampling."""
-        if self.widx == 0:
+        if self.worker_idx == 0:
             logging.info((f'Drawing {self.n_samples} samples from '
                           f'{self.dims}-dimensional space...'))
         # Use latin hypercube sampling to generate photometry from across the
@@ -100,34 +101,38 @@ class Simulator(object):
         self.hcube = utils.get_unit_latin_hypercube(
             self.dims, self.n_samples
         )
-        if self.widx == 0:
+        if self.worker_idx == 0:
             logging.info(f'Completed Latin-hypercube sampling.')
 
+        rshift_idx = self.free_params.raw_members.index('redshift')
+
         # Shift normalised redshift parameter to lie within the desired range.
-        self.hcube[:, 0] = utils.shift_redshift_theta(
-            self.hcube[:, 0], self.free_params.redshift, self.rshift_range
+        # Note: we must have the redshift parameter in index 0
+        self.hcube[:, rshift_idx] = utils.shift_redshift_theta(
+            self.hcube[:, rshift_idx], self.free_params.redshift,
+            self.rshift_range
         )
 
         # Transform the unit-sampled point back to their correct ranges in the
         # parameter space (taking logs if needed).
         self.theta = utils.denormalise_theta(self.hcube, self.free_params)
         self.hcube_sampled = True
-        if self.widx == 0:
+        if self.worker_idx == 0:
             logging.debug(f'Sampled galaxy parameters')
 
     def create_forward_model(self):
-        """Initialises a Prospector problem, and obtains the forward model."""
+        """Initialises a Prospector class, and obtains the forward model."""
 
-        problem = Prospector(self.filters, self.emulate_ssp)
+        p = Prospector(self.filters, self.emulate_ssp, self.catalogue_loc)
 
         # The calculate_sed method has side-effects, which includes updating
-        # the problem.obs dict.
-        problem.calculate_sed()
-        self.phot_wavelengths = problem.obs['phot_wave']
+        # the p.obs dict.
+        p.calculate_sed()
+        self.phot_wavelengths = p.obs['phot_wave']
 
-        self.forward_model = problem.get_forward_model()
+        self.forward_model = p.get_forward_model()
         self.has_forward_model = True
-        if self.widx == 0:
+        if self.worker_idx == 0:
             logging.info(f'Created forward model')
 
     def run(self):
@@ -140,15 +145,15 @@ class Simulator(object):
             self.create_forward_model()
 
         Y = np.zeros((self.n_samples, self.output_dim))
-        if self.widx == 0:
-            for n in tqdm.tqdm(range(len(self.theta)), self.widx):
+        if self.worker_idx == 0:
+            for n in tqdm.tqdm(range(len(self.theta)), self.worker_idx):
                 Y[n] = self.forward_model(self.theta[n].numpy())
         else:
             for n in range(len(self.theta)):
                 Y[n] = self.forward_model(self.theta[n].numpy())
         self.galaxy_photometry = Y
         self.has_run = True
-        logging.info(f'Worker {self.widx} finished simulation run')
+        logging.info(f'Worker {self.worker_idx} finished simulation run')
 
     def save_samples(self):
         """Save the sampled parameter hypercube, and resulting photometry to
@@ -169,7 +174,7 @@ class Simulator(object):
             ds_x.attrs['columns'] = self.free_params.raw_members
             ds_x.attrs['description'] = 'Parameters used by simulator'
 
-            # TODO should we be saving denormalised theta here?
+            # TODO should we be saving denormalised theta here too?
             ds_x_norm = grp.create_dataset('normalised_theta', data=self.hcube)
             ds_x_norm.attrs['columns'] = self.free_params.raw_members
             ds_x_norm.attrs['description'] = \
@@ -246,7 +251,6 @@ if __name__ == '__main__':
     utils.ensure_partials_dir(sp.save_dir)
 
     # prepare job list
-    samples_per_cube: int = int(sp.n_samples / sp.concurrency)
     inc: float = (sp.redshift_max - sp.redshift_min) / sp.concurrency
     zrange: list[float] = [i  * inc for i in range(sp.concurrency+1)]
     zlims: list[tuple[float, float]] = list(zip(zrange[:-1], zrange[1:]))
@@ -262,4 +266,3 @@ if __name__ == '__main__':
 
     # join and save samples
     utils.join_partial_samples(sp)
-

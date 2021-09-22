@@ -18,6 +18,7 @@
 photometry.
 """
 
+import os
 import abc
 import logging
 import torch as t
@@ -50,12 +51,10 @@ class MLP(nn.Module):
         for i, (j, k) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
             self.MLP.add_module(name=f'L{i}', module=nn.Linear(j, k))
             if arch.batch_norm:
-                # TODO fix batch norm
+                # TODO remove bias from previous layer if BN
                 self.MLP.add_module(name=f'BN{i}', module=nn.BatchNorm1d(k))
             self.MLP.add_module(name=f'A{i}', module=arch.activations[i])
         self.MLP.to(device=device, dtype=dtype)
-
-        # TODO implement more efficient multi-headed architecture (not list based)
 
         h_n = layer_sizes[-1]
         self.heads: nn.ModuleList = nn.ModuleList()
@@ -140,10 +139,12 @@ class _CVAE_Dist(object):
         return t.Size(sample_shape + self._batch_shape + self._event_shape)
 
     @abc.abstractmethod
-    def log_prob(self, value: Tensor) -> Tensor:
+    def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         """
         Returns the log of the probability density/mass function evaluated at
         value.
+        Set nojoint to True to avoid finding the (iid assumed) joint
+        probability along the 1st dimension.
         """
         raise NotImplementedError
 
@@ -366,7 +367,8 @@ class CVAE(nn.Module, abc.ABC):
     def __init__(self, cp: CVAEParams,
                  device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64,
-                 logging_callbacks: list[Callable] = []) -> None:
+                 logging_callbacks: list[Callable] = [],
+                 overwrite_results: bool = False) -> None:
         """Initialise a CVAE
 
         Args:
@@ -374,6 +376,7 @@ class CVAE(nn.Module, abc.ABC):
             device: device on which to store the model
             dtype: data type to use in Tensors
             logging_callbacks: list of callables accepting this CVAE instance
+            overwrite_results: whether to replace previous model when saving
         """
         super().__init__()  # init nn.Module, ABC
         self.device = device
@@ -385,6 +388,10 @@ class CVAE(nn.Module, abc.ABC):
         self.prior = cp.prior(cp.prior_arch, cp.latent_dim, device, dtype)
         self.encoder = cp.encoder(cp.enc_arch, device, dtype)
         self.decoder = cp.decoder(cp.dec_arch, device, dtype)
+
+        self.is_trained: bool = False
+        self.overwrite_results = overwrite_results
+        self.savepath_cached: Optional[str] = None
 
         self.opt = t.optim.Adam(self.parameters(), lr=cp.adam_lr)
 
@@ -449,6 +456,7 @@ class CVAE(nn.Module, abc.ABC):
         for e in range(epochs):
             for i, (x, y) in enumerate(train_loader):
 
+                # x is photometry, y are parameters (theta)
                 x, y = self.preprocess(x, y)
 
                 # Get q_{phi}(z | y, x)
@@ -468,11 +476,9 @@ class CVAE(nn.Module, abc.ABC):
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
                 loss = -(ELBO.mean(0))
-                # opt.zero_grad()
                 self.opt.zero_grad()
                 loss.backward()
                 self.opt.step()
-                # opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
                     # Run through all logging functions
@@ -480,6 +486,54 @@ class CVAE(nn.Module, abc.ABC):
                     logging.info(
                         "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
                         .format(e, epochs, i, len(train_loader)-1, loss.item()))
+        self.is_trained = True
+
+    def log_cond(self, y: Tensor, x: Tensor, K: int = 1000) -> Tensor:
+        """Evaluates log p_{theta}(y | x)
+
+        This uses an Monte-Carlo approximation to the marginal likelihood,
+        using K samples.
+
+        Args:
+            y: the parameter values to find the (conditional) likelihood of
+            x: the conditioning photometry values
+            K: the number of MC sapmles to use
+
+        Returns:
+            Tensor: p_{theta}(y | x) for the provided ys.
+        """
+        if not self.is_trained:
+            logging.warn("CVAE is not yet trained!")
+
+        if y.shape != x.shape:
+            try:
+                # attempt to broadcase x to be the same shape as y
+                x = x.expand((y.size(0), -1))
+                assert y.shape == x.shape
+            except:
+                raise RuntimeError((
+                    f'Cannot call log_cond with y of shape: {y.shape} '
+                    f'and x of shape: {x.shape}'
+                ))
+
+        self.eval()
+        x, y = self.preprocess(x, y)
+
+        with t.inference_mode():
+            q: _CVAE_RDist = self.encoder(y, x)
+            z = q.rsample(t.Size((K,)))
+            logqz = q.log_prob(z, nojoint=True).sum(-1)
+
+            pr: _CVAE_Dist = self.prior(x)
+            logpz = pr.log_prob(z, nojoint=True).sum(-1)
+
+            flat_zs = z.flatten(0,1)
+            tmp_xs = x.repeat_interleave(K, dim=0)
+            tmp_ys = y.repeat_interleave(K, dim=0)
+            p: _CVAE_Dist = self.decoder(flat_zs, tmp_xs)
+            logpy = p.log_prob(tmp_ys).reshape((K, -1))
+
+            return (logpy + logpz -logqz).mean(0)
 
     def test_generator(self, test_loader: DataLoader) -> float:
         """Test the generator network, p_{theta}(y | z, x)
@@ -501,11 +555,22 @@ class CVAE(nn.Module, abc.ABC):
             loss -= NLL.mean(0)
         return float(loss / len(test_loader))
 
+
     def fpath(self) -> str:
         """Returns a file path to save the model to, based on parameters."""
-        # TODO generate a more unique model name based on network architectures.
-        name = f'{self.prior}_{self.encoder}_{self.decoder}'
-        return f'./results/models/{name}.pt'
+        # TODO generate a more unique model name based on network architectures
+        # (not sequence)
+        if self.savepath_cached is None:
+            base = './results/models/'
+            name = f'{self.prior}_{self.encoder}_{self.decoder}'
+            if self.overwrite_results:
+                self.savepath_cached = f'{base}{name}.pt'
+            else:
+                n = 0
+                while os.path.exists(f'{base}{name}_{n}.pt'):
+                    n+=1
+                self.savepath_cached = f'{base}{name}_{n}.pt'
+        return self.savepath_cached
 
 
 # For use in configuration file.

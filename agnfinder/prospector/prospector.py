@@ -19,18 +19,30 @@
 
 import logging
 import numpy as np
-from typing import Callable
+from typing import Callable, Optional
 
+import agnfinder.config as cfg
+
+from agnfinder.types import prun_params_t, FilterSet, SEDComponents
 from agnfinder.config import CPzParams, SPSParams
-from agnfinder.types import prun_params_t, FilterSet
 from agnfinder.prospector import cpz_builders
 
 class Prospector(object):
 
-    def __init__(self, filter_selection: FilterSet, emulate_ssp: bool):
+    def __init__(self, filter_selection: FilterSet, emulate_ssp: bool,
+                 catalogue_loc: str = ""):
+        """Construct a prospector class / 'problem'
+
+        Args:
+            filter_selection: filters to use; e.g. Filters.Euclid.
+            emulate_ssp: deprecated; always set this to false
+            catalogue_loc: an optional string giving the catalogue location, to
+                replace the dummy galaxy used to make prospector happy with a
+                real one. Unused for sampling.
+        """
         logging.debug('initialising prospector class')
 
-        self.obs = cpz_builders.build_cpz_obs(filter_selection=filter_selection)
+        self.obs = cpz_builders.build_cpz_obs(filter_selection, catalogue_loc)
         logging.debug(f'Created obs dict: {self.obs}')
 
         self.cpz_params = CPzParams()
@@ -45,9 +57,10 @@ class Prospector(object):
         self.run_params = self._cpz_params_to_run_params()
         logging.info(f'run params are: {self.run_params}')
 
-    def calculate_sed(self):
+    def calculate_sed(self, theta: Optional[np.ndarray] = None):
         self.model_spectra, self.model_photometry, _ = self.model.sed(
-            self.model.theta, obs=self.obs, sps=self.sps)
+            theta = self.model.theta if theta is None else theta,
+            obs=self.obs, sps=self.sps)
 
         # cosmological redshifting w_new = w_old * (1+z)
         a = 1.0 + self.model.params.get('zred', 0.)
@@ -80,6 +93,9 @@ class Prospector(object):
         Returns:
             Callable[[np.ndarray], np.ndarray]: The forward model function.
         """
+
+        mass_idx = cfg.FreeParams().raw_members.index('log_mass')
+
         def f(theta: np.ndarray) -> np.ndarray:
             """Generate photometry from model parameters.
 
@@ -97,13 +113,24 @@ class Prospector(object):
             # Check mass is of correct order; >1e7.
             # (From the `raw_members` array in types.py:FreeParameters, the
             # mass parameter is at index 5)
-            assert theta[5] > 1e7
+            assert theta[mass_idx] > 1e7
 
             model_photometry = self._calculate_photometry(theta)
 
             return model_photometry
 
         return f
+
+    def get_components(self) -> SEDComponents:
+        """Returns SED components"""
+        C = SEDComponents(
+            wavelengths=self.sps.wavelengths,
+            galaxy=self.sps.galaxy_flux,
+            unextincted_quasar=self.sps.unextincted_quasar_flux,
+            extincted_quasar=self.sps.extincted_quasar_flux,
+            torus=self.sps.torus_flux,
+            net=(self.sps.quasar_flux + self.sps.galaxy_flux))
+        return C
 
     def _cpz_params_to_run_params(self) -> prun_params_t:
         """Casts the type-safe CPz Params (from config.py) to the parameter

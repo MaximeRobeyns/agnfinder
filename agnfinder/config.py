@@ -20,6 +20,7 @@
 import os
 import math
 import time
+import typing
 import torch as t
 import torch.nn as nn
 import logging
@@ -64,10 +65,10 @@ class FreeParams(FreeParameters):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 1000000
-    concurrency: int = 6  # os.cpu_count()
+    n_samples: int = 100000
+    concurrency: int = 3  # os.cpu_count()
     redshift_min: float = 0.
-    redshift_max: float = 4.
+    redshift_max: float = 1.
     save_dir: str = './data/cubes'
     noise: bool = False
     filters: FilterSet = Filters.Euclid  # {Euclid, Reliable, All}
@@ -122,6 +123,8 @@ class SPSParams(ConfigClass):
     # Outdated parameter: allows to emulate FSPS simple stellar population
     # using e.g. a GP (or some other function approximator).
     emulate_ssp: bool = False
+    # catalogue_loc: typing.Optional[str] = "./data/cpz_paper_sample_week3.parquet"
+    catalogue_loc: typing.Optional[str] = ""
 
 
 # ======================== Quasar Template Parameters =========================
@@ -170,12 +173,13 @@ class ExtinctionTemplateParams(ConfigClass):
 
 class InferenceParams(ConfigClass):
     epochs: int = 1
-    batch_size: int = 32
-    split_ratio: float = 0.9  # train / test split ratio
+    batch_size: int = 16
+    split_ratio: float = 0.1  # train / test split ratio
     dtype: t.dtype = t.float64
     device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     model: cvae_t = CVAE
-    dataset_loc: str = './data/cubes/photometry_simulation_1000000n_z_0p0000_to_4p0000.hdf5'
+    dataset_loc: str = './data/cubes/photometry_simulation_4000000n_z_0p0000_to_4p0000.hdf5'
+    overwrite_results: bool = False
 
 
 # ======================= Inference (CVAE) Parameters =========================
@@ -184,17 +188,24 @@ class InferenceParams(ConfigClass):
 class CVAEParams(ConfigClass, base.CVAEParams):
     cond_dim = 8  # x; dimension of photometry
     data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
-    latent_dim = 2  # z
+    latent_dim = 4  # z
+    adam_lr = 1e-3
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
-    prior = inference.StandardGaussianPrior
-    prior_arch = None
-    # arch_t([cond_dim, 32], activations=nn.ReLU(), head_sizes=[latent_dim, latent_dim])
+    # prior = inference.StandardGaussianPrior
+    prior = inference.FactorisedGaussianPrior
+    # prior_arch = None
+    prior_arch = arch_t(
+        layer_sizes=[cond_dim, 16],
+        activations=nn.SiLU(),
+        head_sizes=[latent_dim, latent_dim],
+        head_activations=[None, Squareplus(0.8)],
+        batch_norm=True)
 
     # Gaussian recognition model q_{phi}(z | y, x)
     encoder = inference.FactorisedGaussianEncoder
     enc_arch = arch_t(
-        layer_sizes=[data_dim + cond_dim, 32],
+        layer_sizes=[data_dim + cond_dim, 16],
         activations=nn.SiLU(),
         head_sizes=[latent_dim, latent_dim], # mean and log_std
         head_activations=[None, Squareplus(0.2)],

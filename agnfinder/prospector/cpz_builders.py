@@ -35,26 +35,32 @@ from agnfinder.prospector import load_photometry
 from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
 
 
-def build_cpz_obs(filter_selection: FilterSet) -> cpz_obs_dict_t:
+def build_cpz_obs(filter_selection: FilterSet, catalogue_loc: str = ""
+                 ) -> cpz_obs_dict_t:
     """Build a dictionary of photometry (and maybe eventually spectra).
 
     Args:
         filter_selection: the SPS filter selection to use
+        catalogue_loc: an optional string giving the catalogue location, to
+            replace the dummy galaxy with a real one.
 
     Returns:
         None: A dictionary of observational data to use in the fit.
     """
 
-    obs: cpz_obs_dict_t = {}
+    # load galaxy only if catalogue location is provided
+    galaxy = load_photometry.load_galaxy(catalogue_loc) if catalogue_loc != "" \
+             else None
 
-    # this is a list of sedpy.observate.Filter's
-    #
-    # Note that in previous versions, we could choose between
-    # load_galaxy_for_prospector or load_dummy_galaxy. Since the code doesn't
-    # use load_galaxy_for_prospector, we have excluded this code path.
-    obs['filters'] = load_photometry.load_dummy_galaxy(filter_selection)
-    obs['maggies'] = np.ones(len(obs['filters']))
-    obs['maggies_unc'] = np.ones(len(obs['filters']))
+    obs: cpz_obs_dict_t = {}
+    if galaxy is not None:
+        f, m, mu = load_photometry.load_galaxy_for_prospector(
+            galaxy, filter_selection)
+    else:
+        f, m, mu = load_photometry.load_dummy_galaxy(filter_selection)
+    obs['filters'] = f
+    obs['maggies'] = m
+    obs['maggies_unc'] = mu
 
     # This mask tells us which flux values to consider in the likelihood.
     # NOTE: the mask is _True_ for values that you _want_ to fit.
@@ -198,13 +204,11 @@ def build_sps(cpz_params: CPzParams, sps_params: SPSParams) -> CSPSpecBasis:
     if cpz_params.model_agn:
         logging.info('Building custom CSPSpecBasisAGN.')
         sps = CSPSpecBasisAGN(
-            sps_params.zcontinuous,
-            sps_params.reserved_params,
-            sps_params.vactoair_flag,
-            sps_params.compute_vega_mags,
-            sps_params.emulate_ssp,
-
-            # kwargs:
+            zcontinuous=sps_params.zcontinuous,
+            reserved_params=sps_params.reserved_params,
+            vactoair_flag=sps_params.vactoair_flag,
+            compute_vega_mags=sps_params.compute_vega_mags,
+            emulate_ssp=sps_params.emulate_ssp,
             agn_mass=cpz_params.agn_mass.value,
             agn_eb_v=cpz_params.agn_eb_v.value,
             agn_torus_mass=cpz_params.agn_torus_mass.value,

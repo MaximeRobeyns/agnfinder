@@ -236,7 +236,7 @@ class CustomSSP():
 
     def get_spectrum(self, tage: int) -> tuple[np.ndarray, np.ndarray]:
         if self.careful:
-            assert tage != 0
+            assert tage != 0  # assert not emulated
             self.check_fixed_params_unchanged()
         param_vector = np.array([
             self.params['tau'], tage, self.params['dust2']])

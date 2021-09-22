@@ -40,75 +40,72 @@ endif
 # Targets ---------------------------------------------------------------------
 
 # Generic 'run' target for development
-sim:
+sim: ## To run the main sampling / simulation program
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/simulation/simulation.py
 
 # 'inference': train CVAE
-inf:
+inf: ## To run the inference code
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/inference/inference.py
 
-mypy:
+mypy: ## To run mypy only (this is usually done with test / alltest)
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@mypy
 
-test: mypy
+test: mypy  ## To run the program's fast tests (e.g. to verify an installation)
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python -m pytest -s tests
 
-alltest: mypy
+alltest: mypy ## To run all the program's tests (including slow running ones)
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python -m pytest tests --runslow
 
-docs:
+docs: ## To compile the documentation (requires Docker)
 	@./docs/writedocs.sh
 
-docsimg:
+docsimg: ## To explicitly build the documentation writing image
 	@docker build -f ./docs/Dockerfile -t agnfinderdocs ./docs
 
 ./data/clumpy_models_201410_tvavg.hdf5:
 	wget -O $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
 
 # Install agnfinder project locally
-install: ./data/clumpy_models_201410_tvavg.hdf5
+install: ./data/clumpy_models_201410_tvavg.hdf5 ## To install everything (warning, downloads ~1.5Gb of data)
 	@./bin/install_with_venv.sh $(PYTHON)
 
 # Runs the main entrypoint for visualising the quasar templates
-# Will re-build the models, and output visualisations
-qt:
+qt: ## To re-create the quasar templates (quasar and torus models)
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python ./agnfinder/quasar_templates.py
 
-# ipython kernel setup to run notebooks in venv
-kernel:
+kernel:  ## To setup a Jupyter kernel to run notebooks in AGNFinder virtual env
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	python -m ipykernel install --user --name agnvenv \
 		--display-name "agnvenv (Python 3.9)"
 
-lab:
+lab: ## To start a Jupyter Lab server
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	jupyter lab --notebook-dir=.
 
-
-
 help:
-	@./bin/help.sh
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	# @./bin/help.sh
 
 .PHONY: run test kernel lab install docs docsimg qt help mypy alltest

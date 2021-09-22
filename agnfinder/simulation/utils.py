@@ -26,7 +26,7 @@ import logging
 import torch as t
 import numpy as np
 
-from typing import Any, Union
+from typing import Any
 
 import argparse
 from agnfinder.types import Tensor
@@ -193,13 +193,12 @@ def join_partial_samples(sp: SamplingParams) -> None:
     )
     save_path = os.path.join(sp.save_dir, save_name)
     partial_dir = os.path.join(sp.save_dir, "partials")
-    print(f'partial dir is: {partial_dir}')
 
     pfiles = glob.glob(partial_dir+"/*.hdf5")
     if len(pfiles) == 0:
         raise RuntimeError(f'No partial result files found in {partial_dir}')
     if len(pfiles) == 1:
-        # just move the singleton file
+        # just move the file in the singleton list
         os.rename(pfiles[0], save_path)
         logging.info(f'Saved samples to {save_path}')
         shutil.rmtree(partial_dir)

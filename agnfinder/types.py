@@ -16,6 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Some custom types """
 
+import pprint
 import numpy as np
 import torch as t
 import torch.nn as nn
@@ -94,7 +95,7 @@ class ConfigClass(object):
         members = [a for a in dir(self) if not callable(getattr(self, a))\
                    and not a.startswith("__")]
         for m in members:
-            r += f'{m}: {getattr(self, m)}\n'
+            r += f'{m}: {pprint.pformat(getattr(self, m), compact=True)}\n'
         r += '\n' + 79 * '=' + '\n\n'
         return r
 
@@ -184,25 +185,27 @@ class FreeParameters(ConfigClass):
     def __init__(self):
 
         # This list provides the order.
-        self.raw_members: list[str] = ['agn_eb_v', 'dust2', 'inclination',
-            'log_agn_mass', 'log_agn_torus_mass', 'log_mass', 'log_tau',
-            'redshift', 'tage']
+        # TODO remove this old order if unnecessary:
+        # self.raw_members: list[str] = ['agn_eb_v', 'dust2', 'inclination',
+        #     'log_agn_mass', 'log_agn_torus_mass', 'log_mass', 'log_tau',
+        #     'redshift', 'tage']
+        self.raw_members: list[str] = ['redshift', 'log_mass', 'dust2', 'tage',
+            'log_tau', 'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass',
+            'inclination']
 
         self.raw_params: paramspace_t = {}
-        self.params: Tensor = t.empty((0, 2), dtype=t.float64)
-        self.log: Tensor = t.empty((0, 1), dtype=t.bool)
+
+        tmp_logs: list[bool] = []
+        tmp_params: list[tuple[float, float]] = []
 
         # fill in all the parameter values.
         for m in self.raw_members:
             self.raw_params[m] = getattr(self, m)
-            self.log = t.cat(
-                (self.log, t.tensor([[1 if m.startswith('log') else 0]],
-                                    dtype=t.bool)))
-            self.params = t.cat(
-                (self.params, t.tensor([getattr(self, m)], dtype=t.float64)))
+            tmp_logs.append(True if m.startswith('log') else False)
+            tmp_params.append(getattr(self, m))
 
-        # Remove unnecessary singleton dimension in mask
-        self.log = self.log.squeeze(-1)
+        self.log = t.tensor(tmp_logs, dtype=t.bool)
+        self.params = t.tensor(tmp_params, dtype=t.float64)
 
     def __len__(self) -> int:
         return len(self.raw_params)
@@ -365,3 +368,30 @@ class arch_t(ConfigClass):
 
     def __len__(self) -> int:
         return len(self.layer_sizes) + 1
+
+
+# SED Components --------------------------------------------------------------
+
+
+class SEDComponents(object):
+
+    def __init__(self, wavelengths: np.ndarray, galaxy: np.ndarray,
+                 unextincted_quasar: np.ndarray, extincted_quasar: np.ndarray,
+                 torus: np.ndarray, net: np.ndarray):
+
+        self.wavelengths = wavelengths
+        self.galaxy = galaxy
+        self.unextincted_quasar = unextincted_quasar
+        self.extincted_quasar = extincted_quasar
+        self.torus = torus
+        self.net = net
+
+    def components(self) -> list[tuple[str, np.ndarray]]:
+        return [
+            ('wavelengths', self.wavelengths),
+            ('galaxy', self.galaxy),
+            ('unextincted_quasar', self.unextincted_quasar),
+            ('extincted_quasar', self.extincted_quasar),
+            ('torus', self.torus),
+            ('net', self.net),
+        ]

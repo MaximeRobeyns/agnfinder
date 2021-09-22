@@ -72,22 +72,13 @@ class InterpolatedTemplate(metaclass=abc.ABCMeta):
             logging.warning(
                 f'Creating new template {template_loc} from data {data_loc}')
             self._interpolated_template = self._create_template()
+            # TODO ensure that we are saving the /normalised/ templates here
             self._save_template()
 
     @abc.abstractmethod
     def _create_template(self) -> Callable[[np.ndarray], np.ndarray]:
         """Create the template from data"""
         raise NotImplementedError
-
-    # Need to think a bit more carefully about the type of this function...
-    # @abc.abstractmethod
-    # def __call__(self, wavelengths: np.ndarray, *args: Any, **kwargs: Any) -> np.ndarray:
-    #     """Evalaute the template for some wavelengths (in angstroms), returning
-    #     fluxes.
-
-    #     Note: arguments and returned values are _not_ in log space.
-    #     """
-    #     raise NotImplementedError
 
     def _save_template(self):
         """Saves a newly created template to disk for faster loading later"""

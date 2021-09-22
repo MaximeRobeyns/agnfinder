@@ -17,6 +17,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .prospector import Prospector
+from . import columns
 from . import prospector
 from . import cpz_builders
 from . import load_photometry

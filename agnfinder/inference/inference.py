@@ -43,6 +43,28 @@ class StandardGaussianPrior(CVAEPrior):
         return dist.Gaussian(mean, std)
 
 
+class FactorisedGaussianPrior(CVAEPrior):
+    """
+    Factorised Gaussian prior, whose dimension matches the length of the latent
+    code z.
+
+    Example architecture:
+
+    >>> arch_t(layer_sizes=[cond_dim, ...],
+    ...        head_sizes=[latent_dim, latent_dim],
+    ...        activations=nn.SiLU(),
+    ...        [None, Squareplus(1.2)])
+
+    """
+    def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
+                 ) -> _CVAE_Dist:
+        assert dist_params is not None and isinstance(dist_params, list) \
+                and len(dist_params) == 2
+        [mean, log_std] = dist_params
+        std = t.exp(log_std)
+        return dist.Gaussian(mean, std)
+
+
 # Encoders --------------------------------------------------------------------
 
 
@@ -161,7 +183,8 @@ if __name__ == '__main__':
     cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
     # initialise the model
-    cvae = ip.model(cp, device=ip.device, dtype=ip.dtype)
+    cvae = ip.model(cp, device=ip.device, dtype=ip.dtype,
+                    overwrite_results=ip.overwrite_results)
     logging.info('Initialised CVAE network')
     logging.info(f'Saving to: {cvae.fpath()}')
 

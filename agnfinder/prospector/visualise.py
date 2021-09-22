@@ -24,7 +24,17 @@ import matplotlib.pyplot as plt
 from typing import Optional
 from sedpy.observate import Filter
 
-from agnfinder.types import cpz_obs_dict_t
+from agnfinder.types import cpz_obs_dict_t, SEDComponents
+from agnfinder.prospector import Prospector
+
+
+CCOLOURS = {
+    'galaxy': 'g',
+    'unextincted_quasar': 'b',
+    'extincted_quasar': 'b',
+    'torus': 'orange',
+    'net': 'k'
+}
 
 
 def plot_obs_photometry(obs: cpz_obs_dict_t):
@@ -75,15 +85,39 @@ def prettify(fig: plt.Figure, ax: plt.Axes, xmin: float, xmax: float,
     fig.tight_layout()
 
 
-# # TODO create a type for components
-# def plot_components(components, ax: Optional[plt.Axes] = None):
-#     if not ax:
-#         _, ax = plt.subplots(figsize=(16, 6))
-#     ax.loglog(components.wavelengths, components.galaxy, 'g', label='Galaxy')
-#     # TODO complete this
+def component_to_band(component_list):
+    # assumes all wavelengths are the same
+    component_array = np.array(component_list)
+    upper_limit = np.percentile(component_array, .9, axis=0)
+    lower_limit = np.percentile(component_array, .1, axis=0)
+    return upper_limit, lower_limit
+
+
+def calculate_many_component(p: Prospector, theta_array: np.ndarray,
+                             ax: plt.Axes = None):
+    if ax == None:
+        _, ax = plt.subplots(figsize=(16, 6))
+    assert ax is not None
+    all_components: list[SEDComponents] = []
+    for theta in theta_array:
+        _ = p.calculate_sed(theta=theta)
+        all_components.append(p.get_components())
+
+    # comp_names = ['wavelengths', 'galaxy', 'unextincted_quasar',
+    #               'extincted_quasar', 'torus', 'net']
+    comp_names = ['galaxy', 'extincted_quasar', 'torus', 'net']
+
+    for cn in comp_names:
+        upper, lower = component_to_band([c.__getattribute__(cn) for c in all_components])
+        ax.loglog(all_components[0].wavelengths, upper, color=CCOLOURS[cn], alpha=0.3)
+        ax.loglog(all_components[0].wavelengths, lower, color=CCOLOURS[cn], alpha=0.3)
+        ax.fill_between(all_components[0].wavelengths, lower, upper, color=CCOLOURS[cn], alpha=0.3, label=cn)
+    ax.set_xlabel('Wavelength (A), Source Frame')
+    ax.set_ylabel('Flux Density (before Dimming)')
 
 
 # Utility functions -----------------------------------------------------------
+
 
 def get_bounds(obs: cpz_obs_dict_t, wspec: Optional[np.ndarray] = None,
                initial_spec: Optional[np.ndarray] = None
