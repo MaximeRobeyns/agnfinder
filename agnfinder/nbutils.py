@@ -20,7 +20,6 @@ This is a file containing utility functions for use in accompanying Jupyter
 Notebooks.
 """
 
-import random
 import corner
 import logging
 import torch as t
@@ -30,12 +29,13 @@ import matplotlib.pyplot as plt
 from typing import Optional, Any, Sized
 from torch.utils.data import DataLoader, Dataset, random_split, Subset
 
-from agnfinder.types import Tensor
+from agnfinder.types import Tensor, column_order
 from agnfinder.inference.base import CVAE
 
 
 def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
-                lims: Optional[np.ndarray] = None):
+                lims: Optional[np.ndarray] = None, labels: list[str] = column_order,
+                title: str = "", description: str = ""):
     """Create a corner plot.
 
     Args:
@@ -45,7 +45,14 @@ def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
             same length as number of columns in `samples`, containing (lower,
             upper) tuples, or list of floating point value for % of points to
             include (see `corner` docs for better description).
+        title: the plot title
+        description: a descriptive sentence e.g. outlining the training
+            procedure for the plot samples
+
+    Note:
+        We assume that the samples are in the same order as column_order.
     """
+
     # silence all non-error logs:
     log = logging.getLogger()
     l = log.getEffectiveLevel()
@@ -54,14 +61,23 @@ def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
     kwargs: dict[str, Any] = {}
     if true_params is not None:
         kwargs['truths'] = true_params
-        kwargs['truth_color'] = '#FF0000'
+        kwargs['truth_color'] = '#F5274D'
+    kwargs['labels'] = labels
+    kwargs['label_kwargs'] = {'fontsize': 12, 'fontweight': 'normal'}
+    kwargs['color'] = '#0A1929'
+
+    # D = 16
+    # kwargs['fig'] = plt.figure(figsize=(D,D), dpi=300)
     if lims is not None:
         kwargs['range'] = lims
 
     fig = corner.corner(samples, **kwargs)
+    fig.text(0.05, 1.03, s=title, fontfamily='sans-serif',
+             fontweight='demibold', fontsize=25)
+    fig.text(0.05, 1.005, s=description, fontfamily='sans-serif',
+             fontweight='normal', fontsize=12)
 
     log.setLevel(l)
-    fig
 
 
 def plot_violin(dists: list[np.ndarray], labels: list[str],
@@ -88,12 +104,18 @@ def plot_violin(dists: list[np.ndarray], labels: list[str],
     fig
 
 
-def new_sample(dloader: DataLoader) -> tuple[Tensor, Tensor]:
+def new_sample(dloader: DataLoader, n: int = 1) -> tuple[Tensor, Tensor]:
     dset: Dataset = dloader.dataset
     assert(isinstance(dset, Sized))
-    rand_idx = random.randint(0, len(dset)-1)
-    logging.debug('Random test index is: ', rand_idx)
-    return dset.__getitem__(rand_idx)
+    rand_idxs = t.randperm(len(dset))[:n]
+    logging.debug('Random test index :', rand_idxs)
+    # [n, data_dim]; concatenate along rows: dim 0
+    xs, ys = [], []
+    for i in rand_idxs:
+        tmp_xs, tmp_ys = dset.__getitem__(i)
+        xs.append(tmp_xs[None,:])
+        ys.append(tmp_ys[None,:])
+    return t.cat(xs, 0).squeeze(), t.cat(ys, 0).squeeze()
 
 
 def train_test_split(dataset: Dataset, split_ratio: float = 0.9

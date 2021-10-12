@@ -172,13 +172,14 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(ConfigClass):
-    epochs: int = 1
-    batch_size: int = 16
+    epochs: int = 3
+    batch_size: int = 256
     split_ratio: float = 0.1  # train / test split ratio
     dtype: t.dtype = t.float64
     device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     model: cvae_t = CVAE
-    dataset_loc: str = './data/cubes/photometry_simulation_4000000n_z_0p0000_to_4p0000.hdf5'
+    dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
+    # dataset_loc: str = '../Data_Requests/Sotiria - latest/'
     overwrite_results: bool = False
 
 
@@ -220,6 +221,36 @@ class CVAEParams(ConfigClass, base.CVAEParams):
         activations=nn.SiLU(),
         head_activations=[None, Squareplus(0.8)],
         batch_norm=True)
+
+
+# ======================= Inference (MADE) Parameters =========================
+
+
+class MADEParams(ConfigClass):
+    cond_dim: int = 8  # x; dimensions of photometry
+    data_dim: int = 9  # y; dimensions of physical parameters to be estimated
+    hidden_sizes: list[int] = [16, 32]
+
+    # number of different orderings for order / connection agnostic training
+    num_masks: int = 128
+
+    # How many samples of connectivity / masks to average parameters over during
+    # inference
+    samples: int = 16
+
+    natural_ordering: bool = False
+
+
+# ======================== Inference (SAN) Parameters =========================
+
+
+class SANParams(ConfigClass):
+    cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
+    data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
+    module_shape: list[int] = [16, 32, 18]  # shape of the network 'modules'
+    lparams: int = 2  # number of parameers for likelihood p(y_d | y_<d, x)
+
+    batch_norm: bool = True  # use batch normalisation in network?
 
 
 # =========================== Logging Parameters ==============================

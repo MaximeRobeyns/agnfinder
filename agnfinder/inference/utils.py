@@ -19,7 +19,6 @@
 import os
 import sys
 import h5py
-import tqdm
 import logging
 import warnings
 import torch as t
@@ -29,7 +28,7 @@ import numpy as np
 from torchvision import datasets, transforms
 from typing import Any, Callable, Optional, Union
 from torch.utils.data import Dataset, DataLoader, random_split
-from agnfinder.types import Tensor, tensor_like
+from agnfinder.types import Tensor, tensor_like, column_order
 
 
 class InMemoryGalaxyDataset(Dataset):
@@ -67,7 +66,7 @@ class InMemoryGalaxyDataset(Dataset):
 
         xs, ys = self._get_x_y_from_file(files[0])
 
-        for f in tqdm.tqdm(files[1:]):
+        for f in files[1:]:
             tmp_xs, tmp_ys = self._get_x_y_from_file(f)
             xs = np.concatenate((xs, tmp_xs), 0)
             ys = np.concatenate((ys, tmp_ys), 0)
@@ -78,14 +77,29 @@ class InMemoryGalaxyDataset(Dataset):
         self.dataset = np.concatenate((xs, ys), -1)
         logging.info(f'Galaxy dataset loaded.')
 
-
     def _get_x_y_from_file(self, file: str) -> tuple[np.ndarray, np.ndarray]:
         assert os.path.exists(file)
         f = h5py.File(file, 'r')
         samples = f.get('samples')
         assert isinstance(samples, h5py.Group)
+
+        # photometry
         xs = np.array(samples.get('simulated_y'))
-        ys = np.array(samples.get('normalised_theta'))
+
+        # physical parameters
+        norm_theta = samples.get('normalised_theta')
+        ys = np.array(norm_theta)
+
+        # Ensure that the ys are in the same order as fp.raw_members
+        #
+        # We get column names from 'theta' and not 'normalised_theta' because
+        # some cubes don't have column names for normalised_theta
+        #
+        # This permutation procedure has been tested by hand in a notebook.
+        theta = samples.get('theta')
+        colnames = list(theta.attrs['columns'])
+        permlist = [column_order.index(cn) for cn in colnames]
+        ys = ys[:, permlist]
         return xs, ys
 
     def get_xs(self) -> Any:
@@ -158,7 +172,7 @@ def load_simulated_data(
     """
     tbatch_size = test_batch_size if test_batch_size is not None else batch_size
 
-    cuda_kwargs = {'num_workers': 24, 'pin_memory': True}
+    cuda_kwargs = {'num_workers': 8, 'pin_memory': True}
     train_kwargs: dict[str, Any] = {
         'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
     test_kwargs: dict[str, Any] = {
@@ -196,6 +210,20 @@ def squareplus_f(x, a=2):
     `Squareplus` for more information.
     """
     return (x + t.sqrt(t.square(x)+a*a))/2
+
+
+def normalise_phot_np(x: np.ndarray) -> np.ndarray:
+    """Normalise a numpy array along 0th dimension in log-space.
+
+    Args:
+        x: array to normalise; assumed to be a tensor of photometric
+            observations.
+
+    Returns:
+        np.ndarray: the normalised photometry.
+    """
+    x_log = np.log(x)
+    return (x_log - x_log.mean(0)) / x_log.std(0)
 
 
 # Testing Utilities -----------------------------------------------------------

@@ -47,11 +47,24 @@ endif
 	@python agnfinder/simulation/simulation.py
 
 # 'inference': train CVAE
-inf: ## To run the inference code
+inf: ## To run the CVAE inference code
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/inference/inference.py
+
+# 'inference': train MADE
+made: ## To run the MADE inference code
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/made.py
+
+san: ## To run the SAN inference code
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/san.py
 
 mypy: ## To run mypy only (this is usually done with test / alltest)
 ifndef SPS_HOME
@@ -102,7 +115,7 @@ lab: ## To start a Jupyter Lab server
 ifndef SPS_HOME
 		@source setup.sh
 endif
-	jupyter lab --notebook-dir=.
+	jupyter lab --notebook-dir=. --ip=0.0.0.0 --collaborative
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

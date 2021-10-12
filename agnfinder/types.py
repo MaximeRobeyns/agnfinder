@@ -180,18 +180,16 @@ class OptionalValue(Optional):
 # Free Parameter Configuration ------------------------------------------------
 
 
+column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage', 'log_tau',
+        'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass', 'inclination']
+
+
 class FreeParameters(ConfigClass):
 
     def __init__(self):
 
-        # This list provides the order.
-        # TODO remove this old order if unnecessary:
-        # self.raw_members: list[str] = ['agn_eb_v', 'dust2', 'inclination',
-        #     'log_agn_mass', 'log_agn_torus_mass', 'log_mass', 'log_tau',
-        #     'redshift', 'tage']
-        self.raw_members: list[str] = ['redshift', 'log_mass', 'dust2', 'tage',
-            'log_tau', 'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass',
-            'inclination']
+        # This list provides the order for the physical parameters.
+        self.raw_members: list[str] = column_order
 
         self.raw_params: paramspace_t = {}
 
