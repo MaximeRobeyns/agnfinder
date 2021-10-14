@@ -19,4 +19,4 @@
 from .inference import *
 
 from .made import CMADE
-from .san import Gaussian_SAN, Laplace_SAN
+from .san import Gaussian_SAN, Laplace_SAN, SAN

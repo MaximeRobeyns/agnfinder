@@ -76,7 +76,7 @@ test: mypy  ## To run the program's fast tests (e.g. to verify an installation)
 ifndef SPS_HOME
 		@source setup.sh
 endif
-	@python -m pytest -s tests
+	@python -m pytest -s tests -k test_made
 
 alltest: mypy ## To run all the program's tests (including slow running ones)
 ifndef SPS_HOME
@@ -115,7 +115,7 @@ lab: ## To start a Jupyter Lab server
 ifndef SPS_HOME
 		@source setup.sh
 endif
-	jupyter lab --notebook-dir=. --ip=0.0.0.0 --collaborative
+	jupyter lab --notebook-dir=. # --ip=0.0.0.0 --collaborative
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

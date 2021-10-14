@@ -28,7 +28,7 @@ import torch.nn.functional as F
 
 import agnfinder.config as cfg
 
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -100,7 +100,7 @@ class SAN(nn.Module):
 
     def _sequential_block(self, cond_dim: int, ctx: int, module_shape: list[int],
                           out_shapes: list[int],
-                          out_activations: list[Optional[nn.Module]]
+                          out_activations: list[Any]
                           ) -> tuple[nn.Module, nn.ModuleList]:
 
         assert len(out_shapes) == len(out_activations)
@@ -326,10 +326,10 @@ class Gaussian_SAN(SAN):
     def eval_log_likelihood(self, y: Tensor, lparams: Tensor) -> Tensor:
         loc, scale = lparams.split(1, -1)
         loc, scale = loc.squeeze(), utils.squareplus_f(scale.squeeze())
-        # don't bother with the full distribution; working up to
-        # proportionality in both loc and scale is sufficient.
-        loss = 0.5 * (torch.log(scale) + (y - loc)**2 / scale)
-        return loss.sum(1)
+        loss = -F.gaussian_nll_loss(y, loc, scale, reduction='none').sum(1)
+        return loss
+        # loss = 0.5 * (t.log(scale) + (y - loc)**2 / scale)
+        # return loss.sum(1)
 
 class Laplace_SAN(SAN):
 

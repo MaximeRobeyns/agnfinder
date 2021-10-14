@@ -75,7 +75,7 @@ def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
     fig.text(0.05, 1.03, s=title, fontfamily='sans-serif',
              fontweight='demibold', fontsize=25)
     fig.text(0.05, 1.005, s=description, fontfamily='sans-serif',
-             fontweight='normal', fontsize=12)
+             fontweight='normal', fontsize=14)
 
     log.setLevel(l)
 
