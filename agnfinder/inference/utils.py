@@ -92,12 +92,14 @@ class InMemoryGalaxyDataset(Dataset):
 
         # Ensure that the ys are in the same order as fp.raw_members
         #
-        # We get column names from 'theta' and not 'normalised_theta' because
-        # some cubes don't have column names for normalised_theta
-        #
-        # This permutation procedure has been tested by hand in a notebook.
-        theta = samples.get('theta')
-        colnames = list(theta.attrs['columns'])
+        # In older versions of the code, column names were only saved with the
+        # 'theta' dataset (not norm_theta). This is why we still refer to this
+        # as fallback.
+        try:
+            colnames = list(norm_theta.attrs['columns'])
+        except:
+            theta = samples.get('theta')
+            colnames = list(theta.attrs['columns'])
         permlist = [column_order.index(cn) for cn in colnames]
         ys = ys[:, permlist]
         return xs, ys

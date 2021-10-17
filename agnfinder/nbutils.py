@@ -20,6 +20,8 @@ This is a file containing utility functions for use in accompanying Jupyter
 Notebooks.
 """
 
+import math
+
 import corner
 import logging
 import torch as t
@@ -78,6 +80,59 @@ def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
              fontweight='normal', fontsize=14)
 
     log.setLevel(l)
+
+
+def plot_posteriors(posterior_ys: np.ndarray, true_ys: np.ndarray,
+                    labels: list[str] = column_order, title: str = "",
+                    description: str = ""):
+    """Plots posterior values p(y | x) on the y axis against the true y values
+    on the x axis.
+
+    This allows us to compare parameter estimates over a large number of
+    observations.
+
+    Implementation checklist:
+
+    - title
+    - descriptive subtitle
+    - sub-plot labels and titles
+    - nice colours
+
+    Args:
+        posterior_theta: samples / expected value / mode from posterior p(y | x)
+        true_theta: true galaxy parameters
+    """
+
+    assert posterior_ys.shape[1] == true_ys.shape[1]
+
+    base_size = 4
+
+    # number of subplots
+    N = true_ys.shape[1]
+    cols = min(N, 3)
+    rows = math.ceil(N/cols)
+
+    fig, ax = plt.subplots(rows, cols, figsize=(base_size*rows, base_size*cols))
+    pltrange = [[0.,1.],[0.,1.]]
+
+    for r in range(rows):
+        for c in range(cols):
+            i = r * rows + c
+
+            tmp_ax = ax[r][c]
+
+            # ax.hist2d(true_ys[:,i], posterior_ys[:,i], bins=50, range=pltrange, cmap="magma")
+            tmp_ax.hist2d(true_ys[:,i], posterior_ys[:,i], bins=50, range=pltrange, cmap="Blues")
+            tmp_ax.set_xlabel('True Value')
+            tmp_ax.set_ylabel('Posterior Samples')
+            tmp_ax.set_title(labels[i])
+
+    fig.text(0.05, 1.05, s=title, fontfamily='sans-serif',
+             fontweight='demibold', fontsize=25)
+    fig.text(0.05, 1.005, s=description, fontfamily='sans-serif',
+             fontweight='normal', fontsize=14)
+
+    fig.tight_layout()
 
 
 def plot_violin(dists: list[np.ndarray], labels: list[str],

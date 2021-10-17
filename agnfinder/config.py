@@ -24,11 +24,12 @@ import typing
 import torch as t
 import torch.nn as nn
 import logging
-from typing import Any, Union
+from typing import Any, Union, Type
 from logging.config import dictConfig
 
 import agnfinder.inference.base as base
 import agnfinder.inference.inference as inference
+import agnfinder.inference.san as san
 
 from agnfinder.inference.base import CVAE, cvae_t
 from agnfinder.inference.utils import Squareplus
@@ -234,6 +235,9 @@ class MADEParams(ConfigClass):
     # number of different orderings for order / connection agnostic training
     num_masks: int = 128
 
+    # whether to condition all layers (true) or just the input layer (false)
+    condition_all: bool = True
+
     # How many samples of connectivity / masks to average parameters over during
     # inference
     samples: int = 16
@@ -247,9 +251,10 @@ class MADEParams(ConfigClass):
 class SANParams(ConfigClass):
     cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
-    module_shape: list[int] = [16, 32, 18]  # shape of the network 'modules'
+    module_shape: list[int] = [16, 32]  # shape of the network 'modules'
+    sequence_features: int = 4  # features passed between sequential blocks
+    likelihood: Type[san.SAN_Likelihood] = san.Gaussian
     lparams: int = 2  # number of parameers for likelihood p(y_d | y_<d, x)
-
     batch_norm: bool = True  # use batch normalisation in network?
 
 
