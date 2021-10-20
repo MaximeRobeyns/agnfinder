@@ -58,8 +58,9 @@ class FactorisedGaussianPrior(CVAEPrior):
     """
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
                  ) -> _CVAE_Dist:
-        assert dist_params is not None and isinstance(dist_params, list) \
-                and len(dist_params) == 2
+        assert dist_params is not None, "Dist params cannot be none"
+        assert isinstance(dist_params, list), "Dist params must be a list"
+        assert len(dist_params) == 2, "Dist params must contain mean and var"
         [mean, log_std] = dist_params
         std = t.exp(log_std)
         return dist.Gaussian(mean, std)

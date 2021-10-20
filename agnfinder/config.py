@@ -30,6 +30,7 @@ from logging.config import dictConfig
 import agnfinder.inference.base as base
 import agnfinder.inference.inference as inference
 import agnfinder.inference.san as san
+import agnfinder.inference.made as made
 
 from agnfinder.inference.base import CVAE, cvae_t
 from agnfinder.inference.utils import Squareplus
@@ -230,17 +231,21 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 class MADEParams(ConfigClass):
     cond_dim: int = 8  # x; dimensions of photometry
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
-    hidden_sizes: list[int] = [16, 32]
+    hidden_sizes: list[int] = [128, 128]
+
+    likelihood: Type[made.MADE_Likelihood] = made.Gaussian
+    likelihood_kwargs: typing.Optional[dict[str, Any]] = None
 
     # number of different orderings for order / connection agnostic training
-    num_masks: int = 128
+    num_masks: int = 16
 
+    # TODO remove this parameter if unnecessary; remove all references in made.py
     # whether to condition all layers (true) or just the input layer (false)
-    condition_all: bool = True
+    condition_all: bool = False
 
     # How many samples of connectivity / masks to average parameters over during
     # inference
-    samples: int = 16
+    samples: int = 4
 
     natural_ordering: bool = False
 
@@ -253,8 +258,10 @@ class SANParams(ConfigClass):
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
     module_shape: list[int] = [16, 32]  # shape of the network 'modules'
     sequence_features: int = 4  # features passed between sequential blocks
-    likelihood: Type[san.SAN_Likelihood] = san.Gaussian
-    lparams: int = 2  # number of parameers for likelihood p(y_d | y_<d, x)
+    # likelihood: Type[san.SAN_Likelihood] = san.Gaussian
+    # likelihood_kwargs = None
+    likelihood: Type[san.SAN_Likelihood] = san.MoG
+    likelihood_kwargs: typing.Optional[dict[str, Any]] = {'K': 5}
     batch_norm: bool = True  # use batch normalisation in network?
 
 

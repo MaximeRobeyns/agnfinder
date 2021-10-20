@@ -39,14 +39,17 @@ from agnfinder.inference import utils
 # Likelihoods -----------------------------------------------------------------
 
 
-class SAN_Likelihood():
+class SAN_Likelihood(object):
 
-    @property
+    def __init__(*args, **kwargs):
+        pass
+
+    @abc.abstractmethod
     def name(self) -> str:
         """Returns the name of this distribution, as a string."""
         raise NotImplementedError
 
-    @property
+    @abc.abstractmethod
     def n_params(self) -> int:
         """Returns the number of parameters required to parametrise this
         distribution."""
@@ -74,8 +77,9 @@ class Gaussian(SAN_Likelihood):
         return loc.squeeze(), utils.squareplus_f(scale.squeeze())
 
     def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
+        loc, scale = self._extract_params(params)
         return t.distributions.Normal(
-                *self._extract_params(params)).log_prob(value)
+                loc.squeeze(), scale.squeeze()).log_prob(value)
 
     def sample(self, params: Tensor) -> Tensor:
         return t.distributions.Normal(
@@ -118,8 +122,8 @@ class MoG(SAN_Likelihood):
 
     def _extract_params(self, params: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         B = params.size(0)
-        loc, scale, k = params.reshape(B, self.K, 3).tensor_split(3, 2)
-        return loc, utils.squareplus_f(scale), F.softmax(k, -1)
+        loc, scale, k = params.reshape(B, -1, self.K, 3).tensor_split(3, 3)
+        return loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1), F.softmax(k, -1).squeeze(-1)
 
     def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
         loc, scale, k = self._extract_params(params)
@@ -128,15 +132,53 @@ class MoG(SAN_Likelihood):
         return t.distributions.MixtureSameFamily(cat, norms).log_prob(value)
 
     def sample(self, params: Tensor) -> Tensor:
-        loc, scale, k = self._extract_params(params)
-        cat = t.distributions.Categorical(k)
+        B = params.size(0)
+        loc, scale, k = params.reshape(B, self.K, 3).tensor_split(3, 2)
+        loc, scale = loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1)
+        cat = t.distributions.Categorical(F.softmax(k, -1).squeeze(-1))
         norms = t.distributions.Normal(loc, scale)
         return t.distributions.MixtureSameFamily(cat, norms).sample()
+
+class MoST(SAN_Likelihood):
+
+    def __init__(self, K: int) -> None:
+        """Mixture of Gaussians.
+
+        Args:
+            K: number of mixture components.
+        """
+        self.K = K
+
+    def name(self) -> str:
+        return "Mixture of StudentT"
+
+    def n_params(self) -> int:
+        return 3 * self.K  # loc, scale, mixture weight.
+
+    def _extract_params(self, params: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        B = params.size(0)
+        loc, scale, k = params.reshape(B, -1, self.K, 3).tensor_split(3, 3)
+        return loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1), F.softmax(k, -1).squeeze(-1)
+
+    def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
+        loc, scale, k = self._extract_params(params)
+        cat = t.distributions.Categorical(k)
+        sts = t.distributions.StudentT(1., loc, scale)
+        return t.distributions.MixtureSameFamily(cat, sts).log_prob(value)
+
+    def sample(self, params: Tensor) -> Tensor:
+        B = params.size(0)
+        loc, scale, k = params.reshape(B, self.K, 3).tensor_split(3, 2)
+        loc, scale = loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1)
+        cat = t.distributions.Categorical(F.softmax(k, -1).squeeze(-1))
+        sts = t.distributions.StudentT(1., loc, scale)
+        return t.distributions.MixtureSameFamily(cat, sts).sample()
 
 
 class SAN(nn.Module):
     def __init__(self, cond_dim: int, data_dim: int, module_shape: list[int],
                  sequence_features: int, likelihood: Type[SAN_Likelihood],
+                 likelihood_kwargs: Optional[dict[str, Any]] = None,
                  batch_norm: bool = False, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float32,
                  logging_callbacks: list[Callable] = [],
@@ -152,6 +194,8 @@ class SAN(nn.Module):
             sequence_features: the number of features to carry through between
                 sequential blocks.
             likelihood: the likelihood to use for each p(y_d | y_<d, x)
+            likelihood_kwargs: any parameters to pass to the likelihood's
+                constructor
             batch_norm: whether to use batch normalisation in the network
             device: device memory to use
             dtype: datatype to use; defaults to float32 but float64 should be
@@ -169,7 +213,9 @@ class SAN(nn.Module):
         self.data_dim = data_dim
         self.module_shape = module_shape
         self.sequence_features = sequence_features
-        self.likelihood: SAN_Likelihood = likelihood()
+
+        kwargs = likelihood_kwargs if likelihood_kwargs is not None else {}
+        self.likelihood: SAN_Likelihood = likelihood(**kwargs)
 
         self.dtype = dtype
         self.device = device
@@ -181,7 +227,7 @@ class SAN(nn.Module):
 
         for d in range(data_dim):
             b, h = self._sequential_block(cond_dim, d, module_shape,
-                      out_shapes=[sequence_features, self.likelihood.n_params],
+                      out_shapes=[sequence_features, self.likelihood.n_params()],
                       out_activations=[nn.ReLU, None])
             self.network_blocks.append(b)
             self.block_heads.append(h)
@@ -199,7 +245,7 @@ class SAN(nn.Module):
         self.logging_callbacks = logging_callbacks
 
     def __repr__(self) -> str:
-        return (f'SAN with {self.likelihood.name} likelihood, '
+        return (f'SAN with {self.likelihood.name()} likelihood, '
                 f'module blocks of shape {self.module_shape} '
                 f'and {self.sequence_features} features between blocks')
 
@@ -265,12 +311,13 @@ class SAN(nn.Module):
         # batch size
         B = x.size(0)
         ys = t.empty((B, 0), dtype=self.dtype, device=self.device)
-        self.last_params = t.empty((B, self.data_dim, self.likelihood.n_params),
+        self.last_params = t.empty((B, self.data_dim, self.likelihood.n_params()),
                                    dtype=self.dtype, device=self.device)
 
         seq_features = t.empty((B, 0), dtype=self.dtype, device=self.device)
 
         for d in range(self.data_dim):
+
 
             d_input = t.cat((x, seq_features, ys), 1)
 
@@ -365,7 +412,7 @@ class SAN(nn.Module):
             ms = '_'.join([str(l) for l in s])
             name = (f'l{self.likelihood.name()}_cd{self.cond_dim}'
                     f'_dd{self.data_dim}_ms{ms}_'
-                    f'lp{self.likelihood.n_params}_bn{self.batch_norm}')
+                    f'lp{self.likelihood.n_params()}_bn{self.batch_norm}')
             if self.overwrite_results:
                 self.savepath_cached = f'{base}{name}.pt'
             else:
@@ -399,7 +446,8 @@ if __name__ == '__main__':
     model = SAN(cond_dim=sp.cond_dim, data_dim=sp.data_dim,
                 module_shape=sp.module_shape,
                 sequence_features=sp.sequence_features,
-                likelihood=Gaussian, batch_norm=True,
+                likelihood=sp.likelihood, batch_norm=True,
+                likelihood_kwargs=sp.likelihood_kwargs,
                 device=ip.device, dtype=ip.dtype,
                 overwrite_results=ip.overwrite_results)
 

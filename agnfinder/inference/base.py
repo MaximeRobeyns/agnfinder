@@ -151,8 +151,8 @@ class _CVAE_Dist(object):
     @abc.abstractmethod
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         """
-        Generates a sample_shape shaped sample or sample_shape shaped batch of
-        samples if the distribution parameters are batched.
+        Generates a `sample_shape` shaped sample or `sample_shape` shaped batch
+        of samples if the distribution parameters are batched.
         """
         raise NotImplementedError
 
@@ -393,7 +393,12 @@ class CVAE(nn.Module, abc.ABC):
         self.overwrite_results = overwrite_results
         self.savepath_cached: Optional[str] = None
 
-        self.opt = t.optim.Adam(self.parameters(), lr=cp.adam_lr)
+        # self.opt = t.optim.Adam(self.parameters(), lr=cp.adam_lr)
+
+        if self.prior.is_module:
+            self.prior_opt = t.optim.Adam(self.prior.parameters(), lr=cp.adam_lr)
+        self.enc_opt = t.optim.Adam(self.encoder.parameters(), lr=cp.adam_lr)
+        self.dec_opt = t.optim.Adam(self.decoder.parameters(), lr=cp.adam_lr)
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         """Perform any necessary pre-processing to the data before training.
@@ -476,9 +481,17 @@ class CVAE(nn.Module, abc.ABC):
                 ELBO = self.ELBO(logpy, logpz, logqz, (e*ipe) + (i*b), t)
 
                 loss = -(ELBO.mean(0))
-                self.opt.zero_grad()
+                if self.prior.is_module:
+                    self.prior_opt.zero_grad()
+                self.enc_opt.zero_grad()
+                self.dec_opt.zero_grad()
+
                 loss.backward()
-                self.opt.step()
+
+                if self.prior.is_module:
+                    self.prior_opt.step()
+                self.enc_opt.step()
+                self.dec_opt.step()
 
                 if i % log_every == 0 or i == len(train_loader)-1:
                     # Run through all logging functions
