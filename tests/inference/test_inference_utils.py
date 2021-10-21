@@ -26,7 +26,7 @@ from agnfinder.inference.utils import GalaxyDataset, load_simulated_data
 fpath = './data/testdata/testcube'
 
 def test_GalaxyDataset():
-    dset = GalaxyDataset(file=fpath, transforms=[t.from_numpy])
+    dset = GalaxyDataset(path=fpath, transforms=[t.from_numpy])
     assert len(dset) == 1000
 
     xs, ys = dset[500]
@@ -57,7 +57,7 @@ def test_GalaxyDataset():
     def t4(x: Tensor) -> Tensor:
         return x*10
 
-    dset = GalaxyDataset(file=fpath, transforms=[t1, t2, t3, t4])
+    dset = GalaxyDataset(path=fpath, transforms=[t1, t2, t3, t4])
     xs, ys = dset[0]
     assert isinstance(xs, Tensor)
     assert isinstance(ys, Tensor)

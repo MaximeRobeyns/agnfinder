@@ -18,9 +18,11 @@
 
 import pytest
 import collections
+import pandas as pd
 
 from sedpy import observate
 
+from agnfinder.types import Filters
 from agnfinder.prospector import load_photometry
 
 def test_Filter():
@@ -75,16 +77,27 @@ def test_get_filters():
     assert collections.Counter(bp_all) == \
         collections.Counter(all_filters)
 
-#
-# TODO test load_galaxy here once (if?) implemented
-#
+
+def test_load_galaxy():
+    catalogue_loc = './data/cpz_paper_sample_week3.parquet'
+    galaxy = load_photometry.load_galaxy(catalogue_loc)
+    assert(isinstance(galaxy, pd.Series))
+
+
+def test_load_galaxy_for_prospector():
+    catalogue_loc = './data/cpz_paper_sample_week3.parquet'
+    galaxy = load_photometry.load_galaxy(catalogue_loc)
+    filters, _, _ = load_photometry.load_galaxy_for_prospector(
+        galaxy, filter_selection=Filters.Euclid)
+    assert all([isinstance(f, observate.Filter) for f in filters])
+
 
 def test_load_dummy_galaxy():
-    filters = load_photometry.load_dummy_galaxy('euclid')
+    filters, _, _ = load_photometry.load_dummy_galaxy('euclid')
     assert all([isinstance(f, observate.Filter) for f in filters])
 
-    filters = load_photometry.load_dummy_galaxy('reliable')
+    filters, _, _ = load_photometry.load_dummy_galaxy('reliable')
     assert all([isinstance(f, observate.Filter) for f in filters])
 
-    filters = load_photometry.load_dummy_galaxy('all')
+    filters, _, _ = load_photometry.load_dummy_galaxy('all')
     assert all([isinstance(f, observate.Filter) for f in filters])

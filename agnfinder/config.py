@@ -231,7 +231,7 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 class MADEParams(ConfigClass):
     cond_dim: int = 8  # x; dimensions of photometry
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
-    hidden_sizes: list[int] = [128, 128]
+    hidden_sizes: list[int] = [4, 8]
 
     likelihood: Type[made.MADE_Likelihood] = made.Gaussian
     likelihood_kwargs: typing.Optional[dict[str, Any]] = None
