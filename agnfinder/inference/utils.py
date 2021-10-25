@@ -156,6 +156,7 @@ def load_simulated_data(
         test_batch_size: Optional[int] = None,
         normalise_phot: Optional[Callable[[Any], Any]] = None,
         transforms: list[Callable[[Any], Any]] = [t.from_numpy],
+        split_seed: int = 0
         ) -> tuple[DataLoader, DataLoader]:
     """Load simulated (theta, photometry) data as train and test data loaders.
 
@@ -168,6 +169,7 @@ def load_simulated_data(
         normalise_phot: an optional normalisation transformation to apply to
             simulated photometry.
         transforms: list of transformations to apply to data before returning
+        split_seed: PyTorch Generator Seed for reproducible train/test splits.
 
     Returns:
         tuple[DataLoader, DataLoader]: train and test DataLoaders, respectively
@@ -184,7 +186,9 @@ def load_simulated_data(
 
     n_train = int(len(dataset) * split_ratio)
     n_test = len(dataset) - n_train
-    train_set, test_set = random_split(dataset, [n_train, n_test])
+
+    rng = t.Generator().manual_seed(split_seed)
+    train_set, test_set = random_split(dataset, [n_train, n_test], rng)
 
     train_loader = DataLoader(train_set, **train_kwargs)
     test_loader = DataLoader(test_set, **test_kwargs)

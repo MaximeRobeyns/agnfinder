@@ -29,9 +29,8 @@ from multiprocessing import Pool
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
-from agnfinder.types import Tensor, FilterSet, Filters, paramspace_t
+from agnfinder.types import Tensor, FilterSet, Filters
 from agnfinder.prospector import Prospector
-
 
 class Simulator(object):
 
@@ -60,8 +59,6 @@ class Simulator(object):
         self.has_forward_model: bool = False
         self.has_run: bool = False
 
-        # Is this necessary?
-        self.lims: paramspace_t = fp.raw_params
         self.free_params = fp
         self.dims: int = len(self.free_params)
 
@@ -211,6 +208,44 @@ class Simulator(object):
             return Filters.All
         else:
             raise ValueError(f'Unrecognised filter name {name}')
+
+
+class Simulator_f(object):
+    """A 'lightweight' version of the main Simulator class, intended to be used
+    as a function for single-theta forward model evaluations.
+    """
+
+    def __init__(self, fp: cfg.FreeParams = cfg.FreeParams(),
+                 sp: cfg.SamplingParams = cfg.SamplingParams(),
+                 sps: cfg.SPSParams = cfg.SPSParams(), quiet: bool=True):
+
+        self.fp = fp
+
+        # Since initialising prospector can be quite a verbose process, we
+        # silence all non-error logs if `quiet == True`:
+        if quiet:
+            log = logging.getLogger()
+            l = log.getEffectiveLevel()
+            log.setLevel(logging.ERROR)
+
+        catalogue_loc: str = "" if sps.catalogue_loc is None \
+                             else sps.catalogue_loc
+
+        p = Prospector(filter_selection=sp.filters, emulate_ssp=sps.emulate_ssp,
+                 catalogue_loc=catalogue_loc)
+        p.calculate_sed()
+        self.forward_model = p.get_forward_model()
+
+        # put the logging level back to what it was previously:
+        if quiet:
+            log.setLevel(l)
+
+    def __call__(self, theta: Tensor, denormalise: bool=True):
+
+        if denormalise:
+            theta = utils.denormalise_theta(theta, self.fp)
+
+        return self.forward_model(theta.numpy())
 
 
 def work_func(zmin: float, zmax: float, worker_idx: int) -> None:

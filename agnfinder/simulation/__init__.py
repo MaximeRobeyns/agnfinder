@@ -16,6 +16,6 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .simulation import Simulator
+from .simulation import Simulator, Simulator_f
 from . import simulation
 from . import utils

@@ -140,6 +140,7 @@ old_agnfinder
 old_notebooks
 agnvenv
 logs.txt
+notebooks/Masked_Autoregressive_Models
 
 # Excluded old code, kept locally for reference
 legacy
