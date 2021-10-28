@@ -220,6 +220,7 @@ class Simulator_f(object):
                  sps: cfg.SPSParams = cfg.SPSParams(), quiet: bool=True):
 
         self.fp = fp
+        self.sp = sp
 
         # Since initialising prospector can be quite a verbose process, we
         # silence all non-error logs if `quiet == True`:
@@ -240,12 +241,17 @@ class Simulator_f(object):
         if quiet:
             log.setLevel(l)
 
-    def __call__(self, theta: Tensor, denormalise: bool=True):
+    def __call__(self, theta: Tensor, denormalise: bool=True) -> np.ndarray:
 
         if denormalise:
             theta = utils.denormalise_theta(theta, self.fp)
 
-        return self.forward_model(theta.numpy())
+        N = theta.size(0)
+        Y = np.empty((N, self.sp.filters.dim))
+        for i in range(N):
+            Y[i] = self.forward_model(theta[i].numpy())
+
+        return Y
 
 
 def work_func(zmin: float, zmax: float, worker_idx: int) -> None:

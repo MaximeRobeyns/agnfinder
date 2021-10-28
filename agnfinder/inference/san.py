@@ -115,7 +115,7 @@ class MoG(SAN_Likelihood):
         self.K = K
 
     def name(self) -> str:
-        return "Mixture of Gaussians"
+        return "MoG"
 
     def n_params(self) -> int:
         return 3 * self.K  # loc, scale, mixture weight.
@@ -142,7 +142,7 @@ class MoG(SAN_Likelihood):
 class MoST(SAN_Likelihood):
 
     def __init__(self, K: int) -> None:
-        """Mixture of Gaussians.
+        """Mixture of StudentT distributions.
 
         Args:
             K: number of mixture components.
@@ -150,7 +150,7 @@ class MoST(SAN_Likelihood):
         self.K = K
 
     def name(self) -> str:
-        return "Mixture of StudentT"
+        return "MoST"
 
     def n_params(self) -> int:
         return 3 * self.K  # loc, scale, mixture weight.
@@ -236,7 +236,8 @@ class SAN(nn.Module):
         # samples were drawn for the last forward pass.
         # Useful for evaluating NLL of data under model.
         # Size: [mini-batch, likelihood_params]
-        self.last_pass_params: Optional[Tensor] = None
+        # self.last_pass_params: Optional[Tensor] = None
+        self.last_params: Optional[Tensor] = None
 
         self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
         self.is_trained = False
@@ -317,7 +318,6 @@ class SAN(nn.Module):
         seq_features = t.empty((B, 0), dtype=self.dtype, device=self.device)
 
         for d in range(self.data_dim):
-
 
             d_input = t.cat((x, seq_features, ys), 1)
 

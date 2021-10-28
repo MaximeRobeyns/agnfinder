@@ -68,7 +68,7 @@ class FreeParams(FreeParameters):
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
     n_samples: int = 100000
-    concurrency: int = 3  # os.cpu_count()
+    concurrency: int = 2  # set this to os.cpu_count() (or slightly less)
     redshift_min: float = 0.
     redshift_max: float = 1.
     save_dir: str = './data/cubes'
@@ -174,15 +174,18 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(ConfigClass):
-    epochs: int = 3
-    batch_size: int = 256
-    split_ratio: float = 0.1  # train / test split ratio
-    dtype: t.dtype = t.float64
+    epochs: int = 20
+    batch_size: int = 1024
+    split_ratio: float = 0.8  # train / test split ratio
+    dtype: t.dtype = t.float32
     device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
     model: cvae_t = CVAE
+    logging_frequency: int = 10000
+    # If you do not have this dataset, run `make sim`
+    # If you update SamplingParams, you will need to change this file path!
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
-    # dataset_loc: str = '../Data_Requests/Sotiria - latest/'
-    overwrite_results: bool = False
+    retrain_model: bool = False  # don't re-train an identical (existing) model
+    overwrite_results: bool = False  # if retrain_model, don't overwrite old one
 
 
 # ======================= Inference (CVAE) Parameters =========================
@@ -256,20 +259,21 @@ class MADEParams(ConfigClass):
 class SANParams(ConfigClass):
     cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
-    module_shape: list[int] = [16, 32]  # shape of the network 'modules'
-    sequence_features: int = 4  # features passed between sequential blocks
+    module_shape: list[int] = [512, 512]  # shape of the network 'modules'
+    sequence_features: int = 8  # features passed between sequential blocks
+    likelihood: Type[san.SAN_Likelihood] = san.MoG
+    likelihood_kwargs: typing.Optional[dict[str, Any]] = {'K': 10}
+    batch_norm: bool = True  # use batch normalisation in network?
+
+    # Simple alternative Gaussian likelihood (retained for reference)
     # likelihood: Type[san.SAN_Likelihood] = san.Gaussian
     # likelihood_kwargs = None
-    likelihood: Type[san.SAN_Likelihood] = san.MoG
-    likelihood_kwargs: typing.Optional[dict[str, Any]] = {'K': 5}
-    batch_norm: bool = True  # use batch normalisation in network?
 
 
 # =========================== Logging Parameters ==============================
 
 # logging levels:
 # CRITICAL (50) > ERROR (40) > WARNING (30) > INFO (20) > DEBUG (10) > NOTSET
-
 
 class LoggingParams(ConfigClass):
     file_loc: str = './logs.txt'

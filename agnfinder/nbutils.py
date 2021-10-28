@@ -22,6 +22,7 @@ Notebooks.
 
 import math
 
+import corner
 import logging
 import torch as t
 import numpy as np
