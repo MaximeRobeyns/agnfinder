@@ -35,7 +35,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from abc import abstractmethod
 
-from agnfinder.inference.inference import Model, ModelParams
+from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 
 from agnfinder import config as cfg
 from agnfinder.types import Tensor
@@ -532,8 +532,8 @@ class CMADE(Model):
 
         return masklist, (Ms[0] - self.cond_dim)[:,self.cond_dim:]
 
-    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams,
-                   masks: Optional[int] = None) -> None:
+    def trainmodel(self, train_loader: DataLoader, ip: InferenceParams,
+                   masks: Optional[int] = None, *args, **kwargs) -> None:
         """Train the MADE model.
 
         Args:

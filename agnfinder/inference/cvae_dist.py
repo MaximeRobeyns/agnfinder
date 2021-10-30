@@ -41,9 +41,6 @@ class R_Gaussian(_CVAE_RDist, dist.Normal):
         dist.Normal.__init__(self, mean, std)
         assert self.has_rsample
 
-    def name(self) -> str:
-        return "Factorised Gaussian"
-
     def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         lp = dist.Normal.log_prob(self, value)
         return lp if nojoint else lp.sum(1)
@@ -64,9 +61,6 @@ class Manual_R_Gaussian(_CVAE_RDist):
                          dtype=self.mean.dtype)
         assert self.mean.device == self.std.device
         assert self.mean.dtype == self.std.dtype
-
-    def name(self) -> str:
-        return "Factorised Gaussian"
 
     def log_prob(self, _: Tensor, nojoint: bool = False) -> Tensor:
         log2pi = math.log(2 * math.pi)
@@ -105,9 +99,6 @@ class R_MVN(_CVAE_RDist):
         self.std = L.sum(-1)
         self.cov = t.bmm(L, L.transpose(-2, -1))
 
-    def name(self) -> str:
-        return "Gaussian"
-
     def log_prob(self, _:Tensor, nojoint: bool = False) -> Tensor:
         log2pi = math.log(2 * math.pi)
         nlp = 0.5 * (log2pi + t.pow(self.last_eps, 2.)) + t.log(self.std)
@@ -130,9 +121,6 @@ class Gaussian(_CVAE_Dist, dist.Normal):
         _CVAE_Dist.__init__(self)
         dist.Normal.__init__(self, mean, std)
 
-    def name(self) -> str:
-        return "Gaussian"
-
     def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         # product of univariate Gaussian densities
         lp = dist.Normal.log_prob(self, value)
@@ -146,9 +134,6 @@ class Laplace(_CVAE_Dist, dist.Laplace):
     def __init__(self, loc: Tensor, scale: Tensor) -> None:
         _CVAE_Dist.__init__(self)
         dist.Laplace.__init__(self, loc, scale)
-
-    def name(self) -> str:
-        return "Laplace"
 
     def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         lp = dist.Laplace.log_prob(self, value)
@@ -170,9 +155,6 @@ class Manual_Gaussian(_CVAE_Dist):
                             dtype=self.mean.dtype)
         assert self.mean.device == self.std.device
         assert self.mean.dtype == self.std.dtype
-
-    def name(self) -> str:
-        return "Factorised Gaussian"
 
     def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         var = self.std ** 2
@@ -196,9 +178,6 @@ class MVN(_CVAE_Dist, dist.MultivariateNormal):
         _CVAE_Dist.__init__(self)
         dist.MultivariateNormal.__init__(self, mean, scale_tril=L)
 
-    def name(self) -> str:
-        return "Gaussian"
-
     def log_prob(self, value: Tensor, _: bool = False) -> Tensor:
         return dist.MultivariateNormal.log_prob(self, value)
 
@@ -212,9 +191,6 @@ class Multinomial(_CVAE_Dist, dist.Multinomial):
     def __init__(self, params: Tensor) -> None:
         _CVAE_Dist.__init__(self)
         dist.Multinomial.__init__(self, 1, params)
-
-    def name(self) -> str:
-        return "Multinomial"
 
     def log_prob(self, value: Tensor, _: bool = False) -> Tensor:
         return dist.Multinomial.log_prob(self, value)

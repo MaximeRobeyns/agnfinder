@@ -20,19 +20,67 @@ import logging
 import torch as t
 import torch.nn as nn
 
-from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Optional, Type
+from abc import ABC, abstractmethod
+from typing import Any, Callable, Type
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from agnfinder import config as cfg
 from agnfinder.types import Tensor
 from agnfinder.utils import ConfigClass
-from agnfinder.inference import SAN, CMADE, CVAE, utils
+from agnfinder.inference import utils
 from agnfinder.inference.utils import load_simulated_data
 
 
-class ModelParams(ConfigClass, metaclass=ABCMeta):
+# Abstract inference parameters ------------------------------------------------
+
+
+class InferenceParams(ConfigClass):
+    """Abstract configuration for the inference section of the progra."""
+
+    @property
+    @abstractmethod
+    # Type is `Any` due to poorly thought out design causing a circular
+    # dependency. The refactor is probably not worth the headache.
+    def model(self) -> Any:
+        """The model to use"""
+        pass
+
+    @property
+    @abstractmethod
+    def split_ratio(self) -> float:
+        """Train / test split ratio"""
+        pass
+
+    @property
+    @abstractmethod
+    def logging_frequency(self) -> int:
+        """Number of iterations between logs"""
+        pass
+
+    @property
+    @abstractmethod
+    def dataset_loc(self) -> str:
+        """Filepath to the hdf5 file or directory of hdf5 files to use"""
+        pass
+
+    @property
+    @abstractmethod
+    def retrain_model(self) -> bool:
+        """Whether to retrain an identical (existing) model"""
+        pass
+
+    @property
+    @abstractmethod
+    def overwrite_results(self) -> bool:
+        """If `retrain_model`, should we overwrite existing result on disk?"""
+        pass
+
+
+# Abstract model ---------------------------------------------------------------
+
+
+class ModelParams(ConfigClass, ABC):
 
     @property
     @abstractmethod
@@ -76,7 +124,7 @@ class ModelParams(ConfigClass, metaclass=ABCMeta):
         pass
 
 
-class Model(nn.Module, metaclass=ABCMeta):
+class Model(nn.Module, ABC):
     """Base model class for AGNFinder."""
 
     def __init__(self, mp: ModelParams, overwrite_results: bool = False,
@@ -114,9 +162,71 @@ class Model(nn.Module, metaclass=ABCMeta):
         # Apply 'decorators' to inheriting classes.
         # This is not a particularly pretty pattern to inherit decorators, but
         # it works well enough...
-        cls.trainmodel = Model._save_results(cls.trainmodel)
         cls.__repr__ = Model._wrap_lines(cls.__repr__)
+        cls.trainmodel = Model._save_results(cls.trainmodel)
         return cls
+
+    @staticmethod
+    def _wrap_lines(__repr__: Callable[[Any], str]) -> Callable[[Any], str]:
+        """Wraps model description after every 80 characters for more
+        ~aesthetic~ plotting / logging.
+        """
+        def _f(self) -> str:
+            string = __repr__(self)
+            words = string.split(' ')
+            length: int = 0
+            for i in range(len(words)):
+                length += len(words[i])
+                if length >= 80:
+                    words[i-1] = words[i-1] + '\n'  # i-1 should be fine...
+                    length = len(words[i])
+            return " ".join(words).replace("\n ", "\n")
+
+        return _f
+
+
+    # TODO remove these when possible
+    # def _save_results(trainmodel: Callable[[Any, DataLoader, InferenceParams, *Any], None]
+    #                  ) -> Callable[[Any, DataLoader, InferenceParams, *Any], None]:
+
+    @staticmethod
+    def _save_results(trainmodel: Callable[..., None]) -> Callable[..., None]:
+        """Decorator for the training method `trainmodel` which caches trained
+        models on disk avoiding unnecessary re-training of identical models,
+        and preventing users from forgetting to save models at the end of
+        training!
+
+        Args:
+            trainmodel: training function from inheriting class
+        """
+        def wrapper(self, loader: DataLoader, ip: InferenceParams, *args, **kwargs) -> None:
+            # Attempt to load the model from disk instead of re-training an
+            # identical model.
+            savepath: str = self.fpath()
+            if not ip.retrain_model:
+                try:
+                    logging.info(
+                        f'Attempting to load {self.name} model from {savepath}')
+                    self.load_state_dict(t.load(savepath))
+                    self.is_trained = True
+                    logging.info(f'Successfully loaded')
+                    # unsure if this is necessary, but for good measure...
+                    self.to(self.device, self.dtype)
+                    return
+                except:
+                    logging.info(
+                        f'Could not load model at {savepath}. Training...')
+
+            # Do the training
+            trainmodel(self, loader, ip, *args, **kwargs)
+            self.is_trained = True
+            logging.info(f'Trained {self.name} model.')
+
+            # Save the model to disk
+            t.save(self.state_dict(), savepath)
+            logging.info(
+                f'Saved {self.name} model as: {savepath}')
+        return wrapper
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -152,69 +262,8 @@ class Model(nn.Module, metaclass=ABCMeta):
         """
         return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
 
-    @staticmethod
-    def _wrap_lines(string: str, width: int = 80) -> str:
-        """Inserts newline characters in a string every `width=80` characters.
-
-        Args:
-            string: the original string
-
-        Returns:
-            str: the wrapped string
-        """
-        words = string.split(' ')
-        length: int = 0
-        for i in range(len(words)):
-            length += len(words[i])
-            if length >= width:
-                words[i-1] = words[i-1] + '\n'
-                length = len(words[i])
-        return " ".join(words).replace("\n ", "\n")
-
-    @staticmethod
-    def _save_results(trainmodel: Callable[[Any, DataLoader, cfg.InferenceParams], None]
-                     ) -> Callable[[Any, DataLoader, cfg.InferenceParams], None]:
-        """Decorator for the training method `trainmodel` which caches trained
-        models on disk avoiding unnecessary re-training of identical models,
-        and preventing users from forgetting to save models at the end of
-        training!
-
-        Args:
-            trainmodel: training function from inheriting class
-        """
-        def _f(self, loader: DataLoader, ip: cfg.InferenceParams):
-            # Attempt to load the model from disk instead of re-training an
-            # identical model.
-            savepath: str = self.fpath()
-            if not ip.retrain_model:
-                try:
-                    logging.info(
-                        f'Attempting to load {self.name} model from {savepath}')
-                    self.load_state_dict(t.load(savepath))
-                    self.is_trained = True
-                    logging.info(f'Successfully loaded')
-                    # unsure if this is necessary, but for good measure...
-                    self.to(self.device, self.dtype)
-                    return
-                except:
-                    logging.info(
-                        f'Could not load model at {savepath}. Training...')
-
-            # Do the training
-            trainmodel(self, loader, ip)
-            self.is_trained = True
-            logging.info(f'Trained {self.name} model.')
-
-            # Save the model to disk
-            t.save(self.state_dict(), savepath)
-            logging.info(
-                f'Saved {self.name} model as: {savepath}')
-
-        return _f
-
-    @_save_results
     @abstractmethod
-    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams,
+    def trainmodel(self, train_loader: DataLoader, ip: InferenceParams,
                    *args, **kwargs) -> None:
         """Train the model.
 
@@ -254,6 +303,7 @@ if __name__ == '__main__':
     ip = cfg.InferenceParams()  # inference procedure parameters
 
     # this is poor form :(
+    from agnfinder.inference import CMADE, CVAE
     mp: ModelParams = cfg.SANParams()
     if ip.model == CMADE:
         mp = cfg.MADEParams()

@@ -34,7 +34,8 @@ import agnfinder.inference as inf
 
 from agnfinder.types import arch_t, Tensor
 from agnfinder.inference import utils
-from agnfinder.inference.base import CVAE, CVAEParams
+from agnfinder.inference.cvae import CVAE, CVAEParams
+from agnfinder.inference.inference import InferenceParams
 
 
 # Image MNIST -----------------------------------------------------------------
@@ -44,6 +45,11 @@ class MNIST_img_params(CVAEParams):
     cond_dim = 10  # x; dimension of one-hot labels
     data_dim = 28*28  # y; size of MNIST image
     latent_dim = 2  # z
+
+    adam_lr = 1e-3
+    batch_size = 128
+    dtype = t.float64
+    epochs = 1
 
     prior = inf.StandardGaussianPrior
     prior_arch = None
@@ -58,6 +64,9 @@ class MNIST_img_params(CVAEParams):
 
 
 class MNIST_img_cvae(CVAE):
+
+    def fpath(self) -> str:
+        return 'results/testresults/mnist_img_cvae.pt'
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
         if x.dim() > 2:
@@ -75,6 +84,11 @@ class MNIST_label_params(CVAEParams):
     data_dim = 10  # y; size of one-hot encoded digit labels
     latent_dim = 2  # z
 
+    adam_lr = 1e-3
+    batch_size = 128
+    dtype = t.float64
+    epochs = 1
+
     prior = inf.StandardGaussianPrior
     prior_arch = None
 
@@ -85,7 +99,6 @@ class MNIST_label_params(CVAEParams):
     decoder = inf.MultinomialDecoder
     dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim],
                        nn.ReLU(), [nn.Softmax(dim=1)])
-
 
 class MNIST_label_cvae(CVAE):
 
@@ -109,6 +122,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
+            adam_lr = 1e-3
+            batch_size = 1024
+            dtype = t.float64
+            epochs = 10
+
             prior = inf.StandardGaussianPrior
             prior_arch = arch_t([2, 1], [1], nn.ReLU())
             encoder = inf.FactorisedGaussianEncoder
@@ -123,6 +141,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
+            adam_lr = 1e-3
+            batch_size = 1024
+            dtype = t.float64
+            epochs = 10
+
             prior = inf.StandardGaussianPrior
             prior_arch = None
             encoder = inf.FactorisedGaussianEncoder
@@ -137,6 +160,11 @@ def test_cvae_params():
             cond_dim = 1
             data_dim = 1
             latent_dim = 1
+            adam_lr = 1e-3
+            batch_size = 1024
+            dtype = t.float64
+            epochs = 10
+
             prior = inf.StandardGaussianPrior
             prior_arch = None
             encoder = inf.FactorisedGaussianEncoder
@@ -145,7 +173,7 @@ def test_cvae_params():
             dec_arch = arch_t([3, 1], [1, 1], nn.ReLU())
         _ = P3()
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(TypeError):
         # missing abstract property
         class P4(CVAEParams):
             cond_dim = 1
@@ -158,29 +186,39 @@ def test_cvae_params():
 
 def test_cvae_initialisation():
     """Tests that we can initialise a CVAE"""
-    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
-
     ip = MNIST_img_params()
-    _ = MNIST_img_cvae(ip, device=device, dtype=t.float64)
+    _ = MNIST_img_cvae(ip)
 
     lp = MNIST_label_params()
-    _ = MNIST_label_cvae(lp, device=device, dtype=t.float64)
+    _ = MNIST_label_cvae(lp)
 
     assert True  # haven't fallen over yet, great success!!
 
 
+class MNIST_ip(InferenceParams):
+    model = MNIST_img_cvae
+    split_ratio: float = 0.8  # train / test split ratio
+    logging_frequency: int = 10000
+    dataset_loc: str = ''
+    retrain_model: bool = True
+    overwrite_results: bool = True
+
+
 @pytest.mark.slow
 def test_cvae_MNIST_img():
-    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
-    ip = MNIST_img_params()
-    cvae = MNIST_img_cvae(ip, device=device, dtype=t.float64)
+    # Note: this is only needed for the logging_frequency attribute.
+    ip = MNIST_ip()
+
+    img_p = MNIST_img_params()
+    cvae = MNIST_img_cvae(img_p)
     train_loader, test_loader = utils._load_mnist()
 
     initial_loss = cvae.test_generator(test_loader)
     print('done initial loss')
-    # train for just 1 epoch to keep things speedy
-    cvae.trainmodel(train_loader, epochs=1)
+    # NOTE: we only train for 1 epoch to keep things relatively speedy (this is
+    # set in img_p)
+    cvae.trainmodel(train_loader, ip)
     print('done train model')
     final_loss = cvae.test_generator(test_loader)
     print('done final loss')
@@ -194,15 +232,17 @@ def test_cvae_MNIST_img():
 
 @pytest.mark.slow
 def test_cvae_MNIST_label():
-    device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
-    lp = MNIST_label_params()
-    cvae = MNIST_label_cvae(lp, device=device, dtype=t.float64)
+    ip = MNIST_ip()
+
+    label_p = MNIST_label_params()
+    cvae = MNIST_label_cvae(label_p)
+
     train_loader, test_loader = utils._load_mnist()
 
     initial_loss = cvae.test_generator(test_loader)
-    # train for just 1 epoch to keep things speedy(ish)
-    cvae.trainmodel(train_loader, epochs=1)
+    # NOTE: this also only runs for 1 epoch
+    cvae.trainmodel(train_loader, ip)
     final_loss = cvae.test_generator(test_loader)
 
     # Assert that loss is lower after a spot of training...

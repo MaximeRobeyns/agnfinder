@@ -17,8 +17,6 @@
 """Entrypoint for CVAE inference tasks."""
 
 import os
-import sys
-import errno
 import torch as t
 import logging
 
@@ -32,7 +30,7 @@ import agnfinder.inference.cvae_dist as dist
 
 from agnfinder.types import Tensor, DistParams, arch_t
 from agnfinder.inference import utils
-from agnfinder.inference.inference import Model, ModelParams
+from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 from agnfinder.inference.cvae_base import CVAEPrior, CVAEEnc, CVAEDec, \
                                           _CVAE_Dist, _CVAE_RDist
 
@@ -44,6 +42,10 @@ class StandardGaussianPrior(CVAEPrior):
     A standard Gaussian distribution, whose dimension matches the length of the
     latent code z.
     """
+
+    def name(self) -> str:
+        return "Standard Gaussian"
+
     def get_dist(self, _: Optional[Union[Tensor, DistParams]]=None) -> _CVAE_Dist:
         mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
         std = t.ones(self.latent_dim, device=self.device, dtype=self.dtype)
@@ -63,6 +65,10 @@ class FactorisedGaussianPrior(CVAEPrior):
     ...        [None, Squareplus(1.2)])
 
     """
+
+    def name(self) -> str:
+        return "Factorised Gaussian"
+
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
                  ) -> _CVAE_Dist:
         assert dist_params is not None, "Dist params cannot be none"
@@ -88,6 +94,10 @@ class FactorisedGaussianEncoder(CVAEEnc):
     ...        nn.SiLU())
 
     """
+
+    def name(self) -> str:
+        return "Factorised Gaussian"
+
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
         [mean, log_std] = dist_params
@@ -112,6 +122,10 @@ class GaussianEncoder(CVAEEnc):
     ...        nn.SiLU(), [None, nn.ReLU(), nn.ReLU()])
 
     """
+
+    def name(self) -> str:
+        return "Gaussian"
+
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list) and len(dist_params) == 3
         [mean, log_std, L] = dist_params
@@ -139,6 +153,10 @@ class FactorisedGaussianDecoder(CVAEDec):
     ...               [None, Squareplus(1.2)]) # scale must be positive
 
     """
+
+    def name(self) -> str:
+        return "Factorised Gaussian"
+
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
         [mean, log_std] = dist_params
@@ -159,6 +177,10 @@ class MultinomialDecoder(CVAEDec):
     ...               head_activations=[nn.Softmax()]) # relative probs
 
     """
+
+    def name(self) -> str:
+        return "Multinomial"
+
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, t.Tensor)
         return dist.Multinomial(dist_params)
@@ -176,6 +198,10 @@ class LaplaceDecoder(CVAEDec):
     ...               [None, Squareplus(1.2)]) # scale must be positive
 
     """
+
+    def name(self) -> str:
+        return "Laplace"
+
     def get_dist(self, dist_params: Union[t.Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
         [loc, log_scale] = dist_params
@@ -201,7 +227,7 @@ class CVAEParams(ModelParams):
                 f'Input dimensions of encoder network ({ri}) '
                 f'must equal data_dim ({self.data_dim}) + '
                 f'cond_dim ({self.cond_dim}).'))
-            sys.exit(errno.EINVAL)
+            raise ValueError("Incorrect CVAE dimensions (see logs)")
 
         if self.prior_arch is not None:
             pi = self.prior_arch.in_shape
@@ -209,7 +235,7 @@ class CVAEParams(ModelParams):
                 logging.error((
                     f'Input dimensions of prior network ({pi}) '
                     f'must equal cond_dim ({self.cond_dim})'))
-                sys.exit(errno.EINVAL)
+                raise ValueError("Incorrect CVAE dimensions (see logs)")
 
         gi = self.dec_arch.in_shape
         if gi != self.latent_dim + self.cond_dim:
@@ -217,7 +243,7 @@ class CVAEParams(ModelParams):
                 f'Input dimensions of decoder network ({gi}) '
                 f'must euqal latent_dim ({self.latent_dim}) + '
                 f'cond_dim ({self.cond_dim})'))
-            sys.exit(errno.EINVAL)
+            raise ValueError("Incorrect CVAE dimensions (see logs)")
 
     @property
     @abstractmethod
@@ -328,7 +354,7 @@ class CVAE(Model):
         # TODO generate a more unique model name based on network architectures
         # (not sequence)
         if self.savepath_cached == "":
-            base = './results/models/'
+            base = './results/cvaemodels/'
             name = (f'p{self.prior.name}_e{self.encoder.name}_d{self.decoder.name}'
                     f'_ld{self.latent_dim}_e{self.epochs}_bs{self.batch_size}')
             if self.overwrite_results:
@@ -368,8 +394,8 @@ class CVAE(Model):
             logqz = logqz.nan_to_num()
         return logpy + logpz - logqz
 
-    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams
-                  ) -> None:
+    def trainmodel(self, train_loader: DataLoader, ip: InferenceParams,
+                   *args, **kwargs) -> None:
         """Train the conditional VAE model.
 
         Args:

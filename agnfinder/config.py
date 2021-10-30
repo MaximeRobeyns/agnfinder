@@ -27,6 +27,7 @@ import logging
 from typing import Any, Union, Type
 from logging.config import dictConfig
 
+import agnfinder.inference as inference
 import agnfinder.inference.san as san
 import agnfinder.inference.cvae as cvae
 import agnfinder.inference.made as made
@@ -173,7 +174,7 @@ class ExtinctionTemplateParams(ConfigClass):
 # ======================= Inference (main) Parameters =========================
 
 
-class InferenceParams(ConfigClass):
+class InferenceParams(inference.InferenceParams):
     model: model_t = san.SAN
     split_ratio: float = 0.8  # train / test split ratio
     logging_frequency: int = 10000

@@ -28,6 +28,27 @@ import agnfinder.inference.made as made
 
 from agnfinder.inference import CMADE
 
+class MADEParams(made.MADEParams):
+
+    epochs = 1
+    batch_size = 128
+    dtype = t.float32
+    cond_dim = -1
+    data_dim = -1
+    hidden_sizes = []
+    likelihood = made.Gaussian
+    likelihood_kwargs = {'data_dim': 9}
+    num_masks = -1
+    samples = 1
+    natural_ordering = False
+
+    def __init__(self, cond_dim, data_dim, hidden_sizes, num_masks, natural_ordering):
+        super().__init__()
+        self.cond_dim = cond_dim
+        self.data_dim = data_dim
+        self.hidden_sizes = hidden_sizes
+        self.num_masks = num_masks
+        self.natural_ordering = natural_ordering
 
 def test_MADE():
 
@@ -47,14 +68,13 @@ def test_MADE():
 
     for cond_dim, data_dim, hidden_sizes, num_masks, natural_ordering in configs:
 
+        mp = MADEParams(cond_dim, data_dim, hidden_sizes, num_masks,
+                        natural_ordering)
+
         # 50 emulates mini-batch
         x = t.rand((50, data_dim + cond_dim), dtype=dtype, device=device)
 
-        model = CMADE(cond_dim=cond_dim, data_dim=data_dim,
-                      hidden_sizes=hidden_sizes, likelihood=made.Gaussian,
-                      likelihood_kwargs=None, num_masks=num_masks,
-                      natural_ordering=natural_ordering,
-                      device=device, dtype=dtype)
+        model = CMADE(mp)
 
         out_size = model.likelihood.n_params() * data_dim
 
@@ -67,7 +87,6 @@ def test_MADE():
         #
         # Note that this 'trick' only works with single-ensemble masks.
         midxs = t.randperm(model.num_masks)[:1]
-
 
         res = []
         for k in range(out_size):

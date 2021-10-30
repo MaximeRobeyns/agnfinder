@@ -18,10 +18,10 @@
 photometry.
 """
 
-import abc
 import torch as t
 import torch.nn as nn
 
+from abc import ABC, abstractmethod
 from typing import Union, Optional
 
 from agnfinder.types import Tensor, DistParams, arch_t
@@ -135,13 +135,7 @@ class _CVAE_Dist(object):
             sample_shape = t.Size(sample_shape)
         return t.Size(sample_shape + self._batch_shape + self._event_shape)
 
-    @property
-    @abc.abstractmethod
-    def name(self) -> str:
-        """Returns the name of the distribution"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
+    @abstractmethod
     def log_prob(self, value: Tensor, nojoint: bool = False) -> Tensor:
         """
         Returns the log of the probability density/mass function evaluated at
@@ -151,7 +145,7 @@ class _CVAE_Dist(object):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         """
         Generates a `sample_shape` shaped sample or `sample_shape` shaped batch
@@ -168,7 +162,7 @@ class _CVAE_RDist(_CVAE_Dist):
     def sample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         return self.rsample(sample_shape).to(self.device, self.dtype)
 
-    @abc.abstractmethod
+    @abstractmethod
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         """
         Generates a sample_shape shaped reparameterized sample or sample_shape
@@ -178,7 +172,7 @@ class _CVAE_RDist(_CVAE_Dist):
         raise NotImplementedError
 
 
-class CVAEPrior(MLP, abc.ABC):
+class CVAEPrior(MLP, ABC):
     """Base prior class for CVAEs
 
     This implements the (optional) prior network which parametrises
@@ -188,7 +182,7 @@ class CVAEPrior(MLP, abc.ABC):
                  latent_dim: int,
                  device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        abc.ABC.__init__(self)
+        ABC.__init__(self)
         if arch is not None:
             MLP.__init__(self, arch, device, dtype)
         else:
@@ -208,13 +202,19 @@ class CVAEPrior(MLP, abc.ABC):
     def __repr__(self) -> str:
         return type(self).__name__
 
-    @abc.abstractmethod
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Returns the name of the prior"""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
                  ) -> _CVAE_Dist:
         raise NotImplementedError
 
 
-class CVAEEnc(MLP, abc.ABC):
+class CVAEEnc(MLP, ABC):
     """Base encoder class for CVAEs
 
     This implements the recognition network which parametrises
@@ -223,7 +223,7 @@ class CVAEEnc(MLP, abc.ABC):
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        abc.ABC.__init__(self)
+        ABC.__init__(self)
         MLP.__init__(self, arch, device, dtype)
         self.device, self.dtype = device, dtype
 
@@ -235,12 +235,18 @@ class CVAEEnc(MLP, abc.ABC):
     def __repr__(self) -> str:
         return type(self).__name__
 
-    @abc.abstractmethod
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Returns the name of the encoder"""
+        raise NotImplementedError
+
+    @abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         raise NotImplementedError
 
 
-class CVAEDec(MLP, abc.ABC):
+class CVAEDec(MLP, ABC):
     """Base decoder class for CVAEs
 
     This implements the generator network which parametrises
@@ -249,7 +255,7 @@ class CVAEDec(MLP, abc.ABC):
 
     def __init__(self, arch: arch_t, device: t.device = t.device('cpu'),
                  dtype: t.dtype = t.float64) -> None:
-        abc.ABC.__init__(self)
+        ABC.__init__(self)
         MLP.__init__(self, arch, device, dtype)
         self.device, self.dtype = device, dtype
 
@@ -258,9 +264,15 @@ class CVAEDec(MLP, abc.ABC):
                     self.forward(
                         t.cat((z, x), -1)))
 
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Returns the name of the decoder"""
+        raise NotImplementedError
+
     def __repr__(self) -> str:
         return type(self).__name__
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         raise NotImplementedError

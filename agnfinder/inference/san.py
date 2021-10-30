@@ -34,7 +34,7 @@ from torchvision import transforms
 
 from agnfinder.types import Tensor
 from agnfinder.inference import utils
-from agnfinder.inference.inference import Model, ModelParams
+from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 
 
 # Likelihoods -----------------------------------------------------------------
@@ -391,8 +391,8 @@ class SAN(Model):
         assert ys.shape == (x.size(0), self.data_dim)
         return ys
 
-    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams
-                  ) -> None:
+    def trainmodel(self, train_loader: DataLoader, ip: InferenceParams,
+                   *args, **kwargs) -> None:
         """Train the SAN model
 
         Args:
