@@ -16,16 +16,16 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """ Some custom types """
 
-import pprint
+import typing
 import numpy as np
 import torch as t
 import torch.nn as nn
-import typing
-import logging
 
 from sedpy import observate
 from prospect.models import priors
 from typing import Union, Callable, Any
+
+from agnfinder.utils import ConfigClass
 
 # Type for the limits on the free parameters.
 paramspace_t = dict[str, tuple[float, float]]
@@ -73,31 +73,6 @@ class Filters():
     Euclid = _Euclid('euclid', 8)
     Reliable = _Reliable('reliable', 12)
     All = _All('all', 12)
-
-
-# Parent class for class-based configuration objects --------------------------
-
-
-class ConfigClass(object):
-    """The point of this class is to allow class-based configuration objects to
-    be printed for logging and debugging in a clean way.
-    """
-
-    def __init__(self) -> None:
-        logging.debug(f'New configuration object: {self}')
-
-    def __repr__(self) -> str:
-        r = f'\n\n{79*"="}\n'
-        c = f'Configuration class `{type(self).__name__}`'
-        n = len(c)
-        nn = int((79 - n) / 2)
-        r += nn * ' ' + c + f'\n{79*"-"}\n\n'
-        members = [a for a in dir(self) if not callable(getattr(self, a))\
-                   and not a.startswith("__")]
-        for m in members:
-            r += f'{m}: {pprint.pformat(getattr(self, m), compact=True)}\n'
-        r += '\n' + 79 * '=' + '\n\n'
-        return r
 
 
 # Maybe 'monad' ---------------------------------------------------------------

@@ -20,7 +20,6 @@ procedure for generating autoregressive samples.
 """
 
 import os
-import abc
 import logging
 import torch as t
 import torch.nn as nn
@@ -28,12 +27,14 @@ import torch.nn.functional as F
 
 import agnfinder.config as cfg
 
+from abc import abstractmethod
 from typing import Optional, Callable, Any, Type
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from agnfinder.types import Tensor
 from agnfinder.inference import utils
+from agnfinder.inference.inference import Model, ModelParams
 
 
 # Likelihoods -----------------------------------------------------------------
@@ -44,24 +45,24 @@ class SAN_Likelihood(object):
     def __init__(*args, **kwargs):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def name(self) -> str:
         """Returns the name of this distribution, as a string."""
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def n_params(self) -> int:
         """Returns the number of parameters required to parametrise this
         distribution."""
         return 2
 
-    @abc.abstractmethod
+    @abstractmethod
     def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
         """Evaluate the log probability of `value` under a distribution
         parametrised by `params`"""
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def sample(self, params: Tensor) -> Tensor:
         """Draw a single sample from a distribution parametrised by `params`"""
         raise NotImplementedError
@@ -175,59 +176,85 @@ class MoST(SAN_Likelihood):
         return t.distributions.MixtureSameFamily(cat, sts).sample()
 
 
-class SAN(nn.Module):
-    def __init__(self, cond_dim: int, data_dim: int, module_shape: list[int],
-                 sequence_features: int, likelihood: Type[SAN_Likelihood],
-                 likelihood_kwargs: Optional[dict[str, Any]] = None,
-                 batch_norm: bool = False, device: t.device = t.device('cpu'),
-                 dtype: t.dtype = t.float32,
+# SAN Description -------------------------------------------------------------
+
+
+class SANParams(ModelParams):
+    """Configuration class for SAN.
+
+    This defines some required properties, and additionally performs validation
+    of user-supplied values.
+    """
+
+    def __init__(self):
+        super().__init__()
+        # perform any required validation here...
+
+    @property
+    @abstractmethod
+    def module_shape(self) -> list[int]:
+        """Size of each individual 'module block'"""
+        pass
+
+    @property
+    @abstractmethod
+    def sequence_features(self) -> int:
+        """Number of features to carry through for each network block"""
+        pass
+
+    @property
+    @abstractmethod
+    def likelihood(self) -> Type[SAN_Likelihood]:
+        """Likelihood to use for each p(y_d | y_<d, x)"""
+        pass
+
+    @property
+    def likelihood_kwargs(self) -> Optional[dict[str, Any]]:
+        """Any keyword arguments accepted by likelihood"""
+        return None
+
+    @property
+    @abstractmethod
+    def batch_norm(self) -> bool:
+        """Whether to use batch normalisation or not"""
+        pass
+
+
+# Main SAN Class ==============================================================
+
+
+class SAN(Model):
+    def __init__(self, mp: SANParams,
                  logging_callbacks: list[Callable] = [],
                  overwrite_results: bool = True) -> None:
         """"Sequential autoregressive network" implementation.
 
         Args:
-            cond_dim: dimensions of the conditioning data (e.g. photometry)
-            data_dim: dimensions of the data whose (conditional) distribution
-                we are trying to learn (e.g. physical galaxy parameters)
-
-            module_shape: widths of hidden 'module' layers
-            sequence_features: the number of features to carry through between
-                sequential blocks.
-            likelihood: the likelihood to use for each p(y_d | y_<d, x)
-            likelihood_kwargs: any parameters to pass to the likelihood's
-                constructor
-            batch_norm: whether to use batch normalisation in the network
-            device: device memory to use
-            dtype: datatype to use; defaults to float32 but float64 should be
-                used if you have issues with numerical stability.
+            mp: the model parameters, set in `config.py`.
             logging_callbacks: list of callables accepting this model instance;
                 often used for visualisations and debugging.
             overwrite_results: whether to overwrite a model with the same
-                filepath (read, same parameters) at the ned of training. Default:
+                filepath (read, same parameters) at the end of training. Default:
                 True
         """
+        super().__init__(mp, overwrite_results, logging_callbacks)
 
-        super().__init__()
+        self.module_shape = mp.module_shape
+        self.sequence_features = mp.sequence_features
 
-        self.cond_dim = cond_dim
-        self.data_dim = data_dim
-        self.module_shape = module_shape
-        self.sequence_features = sequence_features
+        kwargs = {} if mp.likelihood_kwargs is None else mp.likelihood_kwargs
+        self.likelihood: SAN_Likelihood = mp.likelihood(**kwargs)
 
-        kwargs = likelihood_kwargs if likelihood_kwargs is not None else {}
-        self.likelihood: SAN_Likelihood = likelihood(**kwargs)
+        self.batch_norm = mp.batch_norm
 
-        self.dtype = dtype
-        self.device = device
-        self.batch_norm = batch_norm
-
-        # initialise the network
+        # Initialise the network
         self.network_blocks = nn.ModuleList()
         self.block_heads = nn.ModuleList()
 
-        for d in range(data_dim):
-            b, h = self._sequential_block(cond_dim, d, module_shape,
-                      out_shapes=[sequence_features, self.likelihood.n_params()],
+        for d in range(self.data_dim):
+            b, h = self._sequential_block(self.cond_dim, d, self.module_shape,
+                      out_shapes=[self.sequence_features,
+                      self.likelihood.n_params()],
                       out_activations=[nn.ReLU, None])
             self.network_blocks.append(b)
             self.block_heads.append(h)
@@ -240,15 +267,42 @@ class SAN(nn.Module):
         self.last_params: Optional[Tensor] = None
 
         self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
-        self.is_trained = False
-        self.overwrite_results = overwrite_results
-        self.savepath_cached: Optional[str] = None
-        self.logging_callbacks = logging_callbacks
+
+        if mp.device == t.device('cuda'):
+            self.to(mp.device, mp.dtype)
+
+        # Strange mypy error requires this to be put here although it is
+        # perfectly well defined and typed in the super class ¯\_(ツ)_/¯
+        self.savepath_cached: str = ""
+
+    def name(self) -> str:
+        return f'{self.likelihood.name()}_SAN'
 
     def __repr__(self) -> str:
         return (f'SAN with {self.likelihood.name()} likelihood, '
                 f'module blocks of shape {self.module_shape} '
-                f'and {self.sequence_features} features between blocks')
+                f'and {self.sequence_features} features between blocks trained '
+                f'for {self.epochs} epochs with batches of size {self.batch_size}')
+
+    def fpath(self) -> str:
+        """Returns a file path to save the model to, based on its parameters."""
+        if self.savepath_cached == "":
+            base = './results/sanmodels/'
+            s = self.module_shape + [self.sequence_features]
+            ms = '_'.join([str(l) for l in s])
+            name = (f'l{self.likelihood.name()}_cd{self.cond_dim}'
+                    f'_dd{self.data_dim}_ms{ms}_'
+                    f'lp{self.likelihood.n_params()}_bn{self.batch_norm}'
+                    f'_e{self.epochs}_bs{self.batch_size}')
+            if self.overwrite_results:
+                self.savepath_cached = f'{base}{name}.pt'
+            else:
+                n = 0
+                while os.path.exists(f'{base}{name}_{n}.pt'):
+                    n+=1
+                self.savepath_cached = f'{base}{name}_{n}.pt'
+
+        return self.savepath_cached
 
     def _sequential_block(self, cond_dim: int, d: int, module_shape: list[int],
                           out_shapes: list[int], out_activations: list[Any]
@@ -337,42 +391,27 @@ class SAN(nn.Module):
         assert ys.shape == (x.size(0), self.data_dim)
         return ys
 
-    def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
-        """Perform any necessary pre-processing to the data before training.
-
-        If overriding this method, always remember to cast the data to
-        self.dtype and put it on self.device.
-
-        Args:
-            x: the input (e.g. predictor variables)
-            y: the output (e.g. response variables)
-
-        Returns:
-            tuple[Tensor, Tensor]: the transformed data.
-        """
-        return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
-
-    def trainmodel(self, train_loader: DataLoader, epochs: int = 5,
-                   log_every: int= 1000) -> None:
+    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams
+                  ) -> None:
         """Train the SAN model
 
         Args:
             train_loader: DataLoader to load the training data.
-            epochs: number of epochs to train the model for
-            log_every: logging frequency
+            ip: The parameters to use for training, defined in
+                `config.py:InferenceParams`.
         """
-
         self.train()
 
-        for e in range(epochs):
+        for e in range(self.epochs):
             for i, (x, y) in enumerate(train_loader):
                 x, y = self.preprocess(x, y)
 
                 # The following implicitly updates self.last_params, and
-                # returns y_hat (a sample from p(y | x))
+                # returns y_hat (a sapmle from p(y | x))
                 _ = self.forward(x)
+                assert (self.last_params is not None)
 
-                # minimise NLL of the true ys using training parameters
+                # Minimise the NLL of true ys using training parameters
                 LP = self.likelihood.log_prob(y, self.last_params)
                 loss = -LP.sum(1).mean(0)
 
@@ -380,22 +419,22 @@ class SAN(nn.Module):
                 loss.backward()
                 self.opt.step()
 
-                if i % log_every == 0 or i == len(train_loader)-1:
+                if i % ip.logging_frequency == 0 or i == len(train_loader)-1:
                     # Run through all logging functions
                     [cb(self) for cb in self.logging_callbacks]
                     logging.info(
-                        "Epoch: {:02d}/{:02d}, Batch: {:03d}/{:d}, Loss {:9.4f}"
-                        .format(e+1, epochs, i, len(train_loader)-1, loss.item()))
+                        "Epoch: {:02d}/{:02d}, Batch: {:05d}/{:d}, Loss {:9.4f}"
+                        .format(e+1, self.epochs, i, len(train_loader)-1,
+                                loss.item()))
 
-        self.is_trained = True
-
-    def sample(self, x: Tensor, n_samples = 1000) -> Tensor:
+    def sample(self, x: Tensor, n_samples = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 
         Args:
             cond_data: the conditioning data; x
             n_samples: the number of samples to draw
+            kwargs: any additional model-specific arguments
 
         Returns:
             Tensor: a tensor of shape [n_samples, data_dim]
@@ -403,25 +442,6 @@ class SAN(nn.Module):
         x = x.unsqueeze(0) if x.dim() == 1 else x
         x, _ = self.preprocess(x, t.empty(x.shape))
         return self.forward(x.repeat_interleave(n_samples, 0))
-
-    def fpath(self) -> str:
-        """Returns a file path to save the model to, based on its parameters."""
-        if self.savepath_cached is None:
-            base = './results/sanmodels/'
-            s = self.module_shape + [self.sequence_features]
-            ms = '_'.join([str(l) for l in s])
-            name = (f'l{self.likelihood.name()}_cd{self.cond_dim}'
-                    f'_dd{self.data_dim}_ms{ms}_'
-                    f'lp{self.likelihood.n_params()}_bn{self.batch_norm}')
-            if self.overwrite_results:
-                self.savepath_cached = f'{base}{name}.pt'
-            else:
-                n = 0
-                while os.path.exists(f'{base}{name}_{n}.pt'):
-                    n+=1
-                self.savepath_cached = f'{base}{name}_{n}.pt'
-
-        return self.savepath_cached
 
 
 if __name__ == '__main__':
@@ -436,30 +456,19 @@ if __name__ == '__main__':
     train_loader, test_loader = utils.load_simulated_data(
         path=ip.dataset_loc,
         split_ratio=ip.split_ratio,
-        batch_size=ip.batch_size,
+        batch_size=sp.batch_size,
         normalise_phot=utils.normalise_phot_np,
         transforms=[
             transforms.ToTensor()
         ])
     logging.info('Created data loaders')
 
-    model = SAN(cond_dim=sp.cond_dim, data_dim=sp.data_dim,
-                module_shape=sp.module_shape,
-                sequence_features=sp.sequence_features,
-                likelihood=sp.likelihood, batch_norm=True,
-                likelihood_kwargs=sp.likelihood_kwargs,
-                device=ip.device, dtype=ip.dtype,
-                overwrite_results=ip.overwrite_results)
-
-    if ip.device == t.device('cuda'):
-        model.cuda()  # double check that everything is on GPU
+    model = SAN(sp)
     logging.info('Initialised SAN model')
 
-    model.trainmodel(train_loader, ip.epochs)
+    # NOTE: uses cached model (if available), and saves to disk after training.
+    model.trainmodel(train_loader, ip)
     logging.info('Trained SAN model')
-
-    t.save(model, model.fpath())
-    logging.info(f'Saved SAN model as: {model.fpath()}')
 
     x, _ = nbu.new_sample(test_loader)
     model.sample(x, n_samples=1000)

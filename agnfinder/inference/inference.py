@@ -14,195 +14,270 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
-"""Entrypoint for CVAE inference tasks."""
+"""Entrypoint for inference tasks."""
 
 import logging
 import torch as t
+import torch.nn as nn
 
-from typing import Union, Optional
+from abc import ABCMeta, abstractmethod
+from typing import Any, Callable, Optional, Type
 from torchvision import transforms
+from torch.utils.data import DataLoader
 
-import agnfinder.inference.distributions as dist
 from agnfinder import config as cfg
-from agnfinder.types import Tensor, DistParams
+from agnfinder.types import Tensor
+from agnfinder.utils import ConfigClass
+from agnfinder.inference import SAN, CMADE, CVAE, utils
 from agnfinder.inference.utils import load_simulated_data
-from agnfinder.inference.base import CVAE, CVAEPrior, CVAEEnc, CVAEDec, \
-                                     _CVAE_Dist, _CVAE_RDist
 
 
-# Priors ----------------------------------------------------------------------
+class ModelParams(ConfigClass, metaclass=ABCMeta):
 
-class StandardGaussianPrior(CVAEPrior):
-    """
-    A standard Gaussian distribution, whose dimension matches the length of the
-    latent code z.
-    """
-    def get_dist(self, _: Optional[Union[Tensor, DistParams]]=None) -> _CVAE_Dist:
-        mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
-        std = t.ones(self.latent_dim, device=self.device, dtype=self.dtype)
-        return dist.Gaussian(mean, std)
+    @property
+    @abstractmethod
+    def epochs(self) -> int:
+        """The number of epochs to train the model for.
 
+        Putting this parameter here risks incurring a 'type error'; this is
+        really an inference parameter (how long we train the model for),
+        however since this has such a large effect on the resulting saved
+        model, we prefer to associate it with the model itself.
+        """
+        pass
 
-class FactorisedGaussianPrior(CVAEPrior):
-    """
-    Factorised Gaussian prior, whose dimension matches the length of the latent
-    code z.
+    @property
+    @abstractmethod
+    def batch_size(self) -> int:
+        """The mini-batch size"""
+        pass
 
-    Example architecture:
+    @property
+    @abstractmethod
+    def dtype(self) -> t.dtype:
+        """The data type to use with this model. e.g. torch.float32"""
+        pass
 
-    >>> arch_t(layer_sizes=[cond_dim, ...],
-    ...        head_sizes=[latent_dim, latent_dim],
-    ...        activations=nn.SiLU(),
-    ...        [None, Squareplus(1.2)])
+    @property
+    def device(self) -> t.device:
+        """The device on which to run this model."""
+        return t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
-    """
-    def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
-                 ) -> _CVAE_Dist:
-        assert dist_params is not None, "Dist params cannot be none"
-        assert isinstance(dist_params, list), "Dist params must be a list"
-        assert len(dist_params) == 2, "Dist params must contain mean and var"
-        [mean, log_std] = dist_params
-        std = t.exp(log_std)
-        return dist.Gaussian(mean, std)
+    @property
+    @abstractmethod
+    def cond_dim(self) -> int:
+        """Length of 1D conditioning information vector"""
+        pass
 
-
-# Encoders --------------------------------------------------------------------
-
-
-class FactorisedGaussianEncoder(CVAEEnc):
-    """
-    A factorised Gaussian encoder; the distribution returned by this encoder
-    implements reparametrised sampling and log_prob methods.
-
-    The following is an example of a compatible architecture:
-
-    >>> arch_t(layer_sizes=[data_dim + cond_dim, ...],
-    ...        head_sizes=[latent_dim, latent_dim], # loc, scale
-    ...        nn.SiLU())
-
-    """
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
-        assert isinstance(dist_params, list) and len(dist_params) == 2
-        [mean, log_std] = dist_params
-        std = t.exp(log_std)
-        return dist.R_Gaussian(mean, std)
+    @property
+    @abstractmethod
+    def data_dim(self) -> int:
+        """Length of the perhaps (flattened) 1D data vector, y"""
+        pass
 
 
-class GaussianEncoder(CVAEEnc):
-    """A full-covariance Gaussian encoder
+class Model(nn.Module, metaclass=ABCMeta):
+    """Base model class for AGNFinder."""
 
-    Expects `dist_params` to be a list of three Tensors;
-    1. `mean` giving the location (vector),
-    2. `log_std` a vector which gives the elements on the main diagonal of the
-        covariance matrix,
-    3. `L` is a matrix which will be masked to a lower-triangular matrix before
-        exp(log_std) is added; giving the final covariance matrix.
+    def __init__(self, mp: ModelParams, overwrite_results: bool = False,
+                 logging_callbacks: list[Callable] = []):
+        """Initialises a model taking the configuration parameters
 
-    Here is an example architecture:
+        Args:
+            mp: model parameters
+            overwrite_results: whether to overwrite a model with the same
+                filepath (read, same parameters) at the ned of training. Default:
+                True
+            logging_callbacks: list of callables accepting this model instance;
+                often used for visualisations and debugging.
+        """
+        super().__init__()
 
-    >>> arch_t(layer_sizes=[data_dim + cond_dim, ...],
-    ...        head_sizes=[latent_dim, latent_dim, latent_dim*latent_dim],
-    ...        nn.SiLU(), [None, nn.ReLU(), nn.ReLU()])
+        # For convenience, make the following attributes of mp attributes of
+        # Model:
+        self.dtype = mp.dtype
+        self.device = mp.device
+        self.data_dim = mp.data_dim
+        self.cond_dim = mp.cond_dim
+        self.batch_size = mp.batch_size
+        self.epochs = mp.epochs
 
-    """
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
-        assert isinstance(dist_params, list) and len(dist_params) == 3
-        [mean, log_std, L] = dist_params
-        L = L.reshape((-1, log_std.size(-1), log_std.size(-1)))
-        std_diag = t.exp(log_std).diag_embed()
-        assert std_diag.shape == L.shape
-        L = t.tril(L, -1) + std_diag
-        return dist.R_MVN(mean, L)
+        self.is_trained: bool = False
+        self.overwrite_results = overwrite_results
+        self.savepath_cached: str = ""
+        self.logging_callbacks = logging_callbacks
+
+        if self.device == t.device('cuda'):
+            self.to(self.device, self.dtype)
+
+    def __init_subclass__(cls):
+        # Apply 'decorators' to inheriting classes.
+        # This is not a particularly pretty pattern to inherit decorators, but
+        # it works well enough...
+        cls.trainmodel = Model._save_results(cls.trainmodel)
+        cls.__repr__ = Model._wrap_lines(cls.__repr__)
+        return cls
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        """Classes inheriting `Model` _should_ override this method to give a
+        more descriptive representation of the model."""
+        return (f'{self.name} trained for {self.epochs} epochs with '
+                f'batch size {self.batch_size}')
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """The name with which to refer to this model (e.g. for saving to disk)
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def fpath(self) -> str:
+        """Returns a file path to save the model to, based on its parameters."""
+        raise NotImplementedError
+
+    def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
+        """Perform any necessary pre-processing to the data before training.
+
+        If overriding this method, always remember to cast the data to
+        self.dtype and put it on self.device.
+
+        Args:
+            x: the input (e.g. predictor variables)
+            y: the output (e.g. response variables)
+
+        Returns:
+            tuple[Tensor, Tensor]: the transformed data.
+        """
+        return x.to(self.device, self.dtype), y.to(self.device, self.dtype)
+
+    @staticmethod
+    def _wrap_lines(string: str, width: int = 80) -> str:
+        """Inserts newline characters in a string every `width=80` characters.
+
+        Args:
+            string: the original string
+
+        Returns:
+            str: the wrapped string
+        """
+        words = string.split(' ')
+        length: int = 0
+        for i in range(len(words)):
+            length += len(words[i])
+            if length >= width:
+                words[i-1] = words[i-1] + '\n'
+                length = len(words[i])
+        return " ".join(words).replace("\n ", "\n")
+
+    @staticmethod
+    def _save_results(trainmodel: Callable[[Any, DataLoader, cfg.InferenceParams], None]
+                     ) -> Callable[[Any, DataLoader, cfg.InferenceParams], None]:
+        """Decorator for the training method `trainmodel` which caches trained
+        models on disk avoiding unnecessary re-training of identical models,
+        and preventing users from forgetting to save models at the end of
+        training!
+
+        Args:
+            trainmodel: training function from inheriting class
+        """
+        def _f(self, loader: DataLoader, ip: cfg.InferenceParams):
+            # Attempt to load the model from disk instead of re-training an
+            # identical model.
+            savepath: str = self.fpath()
+            if not ip.retrain_model:
+                try:
+                    logging.info(
+                        f'Attempting to load {self.name} model from {savepath}')
+                    self.load_state_dict(t.load(savepath))
+                    self.is_trained = True
+                    logging.info(f'Successfully loaded')
+                    # unsure if this is necessary, but for good measure...
+                    self.to(self.device, self.dtype)
+                    return
+                except:
+                    logging.info(
+                        f'Could not load model at {savepath}. Training...')
+
+            # Do the training
+            trainmodel(self, loader, ip)
+            self.is_trained = True
+            logging.info(f'Trained {self.name} model.')
+
+            # Save the model to disk
+            t.save(self.state_dict(), savepath)
+            logging.info(
+                f'Saved {self.name} model as: {savepath}')
+
+        return _f
+
+    @_save_results
+    @abstractmethod
+    def trainmodel(self, train_loader: DataLoader, ip: cfg.InferenceParams,
+                   *args, **kwargs) -> None:
+        """Train the model.
+
+        Args:
+            train_loader: DataLoader to load the training data.
+            ip: the inference parameters describing the training procedure.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def sample(self, x: Tensor, n_samples = 1000, *args, **kwargs) -> Tensor:
+        """A convenience method for drawing (conditional) samples from p(y | x)
+        for a single conditioning point.
+
+        Args:
+            cond_data: the conditioning data; x
+            n_samples: the number of samples to draw
+
+        Returns:
+            Tensor: a tensor of shape [n_samples, data_dim]
+        """
+        raise NotImplementedError
 
 
-# Decoders --------------------------------------------------------------------
-
-
-class FactorisedGaussianDecoder(CVAEDec):
-    """
-    A factorised Gaussian decoder. This corresponds to using a Gaussian
-    likelihood in ML training; or equivalently minimising an MSE loss between
-    the target data and the reconstruction.
-
-    Example compatible architecture:
-
-    >>> arch = arch_t(layer_sizes=[latent_dim + cond_dim, ...], # input / hidden
-    ...               head_sizes=[data_dim, data_dim], # loc and scale
-    ...               activations=nn.SiLU(), # input / hidden layer activations
-    ...               [None, Squareplus(1.2)]) # scale must be positive
-
-    """
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, list) and len(dist_params) == 2
-        [mean, log_std] = dist_params
-        std = t.exp(log_std)
-        return dist.Gaussian(mean, std)
-
-
-class MultinomialDecoder(CVAEDec):
-    """
-    A multinomial decoder. We shouldn't need this for galaxy data, but it's
-    here for tests and notebooks using MNIST.
-
-    Example architecture is:
-
-    >>> arch = arch_t(layer_sizes=[latent_dim + cond_dim, ...],
-    ...               head_sizes=[data_dim],  # p parameter for multinomial
-    ...               activations=SiLU(),
-    ...               head_activations=[nn.Softmax()]) # relative probs
-
-    """
-    def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, t.Tensor)
-        return dist.Multinomial(dist_params)
-
-
-class LaplaceDecoder(CVAEDec):
-    """
-    A Laplace likelihood.
-
-    Example compatible architecture (similar to factorised Gaussian models):
-
-    >>> arch = arch_t(layer_sizes=[latent_dim + cond_dim, ...], # input / hidden
-    ...               head_sizes=[data_dim, data_dim], # loc and scale
-    ...               activations=nn.SiLU(), # input / hidden layer activations
-    ...               [None, Squareplus(1.2)]) # scale must be positive
-
-    """
-    def get_dist(self, dist_params: Union[t.Tensor, DistParams]) -> _CVAE_Dist:
-        assert isinstance(dist_params, list) and len(dist_params) == 2
-        [loc, log_scale] = dist_params
-        scale = t.exp(log_scale)
-        return dist.Laplace(loc, scale)
+model_t = Type[Model]
 
 
 if __name__ == '__main__':
+    """
+    Load configurations, train the selected model and save to disk (or just
+    load from disk, as appropriate), then draw samples for a galaxy, outputting
+    the plot in the results directory.
+    """
 
     cfg.configure_logging()
 
     ip = cfg.InferenceParams()  # inference procedure parameters
-    cp = cfg.CVAEParams()  # CVAE model hyperparameters
 
-    # initialise the model
-    cvae = ip.model(cp, device=ip.device, dtype=ip.dtype,
-                    overwrite_results=ip.overwrite_results)
-    logging.info('Initialised CVAE network')
-    logging.info(f'Saving to: {cvae.fpath()}')
+    # this is poor form :(
+    mp: ModelParams = cfg.SANParams()
+    if ip.model == CMADE:
+        mp = cfg.MADEParams()
+    elif ip.model == CVAE:
+        mp = cfg.CVAEParams()
 
-    # load the generated (theta, photometry) dataset
-    train_loader, test_loader = load_simulated_data(
+    train_loader, test_loader = utils.load_simulated_data(
         path=ip.dataset_loc,
         split_ratio=ip.split_ratio,
-        batch_size=ip.batch_size,
+        batch_size=mp.batch_size,
+        normalise_phot=utils.normalise_phot_np,
         transforms=[
             transforms.ToTensor()
         ])
     logging.info('Created data loaders')
 
-    # train the CVAE
-    cvae.trainmodel(train_loader, ip.epochs)
-    logging.info('Trained CVAE')
+    model = ip.model(mp)
+    logging.info('Initialised {model.name} model')
 
-    t.save(cvae, cvae.fpath())
-    logging.info(f'Saved model CVAE as: {cvae.fpath()}')
+    # NOTE: uses cached model (if available), and saves to disk after training.
+    model.trainmodel(train_loader, ip)
+    logging.info('Trained {model.name} model')
 
+    # TODO sample and save result with some descriptive filename.
+    # x, _ = nbu.new_sample(test_loader)
+    # model.sample(x, n_samples=1000)
+    # logging.info('Successfully sampled from model')

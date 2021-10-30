@@ -16,7 +16,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Exposes common encoders / decoders
-from .inference import *
+from .cvae import *
 
 from .made import CMADE
 from .san import SAN

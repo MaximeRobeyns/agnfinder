@@ -27,24 +27,24 @@ import logging
 from typing import Any, Union, Type
 from logging.config import dictConfig
 
-import agnfinder.inference.base as base
-import agnfinder.inference.inference as inference
 import agnfinder.inference.san as san
+import agnfinder.inference.cvae as cvae
 import agnfinder.inference.made as made
 
-from agnfinder.inference.base import CVAE, cvae_t
 from agnfinder.inference.utils import Squareplus
 from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters
+from agnfinder.inference.inference import model_t
 
 
 # ============================= Free Parameters ===============================
 
 
 class FreeParams(FreeParameters):
-    # Keys prefixed by 'log_*' will be exponentiated later.
+    """Note: Keys prefixed by 'log_*' are exponentiated later"""
+
     redshift: tuple[float, float] = (0., 4.)
     # Mass of the galaxy
     log_mass: tuple[float, float] = (8, 12)
@@ -174,16 +174,14 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(ConfigClass):
-    epochs: int = 20
-    batch_size: int = 1024
+    model: model_t = san.SAN
     split_ratio: float = 0.8  # train / test split ratio
-    dtype: t.dtype = t.float32
-    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
-    model: cvae_t = CVAE
     logging_frequency: int = 10000
+
     # If you do not have this dataset, run `make sim`
     # If you update SamplingParams, you will need to change this file path!
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
+
     retrain_model: bool = False  # don't re-train an identical (existing) model
     overwrite_results: bool = False  # if retrain_model, don't overwrite old one
 
@@ -191,15 +189,21 @@ class InferenceParams(ConfigClass):
 # ======================= Inference (CVAE) Parameters =========================
 
 
-class CVAEParams(ConfigClass, base.CVAEParams):
-    cond_dim = 8  # x; dimension of photometry
-    data_dim = 9  # y; len(FreeParameters()); dimensions of physical params
-    latent_dim = 4  # z
-    adam_lr = 1e-3
+class CVAEParams(cvae.CVAEParams):
+
+    epochs: int = 10
+    batch_size: int = 32
+    dtype: t.dtype = t.float64
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+
+    cond_dim: int = 8  # x; dimension of photometry
+    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
+    latent_dim: int = 4  # z
+    adam_lr: float = 1e-3
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
     # prior = inference.StandardGaussianPrior
-    prior = inference.FactorisedGaussianPrior
+    prior = cvae.FactorisedGaussianPrior
     # prior_arch = None
     prior_arch = arch_t(
         layer_sizes=[cond_dim, 16],
@@ -209,7 +213,7 @@ class CVAEParams(ConfigClass, base.CVAEParams):
         batch_norm=True)
 
     # Gaussian recognition model q_{phi}(z | y, x)
-    encoder = inference.FactorisedGaussianEncoder
+    encoder = cvae.FactorisedGaussianEncoder
     enc_arch = arch_t(
         layer_sizes=[data_dim + cond_dim, 16],
         activations=nn.SiLU(),
@@ -219,7 +223,7 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 
 
     # Gaussian generator network arch: p_{theta}(y | z, x)
-    decoder = inference.FactorisedGaussianDecoder
+    decoder = cvae.FactorisedGaussianDecoder
     dec_arch = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32, 16],
         head_sizes=[data_dim, data_dim],
@@ -231,9 +235,15 @@ class CVAEParams(ConfigClass, base.CVAEParams):
 # ======================= Inference (MADE) Parameters =========================
 
 
-class MADEParams(ConfigClass):
+class MADEParams(made.MADEParams):
+    epochs: int = 20
+    batch_size: int = 1024
+    dtype: t.dtype = t.float32
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+
     cond_dim: int = 8  # x; dimensions of photometry
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
+    # TODO make much larger and deeper
     hidden_sizes: list[int] = [4, 8]
 
     likelihood: Type[made.MADE_Likelihood] = made.Gaussian
@@ -241,10 +251,6 @@ class MADEParams(ConfigClass):
 
     # number of different orderings for order / connection agnostic training
     num_masks: int = 16
-
-    # TODO remove this parameter if unnecessary; remove all references in made.py
-    # whether to condition all layers (true) or just the input layer (false)
-    condition_all: bool = False
 
     # How many samples of connectivity / masks to average parameters over during
     # inference
@@ -256,7 +262,12 @@ class MADEParams(ConfigClass):
 # ======================== Inference (SAN) Parameters =========================
 
 
-class SANParams(ConfigClass):
+class SANParams(san.SANParams):
+    epochs: int = 20
+    batch_size: int = 1024
+    dtype: t.dtype = t.float32
+    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
+
     cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
     module_shape: list[int] = [512, 512]  # shape of the network 'modules'
