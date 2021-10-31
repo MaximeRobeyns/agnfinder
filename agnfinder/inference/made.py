@@ -49,6 +49,7 @@ class MADE_Likelihood(object):
     def __init__(self, data_dim: int, **_):
         self.data_dim = data_dim
 
+    @property
     @abc.abstractmethod
     def name(self) -> str:
         """Returns the name of this distribution, as a string"""
@@ -73,8 +74,7 @@ class MADE_Likelihood(object):
 
 class Gaussian(MADE_Likelihood):
 
-    def name(self) -> str:
-        return "Gaussian"
+    name: str = "Gaussian"
 
     def _extract_params(self, params: Tensor) -> tuple[Tensor, Tensor]:
         loc, scale = params.split(self.data_dim, -1)
@@ -91,8 +91,7 @@ class Gaussian(MADE_Likelihood):
 
 # class Bernoulli(MADE_Likelihood):
 #
-#     def name(self) -> str:
-#         return "Bernoulli"
+#     name: str = "Bernoulli"
 #
 #     def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
 #         raise NotImplementedError
@@ -218,7 +217,8 @@ class MADEParams(ModelParams):
     @property
     @abstractmethod
     def num_masks(self) -> int:
-        """number of different orderings for order / connection agnostic training"""
+        """number of different orderings for order / connection agnostic
+        training"""
         pass
 
     @property
@@ -249,8 +249,8 @@ class CMADE(Model):
             logging_callbacks: list of callables accepting this model instance;
                 often used for visualisations and debugging.
             overwrite_results: whether to overwrite a model with the same
-                filepath (read, same parameters) at the end of training. Default:
-                True
+                filepath (read, same parameters) at the end of training.
+                Default: True
         """
         super().__init__(mp, overwrite_results, logging_callbacks)
 
@@ -287,11 +287,10 @@ class CMADE(Model):
         # self.opt = t.optim.Adam(self.parameters(), 1e-3, weight_decay=1e-4)
         self.opt = t.optim.Adam(self.parameters(), 1e-3)
 
-    def name(self) -> str:
-        return f'{self.likelihood.name()}_MADE'
+        self.name: str = f'{self.likelihood.name}_MADE'
 
     def __repr__(self) -> str:
-        return (f'Conditional MADE with {self.likelihood.name()} likelihood'
+        return (f'{self.name} model with {self.likelihood.name} likelihood'
                 f'ANN layer widths {self.hs}, a mask set of size '
                 f'{self.num_masks}, {"no " if not self.natural_ordering else ""}'
                 f'natural ordering, trained for {self.epochs} epochs with a '
@@ -303,7 +302,7 @@ class CMADE(Model):
             base = './results/mademodels/'
             hs = '_'.join([str(l) for l in self.hidden_sizes])
             no = 'T' if self.natural_ordering else 'F'
-            name = (f'CMADE_l:{self.likelihood.name()}_h:{hs}_m:{self.num_masks}'
+            name = (f'CMADE_l:{self.likelihood.name}_h:{hs}_m:{self.num_masks}'
                     f'_nmasks:{self.num_masks}_no:{no}')
             if self.overwrite_results:
                 self.savepath_cached = f'{base}{name}.pt'
@@ -349,7 +348,8 @@ class CMADE(Model):
         B = len(mask_idxs) if mask_idxs is not None else self.num_masks
         X = xy[None,:].expand(B, *xy.shape)
 
-        # connectivity-agnostic ensemble is implemented b averaging over 0th dimension
+        # connectivity-agnostic ensemble is implemented b averaging over 0th
+        # dimension
         return self.net(X).mean(0)
 
     def alterantive_sample(self, x: Tensor, n_samples: int = 1000,

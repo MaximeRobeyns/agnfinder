@@ -195,7 +195,6 @@ class CVAEParams(cvae.CVAEParams):
     epochs: int = 10
     batch_size: int = 32
     dtype: t.dtype = t.float64
-    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
     cond_dim: int = 8  # x; dimension of photometry
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
@@ -204,9 +203,9 @@ class CVAEParams(cvae.CVAEParams):
 
     # (conditional) Gaussian prior network p_{theta}(z | x)
     # prior = inference.StandardGaussianPrior
-    prior = cvae.FactorisedGaussianPrior
+    prior: Type[cvae.CVAEPrior] = cvae.FactorisedGaussianPrior
     # prior_arch = None
-    prior_arch = arch_t(
+    prior_arch: arch_t = arch_t(
         layer_sizes=[cond_dim, 16],
         activations=nn.SiLU(),
         head_sizes=[latent_dim, latent_dim],
@@ -214,8 +213,8 @@ class CVAEParams(cvae.CVAEParams):
         batch_norm=True)
 
     # Gaussian recognition model q_{phi}(z | y, x)
-    encoder = cvae.FactorisedGaussianEncoder
-    enc_arch = arch_t(
+    encoder: Type[cvae.CVAEEnc] = cvae.FactorisedGaussianEncoder
+    enc_arch: arch_t = arch_t(
         layer_sizes=[data_dim + cond_dim, 16],
         activations=nn.SiLU(),
         head_sizes=[latent_dim, latent_dim], # mean and log_std
@@ -224,8 +223,8 @@ class CVAEParams(cvae.CVAEParams):
 
 
     # Gaussian generator network arch: p_{theta}(y | z, x)
-    decoder = cvae.FactorisedGaussianDecoder
-    dec_arch = arch_t(
+    decoder: Type[cvae.CVAEDec] = cvae.FactorisedGaussianDecoder
+    dec_arch: arch_t = arch_t(
         layer_sizes=[latent_dim + cond_dim, 32, 16],
         head_sizes=[data_dim, data_dim],
         activations=nn.SiLU(),
@@ -240,7 +239,6 @@ class MADEParams(made.MADEParams):
     epochs: int = 20
     batch_size: int = 1024
     dtype: t.dtype = t.float32
-    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
     cond_dim: int = 8  # x; dimensions of photometry
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
@@ -267,7 +265,6 @@ class SANParams(san.SANParams):
     epochs: int = 20
     batch_size: int = 1024
     dtype: t.dtype = t.float32
-    device: t.device = t.device("cuda") if t.cuda.is_available() else t.device("cpu")
 
     cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)

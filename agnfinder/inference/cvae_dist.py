@@ -57,8 +57,8 @@ class Manual_R_Gaussian(_CVAE_RDist):
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
         self.mean, self.std = distutils.broadcast_all(mean, std)
-        super().__init__(batch_shape=self.mean.size(), device=self.mean.device,
-                         dtype=self.mean.dtype)
+        super().__init__(batch_shape=self.mean.size(),
+                         device=self.mean.device, dtype=self.mean.dtype)
         assert self.mean.device == self.std.device
         assert self.mean.dtype == self.std.dtype
 
@@ -70,7 +70,8 @@ class Manual_R_Gaussian(_CVAE_RDist):
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         shape = self._extended_shape(sample_shape)
         # create eps on same device / dtype as mean parameter.
-        self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
+        self.last_eps = t.randn(shape, device=self.mean.device,
+                                dtype=self.mean.dtype)
         return self.mean + self.last_eps * self.std
 
 
@@ -106,7 +107,8 @@ class R_MVN(_CVAE_RDist):
 
     def rsample(self, sample_shape: t.Size = t.Size()) -> Tensor:
         shape = self._extended_shape(sample_shape)
-        self.last_eps = t.randn(shape, device=self.mean.device, dtype=self.mean.dtype)
+        self.last_eps = t.randn(shape, device=self.mean.device,
+                                dtype=self.mean.dtype)
         cov = self.cov @ self.last_eps.unsqueeze(-1)
         return self.mean + cov.squeeze()
 
@@ -151,8 +153,8 @@ class Manual_Gaussian(_CVAE_Dist):
 
     def __init__(self, mean: Tensor, std: Tensor) -> None:
         self.mean, self.std = distutils.broadcast_all(mean, std)
-        _CVAE_Dist.__init__(self, batch_shape=self.mean.size(), device=self.mean.device,
-                            dtype=self.mean.dtype)
+        _CVAE_Dist.__init__(self, batch_shape=self.mean.size(),
+                            device=self.mean.device, dtype=self.mean.dtype)
         assert self.mean.device == self.std.device
         assert self.mean.dtype == self.std.dtype
 

@@ -47,34 +47,29 @@ class InferenceParams(ConfigClass):
         pass
 
     @property
-    @abstractmethod
     def split_ratio(self) -> float:
         """Train / test split ratio"""
-        pass
+        return 0.9
 
     @property
-    @abstractmethod
     def logging_frequency(self) -> int:
         """Number of iterations between logs"""
-        pass
+        return 1000
 
     @property
-    @abstractmethod
     def dataset_loc(self) -> str:
         """Filepath to the hdf5 file or directory of hdf5 files to use"""
-        pass
+        return ''
 
     @property
-    @abstractmethod
     def retrain_model(self) -> bool:
         """Whether to retrain an identical (existing) model"""
-        pass
+        return False
 
     @property
-    @abstractmethod
     def overwrite_results(self) -> bool:
         """If `retrain_model`, should we overwrite existing result on disk?"""
-        pass
+        return False
 
 
 # Abstract model ---------------------------------------------------------------
@@ -141,8 +136,7 @@ class Model(nn.Module, ABC):
         """
         super().__init__()
 
-        # For convenience, make the following attributes of mp attributes of
-        # Model:
+        # For convenience, make some attributes of mp also attributes of Model:
         self.dtype = mp.dtype
         self.device = mp.device
         self.data_dim = mp.data_dim
@@ -158,12 +152,17 @@ class Model(nn.Module, ABC):
         if self.device == t.device('cuda'):
             self.to(self.device, self.dtype)
 
-    def __init_subclass__(cls):
-        # Apply 'decorators' to inheriting classes.
+    def __init_subclass__(cls: ...) -> ...:
+        # Apply 'decorators' to certain methods for inheriting classes.
         # This is not a particularly pretty pattern to inherit decorators, but
         # it works well enough...
-        cls.__repr__ = Model._wrap_lines(cls.__repr__)
-        cls.trainmodel = Model._save_results(cls.trainmodel)
+        try:
+            # only apply decorator to the last class in the inheritance hierarchy:
+            assert cls._sub_init
+        except AttributeError:
+            cls.__repr__ = Model._wrap_lines(cls.__repr__)
+            cls.trainmodel = Model._save_results(cls.trainmodel)
+            cls._sub_init = True
         return cls
 
     @staticmethod
@@ -184,11 +183,6 @@ class Model(nn.Module, ABC):
 
         return _f
 
-
-    # TODO remove these when possible
-    # def _save_results(trainmodel: Callable[[Any, DataLoader, InferenceParams, *Any], None]
-    #                  ) -> Callable[[Any, DataLoader, InferenceParams, *Any], None]:
-
     @staticmethod
     def _save_results(trainmodel: Callable[..., None]) -> Callable[..., None]:
         """Decorator for the training method `trainmodel` which caches trained
@@ -199,7 +193,8 @@ class Model(nn.Module, ABC):
         Args:
             trainmodel: training function from inheriting class
         """
-        def wrapper(self, loader: DataLoader, ip: InferenceParams, *args, **kwargs) -> None:
+        def _f(self, loader: DataLoader, ip: InferenceParams, *args,
+               **kwargs) -> None:
             # Attempt to load the model from disk instead of re-training an
             # identical model.
             savepath: str = self.fpath()
@@ -220,13 +215,13 @@ class Model(nn.Module, ABC):
             # Do the training
             trainmodel(self, loader, ip, *args, **kwargs)
             self.is_trained = True
-            logging.info(f'Trained {self.name} model.')
+            logging.info(f'Trained {self}.')
 
             # Save the model to disk
             t.save(self.state_dict(), savepath)
             logging.info(
                 f'Saved {self.name} model as: {savepath}')
-        return wrapper
+        return _f
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -240,7 +235,7 @@ class Model(nn.Module, ABC):
     def name(self) -> str:
         """The name with which to refer to this model (e.g. for saving to disk)
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def fpath(self) -> str:

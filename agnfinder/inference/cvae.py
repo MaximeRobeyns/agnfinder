@@ -43,8 +43,7 @@ class StandardGaussianPrior(CVAEPrior):
     latent code z.
     """
 
-    def name(self) -> str:
-        return "Standard Gaussian"
+    name: str = "Standard Gaussian"
 
     def get_dist(self, _: Optional[Union[Tensor, DistParams]]=None) -> _CVAE_Dist:
         mean = t.zeros(self.latent_dim, device=self.device, dtype=self.dtype)
@@ -66,8 +65,7 @@ class FactorisedGaussianPrior(CVAEPrior):
 
     """
 
-    def name(self) -> str:
-        return "Factorised Gaussian"
+    name: str = "Factorised Gaussian"
 
     def get_dist(self, dist_params: Optional[Union[Tensor, DistParams]] = None
                  ) -> _CVAE_Dist:
@@ -95,8 +93,7 @@ class FactorisedGaussianEncoder(CVAEEnc):
 
     """
 
-    def name(self) -> str:
-        return "Factorised Gaussian"
+    name: str = "Factorised Gaussian"
 
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
@@ -123,8 +120,7 @@ class GaussianEncoder(CVAEEnc):
 
     """
 
-    def name(self) -> str:
-        return "Gaussian"
+    name: str = "Gaussian"
 
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_RDist:
         assert isinstance(dist_params, list) and len(dist_params) == 3
@@ -154,8 +150,7 @@ class FactorisedGaussianDecoder(CVAEDec):
 
     """
 
-    def name(self) -> str:
-        return "Factorised Gaussian"
+    name: str = "Factorised Gaussian"
 
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
@@ -178,8 +173,7 @@ class MultinomialDecoder(CVAEDec):
 
     """
 
-    def name(self) -> str:
-        return "Multinomial"
+    name: str = "Multinomial"
 
     def get_dist(self, dist_params: Union[Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, t.Tensor)
@@ -199,8 +193,7 @@ class LaplaceDecoder(CVAEDec):
 
     """
 
-    def name(self) -> str:
-        return "Laplace"
+    name: str = "Laplace"
 
     def get_dist(self, dist_params: Union[t.Tensor, DistParams]) -> _CVAE_Dist:
         assert isinstance(dist_params, list) and len(dist_params) == 2
@@ -340,14 +333,13 @@ class CVAE(Model):
         # perfectly well defined and typed in the super class ¯\_(ツ)_/¯
         self.savepath_cached: str = ""
 
-    def name(self) -> str:
-        return 'CVAE'
+    name: str = 'CVAE'
 
     def __repr__(self) -> str:
-        return (f'CVAE with {self.prior.name} prior, {self.encoder.name} encoder '
-                f'and {self.decoder.name} decoder, a latent dimension of '
-                f'{self.latent_dim} trained for {self.epochs} with batches of '
-                f'size {self.batch_size}')
+        return (f'{self.name} with {self.prior.name} prior, {self.encoder.name} '
+                f'encoder and {self.decoder.name} decoder, a latent dimension of '
+                f'{self.latent_dim} trained for {self.epochs} epochs with '
+                f'batches of size {self.batch_size}')
 
     def fpath(self) -> str:
         """Returns a file path to save the model to, based on parameters."""

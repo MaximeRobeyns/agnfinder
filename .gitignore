@@ -141,6 +141,7 @@ old_notebooks
 agnvenv
 logs.txt
 notebooks/Masked_Autoregressive_Models
+notebooks/VAE/basic_cvae.ipynb
 
 # Excluded old code, kept locally for reference
 legacy

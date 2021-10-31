@@ -304,6 +304,5 @@ class CustomFSPSParams():
     def __getitem__(self, k: str):
         return self._params[k]
 
-    def __setitem__(self, k: str, v):
-        # TODO no clue what types v will be...
+    def __setitem__(self, k: str, v: Any):
         self._params[k] = v

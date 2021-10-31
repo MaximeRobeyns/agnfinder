@@ -45,6 +45,7 @@ class SAN_Likelihood(object):
     def __init__(*args, **kwargs):
         pass
 
+    @property
     @abstractmethod
     def name(self) -> str:
         """Returns the name of this distribution, as a string."""
@@ -70,8 +71,7 @@ class SAN_Likelihood(object):
 
 class Gaussian(SAN_Likelihood):
 
-    def name(self) -> str:
-        return "Gaussian"
+    name: str = "Gaussian"
 
     def _extract_params(self, params: Tensor) -> tuple[Tensor, Tensor]:
         loc, scale = params.split(1, -1)
@@ -89,8 +89,7 @@ class Gaussian(SAN_Likelihood):
 
 class Laplace(SAN_Likelihood):
 
-    def name(self) -> str:
-        return "Laplace"
+    name: str = "Laplace"
 
     def _extract_params(self, params: Tensor) -> tuple[Tensor, Tensor]:
         loc, scale = params.split(1, -1)
@@ -115,8 +114,7 @@ class MoG(SAN_Likelihood):
         """
         self.K = K
 
-    def name(self) -> str:
-        return "MoG"
+    name: str = "MoG"
 
     def n_params(self) -> int:
         return 3 * self.K  # loc, scale, mixture weight.
@@ -150,8 +148,7 @@ class MoST(SAN_Likelihood):
         """
         self.K = K
 
-    def name(self) -> str:
-        return "MoST"
+    name: str =  "MoST"
 
     def n_params(self) -> int:
         return 3 * self.K  # loc, scale, mixture weight.
@@ -275,11 +272,10 @@ class SAN(Model):
         # perfectly well defined and typed in the super class ¯\_(ツ)_/¯
         self.savepath_cached: str = ""
 
-    def name(self) -> str:
-        return f'{self.likelihood.name()}_SAN'
+        self.name: str = f'{self.likelihood.name}_SAN'
 
     def __repr__(self) -> str:
-        return (f'SAN with {self.likelihood.name()} likelihood, '
+        return (f'{self.name} with {self.likelihood.name} likelihood, '
                 f'module blocks of shape {self.module_shape} '
                 f'and {self.sequence_features} features between blocks trained '
                 f'for {self.epochs} epochs with batches of size {self.batch_size}')
@@ -290,7 +286,7 @@ class SAN(Model):
             base = './results/sanmodels/'
             s = self.module_shape + [self.sequence_features]
             ms = '_'.join([str(l) for l in s])
-            name = (f'l{self.likelihood.name()}_cd{self.cond_dim}'
+            name = (f'l{self.likelihood.name}_cd{self.cond_dim}'
                     f'_dd{self.data_dim}_ms{ms}_'
                     f'lp{self.likelihood.n_params()}_bn{self.batch_norm}'
                     f'_e{self.epochs}_bs{self.batch_size}')
