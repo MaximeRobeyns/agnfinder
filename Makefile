@@ -39,32 +39,35 @@ endif
 
 # Targets ---------------------------------------------------------------------
 
-# Generic 'run' target for development
 sim: ## To run the main sampling / simulation program
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/simulation/simulation.py
 
-# 'inference': train CVAE
-inf: ## To run the CVAE inference code
+inf: ## To run the main inference code
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/inference/inference.py
 
-# 'inference': train MADE
-made: ## To run the MADE inference code
+made: ## To run the MADE inference code specifically
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/inference/made.py
 
-san: ## To run the SAN inference code
+san: ## To run the SAN inference code specifically
 ifndef SPS_HOME
 		@source setup.sh
 endif
 	@python agnfinder/inference/san.py
+
+cvae: ## To run the CVAE inference code specifically
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/cvae.py
 
 mypy: ## To run mypy only (this is usually done with test / alltest)
 ifndef SPS_HOME
@@ -78,12 +81,6 @@ ifndef SPS_HOME
 endif
 	@python -m pytest -s tests
 
-testmade: mypy  ## To only run the made tests.
-ifndef SPS_HOME
-		@source setup.sh
-endif
-	@python -m pytest -s tests -k test_made
-
 alltest: mypy ## To run all the program's tests (including slow running ones)
 ifndef SPS_HOME
 		@source setup.sh
@@ -93,17 +90,15 @@ endif
 docs: ## To compile the documentation (requires Docker)
 	@./docs/writedocs.sh
 
-docsimg: ## To explicitly build the documentation writing image
+docsimg: ## To explicitly build the Docker image for writing documentation.
 	@docker build -f ./docs/Dockerfile -t agnfinderdocs ./docs
 
 ./data/clumpy_models_201410_tvavg.hdf5:
 	wget -O $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
 
-# Install agnfinder project locally
-install: ./data/clumpy_models_201410_tvavg.hdf5 ## To install everything (warning, downloads ~1.5Gb of data)
+install: ./data/clumpy_models_201410_tvavg.hdf5 ## To install everything (warning: downloads ~1.5Gb of data)
 	@./bin/install_with_venv.sh $(PYTHON)
 
-# Runs the main entrypoint for visualising the quasar templates
 qt: ## To re-create the quasar templates (quasar and torus models)
 ifndef SPS_HOME
 		@source setup.sh
@@ -121,12 +116,13 @@ lab: ## To start a Jupyter Lab server
 ifndef SPS_HOME
 		@source setup.sh
 endif
-	jupyter lab --notebook-dir=. --ip=0.0.0.0
-
-# --collaborative --no-browser
+	jupyter lab --notebook-dir=. --ip=0.0.0.0 # --collaborative --no-browser
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	# @./bin/help.sh
 
-.PHONY: run test kernel lab install docs docsimg qt help mypy alltest
+.PHONY: alltest cvae docsimg docs inf kernel lab made mypy qt san sim test
+
+# this will force re-installation, even if the clumpy models are already downloaded.
+.PHONY: install

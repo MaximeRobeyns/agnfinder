@@ -152,7 +152,7 @@ class Model(nn.Module, ABC):
         if self.device == t.device('cuda'):
             self.to(self.device, self.dtype)
 
-    def __init_subclass__(cls: ...) -> ...:
+    def __init_subclass__(cls):
         # Apply 'decorators' to certain methods for inheriting classes.
         # This is not a particularly pretty pattern to inherit decorators, but
         # it works well enough...

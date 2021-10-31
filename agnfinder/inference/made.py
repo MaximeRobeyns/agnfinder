@@ -289,6 +289,8 @@ class CMADE(Model):
 
         self.name: str = f'{self.likelihood.name}_MADE'
 
+    name: str = 'MADE'
+
     def __repr__(self) -> str:
         return (f'{self.name} model with {self.likelihood.name} likelihood'
                 f'ANN layer widths {self.hs}, a mask set of size '

@@ -274,6 +274,8 @@ class SAN(Model):
 
         self.name: str = f'{self.likelihood.name}_SAN'
 
+    name: str = 'SAN'
+
     def __repr__(self) -> str:
         return (f'{self.name} with {self.likelihood.name} likelihood, '
                 f'module blocks of shape {self.module_shape} '

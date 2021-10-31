@@ -32,7 +32,7 @@ from typing import Optional, Any, Sized
 from torch.utils.data import DataLoader, Dataset, random_split, Subset
 
 from agnfinder.types import Tensor, column_order
-from agnfinder.inference.base import CVAE
+from agnfinder.inference.cvae import CVAE
 
 
 def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
