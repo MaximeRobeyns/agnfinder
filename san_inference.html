@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4. Inferring Galaxy Parameters (SAN) &mdash; AGN Finder Documentation 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon-32x32.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="5. Inferring Galaxy Parameters (CVAE)" href="cvae_inference.html" />
+    <link rel="prev" title="3. Inference Overview" href="inference.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #FFFFFF" >
+            <a href="index.html" class="icon icon-home"> AGN Finder Documentation
+            <img src="_static/base_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">4. Inferring Galaxy Parameters (SAN)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#autoregressive-models-for-distribution-estimation">4.1. Autoregressive Models for Distribution Estimation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-sequential-autoregressive-network">4.2. The Sequential Autoregressive Network</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-the-san-model">4.2.1. Using the SAN Model</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#references">4.3. References</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #FFFFFF" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">AGN Finder Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><span class="section-number">4. </span>Inferring Galaxy Parameters (SAN)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/san_inference.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p id="san-inference"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
+<section id="inferring-galaxy-parameters-san">
+<h1><span class="section-number">4. </span>Inferring Galaxy Parameters (SAN)<a class="headerlink" href="#inferring-galaxy-parameters-san" title="Permalink to this headline"></a></h1>
+<p>The method described in this page, the <em>Sequential Autoregressive Network</em>,
+(SAN) is currently the highest performing method in the codebase.
+As a reminder, we wish to estimate the distribution of physical galaxy
+parameters <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}^{9}\)</span>, given some photometric
+observations <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^{8}\)</span>; that is <span class="math notranslate nohighlight">\(p(\mathbf{y}
+\vert \mathbf{x})\)</span>.</p>
+<p>We draw loose inspiration from other autoregressive models such as <a class="reference internal" href="#made2015" id="id1"><span>[MADE2015]</span></a>,
+while focusing on the goals of providing fast sampling times (i.e. being able to
+compute the distribution of <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> quickly as
+well as being able to draw samples from it quickly) and maintaining good accuracy;
+that is, we hope for low test NLL, <span class="math notranslate nohighlight">\(-\sum^N_{i=1} \log
+p_{\text{SAN}}(\mathbf{y}_{i}\vert \mathbf{x}_{i})\)</span> for pairs of points in the
+testing dataset <span class="math notranslate nohighlight">\(\mathcal{D}_{\text{test}} = \big\{(\mathbf{x}_{i},
+\mathbf{y}_{i})\big\}_{i=1}^{N}\)</span>.</p>
+<section id="autoregressive-models-for-distribution-estimation">
+<h2><span class="section-number">4.1. </span>Autoregressive Models for Distribution Estimation<a class="headerlink" href="#autoregressive-models-for-distribution-estimation" title="Permalink to this headline"></a></h2>
+<p>Before considering the full details of the SAN model, we first review
+autoregressive models.</p>
+<p>Strictly speaking, an ‘autoregressive model’ is one where the output of the
+model (usually indexed by <cite>time</cite>) depends on the previously outputted values of
+the model and some stochastic term. For example, they are commonly employed to
+predict the next value(s) in a time seris.</p>
+<p>In this context, we use a model with this <cite>autoregressive property</cite> to
+estimate a multivariate distribution, one dimension at a time. That is, rather
+than specifying the value of a stochastic process at a given timestep, each
+iteration of the autoregressive model outputs the next dimension of the
+multivariate distribution.</p>
+<p>Usually, when estimating / learning distributions over data, we must be careful
+to make sure that the distribution normalises. For example, if we observe a set
+of points <span class="math notranslate nohighlight">\(\{\mathbf{x}_{i}\}_{i=1}^{N} \in \mathcal{X}
+\subseteq\mathbb{R}^d\)</span>, and we’d like to discover <span class="math notranslate nohighlight">\(p(\mathbf{x})\)</span>, then
+we must make sure that</p>
+<div class="math notranslate nohighlight">
+\[\int_{\mathcal{X}} p(\mathbf{x}) d\mathbf{x} = 1.\]</div>
+<p>Even for small <span class="math notranslate nohighlight">\(d\)</span>, this can be an expensive prodecure unless this
+normalisation consideration is explicitly thought about when designing the
+model.</p>
+<p>Autoregressive models can be used to do just this (i.e. side-step the need to
+compute or even approximate high dimensional integrals) by simply factorising
+the desired multivariate distribution as a product of its nested conditionals:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align*}
+p(\mathbf{x}) &amp;= \prod^d_{i=1}p(x_i \vert \mathbf{x}_{&lt;i}) \\
+&amp;= p(x_1) p(x_2 \vert x_1) \cdots p(x_d \vert x_{d-1}, \ldots, x_1).
+\end{align*}\end{split}\]</div>
+<p>(On notation, <span class="math notranslate nohighlight">\(\mathbf{x}_{&lt;d} \doteq [x_{1}, \ldots, x_{d-1}]^\top\)</span>.)</p>
+<p>Recall that during training we have <span class="math notranslate nohighlight">\((\text{photometry},
+\text{parameter})\)</span> pairs <span class="math notranslate nohighlight">\((\mathbf{x}, \mathbf{y})\)</span>, and that we are not
+intersted in learning the joint <span class="math notranslate nohighlight">\(p(\mathbf{x}, \mathbf{y})\)</span> (as the
+equation above suggests) so much as the distribution of parameters conditioned
+on photometry <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span>.</p>
+<p>We can straightforwardly extend the above to include the conditioning
+information (now <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>) and instead factorise the data we care
+about modelling, <span class="math notranslate nohighlight">\(\{\mathbf{y}_{i}\}_{i=1}^{N} \in \mathcal{Y}
+\subseteq\mathbb{R}^D\)</span>, giving us:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{align*}
+p(\mathbf{y} \vert \mathbf{x}) &amp;= \prod^D_{d=1}p(y_d \vert \mathbf{y}_{&lt;d},
+\mathbf{x}) \\
+&amp;= p(y_1 \vert \mathbf{x}) p(y_2 \vert y_1, \mathbf{x}) \cdots p(y_D
+\vert y_{D-1}, \ldots, y_1, \mathbf{x}).
+\end{align*}\end{split}\]</div>
+<p>That is, so long as we can ensure that the output for the <span class="math notranslate nohighlight">\(d^{\text{th}}\)</span>
+dimension <span class="math notranslate nohighlight">\(y_{d}\)</span> only depends on the previous dimensions
+<span class="math notranslate nohighlight">\(\mathbf{y}_{&lt;d}\)</span> as well as the conditioning information
+<span class="math notranslate nohighlight">\(\mathbf{x}\)</span>, then the density <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> can
+be efficiently computed as the product of terms. We will refer to this property
+as the <cite>autoregressive property</cite>.</p>
+<p>For instance, we could compute the negatively log likelihood as:</p>
+<div class="math notranslate nohighlight">
+\[- \log p(\mathbf{y} \vert \mathbf{x}) = - \sum^D_{d=1} \log p(y_d \vert
+  \mathbf{y}_{&lt;d}, \mathbf{x}).\]</div>
+<p>So long as <span class="math notranslate nohighlight">\(D\)</span> remains relatively small (which, for this application,
+should be no more than about 10), and the individual dimensions are modelled
+with an easily computed distribution, then the above should remain quick to compute.</p>
+</section>
+<section id="the-sequential-autoregressive-network">
+<h2><span class="section-number">4.2. </span>The Sequential Autoregressive Network<a class="headerlink" href="#the-sequential-autoregressive-network" title="Permalink to this headline"></a></h2>
+<p>The following shows the architecture of our proposed autoregressive model, which
+we call a <cite>Sequential Autoregressive Network</cite>.</p>
+<figure class="align-default" id="id2">
+<a class="reference external image-reference" href="_images/san.svg"><img alt="SAN architecture" src="_images/san.svg" /></a>
+<figcaption>
+<p><span class="caption-text">Click the image to view the SVG in a new tab if it is too small.</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
+</figcaption>
+</figure>
+<p>The network is composed of <span class="math notranslate nohighlight">\(D\)</span> <cite>sequential blocks</cite>. These are repeated
+sequences of layers (which do not share weights), which accept as input the
+conditioning information <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>, a set of <span class="math notranslate nohighlight">\(F\)</span> <cite>sequence
+features</cite> from the previous block (if applicable), as well as all the stochastic
+outputs <span class="math notranslate nohighlight">\(\hat{y}_{d} \sim p(y_{d} \vert \hat{\mathbf{y}}_{&lt;d},
+\mathbf{x})\)</span> from previous blocks.</p>
+<p>This combination of features is somewhat unusual:</p>
+<ul class="simple">
+<li><p>in autoregressive models, the <span class="math notranslate nohighlight">\(d^{\text{th}}\)</span> output usually only
+depends on the previous outputs <span class="math notranslate nohighlight">\(\hat{y}_{d} \sim p(y_{d} \vert
+\hat{\mathbf{y}}_{&lt;d}, \mathbf{x})\)</span>, but not the ‘sequence features’ or
+conditioning information <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>.</p></li>
+<li><p>in a recurrent network (e.g. <cite>RNN</cite>), usually only the ‘sequence features’ (or
+equivalent) are passed through iterations, and not the network outputs for
+previous iterations <span class="math notranslate nohighlight">\(\hat{\mathbf{y}}_{&lt;d}\)</span>.</p></li>
+</ul>
+<p>Since we can return an arbitrary nuber of parameters at the output of each
+sequential block, we are free to parametrise any distribution we like for
+<span class="math notranslate nohighlight">\(p(y_d \vert \hat{\mathbf{y}}_{&lt;d}, \mathbf{x})\)</span>. In the diagram above, we
+show a Gaussian mixture with <span class="math notranslate nohighlight">\(K\)</span> components, with the
+<span class="math notranslate nohighlight">\(d^{\text{th}}\)</span> sequential block returning <span class="math notranslate nohighlight">\(K\)</span> locations
+<span class="math notranslate nohighlight">\(\{\mu_{d,i}\}_{i=1}^{K}\)</span>, scales <span class="math notranslate nohighlight">\(\{\sigma^2_{d,i}\}_{i=1}^{K}\)</span>,
+and mixture weights <span class="math notranslate nohighlight">\(\{\varphi_{d,i}\}_{i=1}^{K}\)</span> such that
+<span class="math notranslate nohighlight">\(\sum_{i=1}^K \varphi_{d,i} = 1\)</span>.</p>
+<p>This model architecure was found to satisfy the desiderata of fast sampling (one
+can draw posterior 10,000 samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> in
+the order of 10ms), and reasonable accuracy:</p>
+<figure class="align-default">
+<a class="reference external image-reference" href="_images/san_results.png"><img alt="SAN results" src="_images/san_result.png" /></a>
+</figure>
+<section id="using-the-san-model">
+<h3><span class="section-number">4.2.1. </span>Using the SAN Model<a class="headerlink" href="#using-the-san-model" title="Permalink to this headline"></a></h3>
+<p>The configurations for this model (see the <a class="reference external" href="inference.html">inference overview</a> for general configuration information) are defined in
+<code class="docutils literal notranslate"><span class="pre">config.py</span></code>.</p>
+<p>Here is an example configuration:</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="SANParams">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">SANParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">san.SANParams</span></em><span class="sig-paren">)</span><a class="headerlink" href="#SANParams" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>epochs</strong> (<em>int</em>) – The NLL will converge rapidly initially, however it can take between 10 and 20 epochs to get the best performance.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – Generally larger batch sizes will speed up training. The main consideration when setting this parameter should be your memory capacity.</p></li>
+<li><p><strong>dtype</strong> (<em>torch.dtype</em>) – Generally stable with <code class="docutils literal notranslate"><span class="pre">float32</span></code>; <code class="docutils literal notranslate"><span class="pre">float16</span></code> is generally too small, while <code class="docutils literal notranslate"><span class="pre">float64</span></code> is unnecessary.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – Obviously use <code class="docutils literal notranslate"><span class="pre">cuda</span></code> if you have a GPU or six lying around… This model, particularly with wider layers, will make good use of GPU compute.</p></li>
+<li><p><strong>cond_dim</strong> (<em>int</em>) – As usual: dimension of conditioning data (i.e. photometry). There should be little need to explicitly compute features (such as ‘colours’ from photometric observations) since the sequential blocks should uncover useful representations for you.</p></li>
+<li><p><strong>data_dim</strong> (<em>int</em>) – As usual: dimension of output data (i.e. physical params).</p></li>
+<li><p><strong>module_shape</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – The widths of the layers in the repeated sequential blocks. For instance [16, 64, 32] means that each block has a first hidden layer width of 16, then a layer of width 64 and a final hidden layer of width 32.</p></li>
+<li><p><strong>likelihood</strong> (<em>Type</em><em>[</em><em>SAN_Likelihood</em><em>]</em>) – the distribution to use for each individual <span class="math notranslate nohighlight">\(p(y_d \vert \mathbf{y}_{&lt;d}, \mathbf{x})\)</span>. These are impleneted at the top of <code class="docutils literal notranslate"><span class="pre">agnfinder/inference/san.py</span></code>, and you can create a new one by extending the <code class="docutils literal notranslate"><span class="pre">SAN_Likelihood</span></code> class.</p></li>
+<li><p><strong>likelihood_kwargs</strong> (<em>Optional</em><em>[</em><em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – any keyword arguments (such as the number of mixture commponents) to pass to the likelihood’s constructor.</p></li>
+<li><p><strong>batch_norm</strong> (<em>bool</em>) – whether to apply batch normalisation in the sequential blocks of the network. Generally this provides a modest improvement.</p></li>
+</ul>
+</dd>
+</dl>
+<p>The following example contains a minimal concrete instance of <a class="reference internal" href="inference.html#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a>
+(real models are likely to require additional parameters).</p>
+<dl class="field-list">
+<dt class="field-odd">Example</dt>
+<dd class="field-odd"><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">SANParams</span><span class="p">(</span><span class="n">san</span><span class="o">.</span><span class="n">SANParams</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="gp">... </span>    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="gp">... </span>    <span class="n">dtype</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">float32</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="n">cond_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="gp">... </span>    <span class="n">data_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">9</span>
+<span class="gp">... </span>    <span class="n">module_shape</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">]</span>
+<span class="gp">... </span>    <span class="n">sequence_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="gp">... </span>    <span class="n">likelihood</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">san</span><span class="o">.</span><span class="n">SAN_Likelihood</span><span class="p">]</span> <span class="o">=</span> <span class="n">san</span><span class="o">.</span><span class="n">MoG</span>
+<span class="gp">... </span>    <span class="n">likelihood_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;K&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="n">batch_norm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="c1"># Alternatively a simple Gaussian likelihood (less effective)</span>
+<span class="gp">... </span>    <span class="c1"># likelihood: Type[san.SAN_Likelihood] = san.Gaussian</span>
+<span class="gp">... </span>    <span class="c1"># likelihood_kwargs = None</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+<section id="references">
+<h2><span class="section-number">4.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h2>
+<dl class="citation">
+<dt class="label" id="made2015"><span class="brackets"><a class="fn-backref" href="#id1">MADE2015</a></span></dt>
+<dd><p>Germain, Mathieu, Karol Gregor, Iain Murray, and Hugo Larochelle.
+‘MADE: Masked Autoencoder for Distribution Estimation’. In Proceedings of the
+32nd International Conference on Machine Learning, 881–89. PMLR, 2015.
+<a class="reference external" href="https://proceedings.mlr.press/v37/germain15.html">https://proceedings.mlr.press/v37/germain15.html</a>.</p>
+</dd>
+</dl>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="inference.html" class="btn btn-neutral float-left" title="3. Inference Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cvae_inference.html" class="btn btn-neutral float-right" title="5. Inferring Galaxy Parameters (CVAE)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

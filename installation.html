@@ -19,7 +19,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="2. Program Configuration" href="configuration.html" />
+    <link rel="next" title="2. Photometry Sampling" href="sampling.html" />
     <link rel="prev" title="AGN Finder documentation" href="index.html" /> 
 </head>
 
@@ -48,9 +48,10 @@
 <li class="toctree-l2"><a class="reference internal" href="#building-python-3-9">1.4. Building Python 3.9</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">2. Program Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="inference.html">4. Inferring Galaxy Parameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
 </ul>
 
         </div>
@@ -113,6 +114,14 @@ your desired python path, before running <code class="docutils literal notransla
 <span class="n">PYTHON</span> <span class="o">=</span> <span class="o">/</span><span class="n">absolute</span><span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">/</span><span class="n">python3</span><span class="mf">.9</span>
 </pre></div>
 </div>
+</div></blockquote>
+<p>2.2 <strong>Issues with GPy</strong></p>
+<blockquote>
+<div><p>The GPy package requires the Python3 development libraries to build.
+These can be found under <code class="docutils literal notranslate"><span class="pre">python3-dev</span></code> on Debian based Linux distros,
+or <code class="docutils literal notranslate"><span class="pre">python3-devel</span></code> for others (e.g. Arch, Fedora, RedHat). If you
+encounter issues with the GPy wheel, use your package manager to install
+the Python3 development libraries.</p>
 </div></blockquote>
 <p>If you encounter an error during the <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> step, please see the
 <a class="reference internal" href="#manual-installation">Manual Installation</a> section for guidance.</p>
@@ -256,7 +265,7 @@ concurrently. If compiling on a login node, remember be mindful of other users!<
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="AGN Finder documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="configuration.html" class="btn btn-neutral float-right" title="2. Program Configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="sampling.html" class="btn btn-neutral float-right" title="2. Photometry Sampling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

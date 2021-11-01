@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4. Inferring Galaxy Parameters &mdash; AGN Finder Documentation 0.1 documentation</title>
+  <title>3. Inference Overview &mdash; AGN Finder Documentation 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="shortcut icon" href="_static/favicon-32x32.png"/>
@@ -20,7 +20,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="3. Photometry Sampling" href="sampling.html" /> 
+    <link rel="next" title="4. Inferring Galaxy Parameters (SAN)" href="san_inference.html" />
+    <link rel="prev" title="2. Photometry Sampling" href="sampling.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -42,28 +43,19 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">2. Program Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">4. Inferring Galaxy Parameters</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#conditional-variational-autoencoders">4.1. (Conditional) Variational Autoencoders</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#latent-variable-models">4.1.1. Latent Variable Models</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#lvm-objective">4.1.2. LVM Objective</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sgd-elbo-optimisation">4.1.3. SGD ELBO Optimisation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#likelihood">4.1.4. Likelihood</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">3. Inference Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#using-the-models">3.1. Using the Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#general-inference-parameters">3.1.1. General Inference Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-parameters">3.1.2. Model Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#training-the-models">3.1.3. Training the models</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#implementation">4.2. Implementation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#architecture-description-types-py">4.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#base-cvae-classes-base-py">4.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cvae-distributions-distributions-py">4.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#agnfinder-cvae-classes-inference-py">4.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#utility-classes-utils-py">4.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cvae-configuration-config-py">4.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-new-models">3.2. Creating New Models</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#references">4.3. References</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
 </ul>
 
         </div>
@@ -80,7 +72,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li><span class="section-number">4. </span>Inferring Galaxy Parameters</li>
+      <li><span class="section-number">3. </span>Inference Overview</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/inference.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -90,695 +82,306 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <p id="inference"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
-<section id="inferring-galaxy-parameters">
-<h1><span class="section-number">4. </span>Inferring Galaxy Parameters<a class="headerlink" href="#inferring-galaxy-parameters" title="Permalink to this headline"></a></h1>
-<p>The original motivation behind the <em>AGNFinder</em> project was to speed up Bayesin
-SED fitting.
-MCMC approaches need to evaluate the likelihood term <span class="math notranslate nohighlight">\(p(x \vert \theta)\)</span>
-many times which is a slow process, dominated by the evaluation of the forward
-model <span class="math notranslate nohighlight">\(f : \Theta \to \mathcal{X}\)</span>. This is a mapping from physical galaxy
-parameters <span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> (such as mass, star formation, E(B-V)
-as well as AGN signatures such as AGN disc and torus, disk inclination and so
-forth) to (mock) photometric observations <span class="math notranslate nohighlight">\(x \in \mathcal{X}\)</span>.</p>
-<p>To speed up the evaluation of the likelihood, we can <em>emulate</em> the forward model
-with some function approximator (for instance a GP or a neural network). This is
-the approach taken in Alsing <em>et al.</em> <a class="reference internal" href="#spec2020" id="id1"><span>[SPEC2020]</span></a>, with good results, and was
-incidentally the original goal of this project.</p>
-<p>In this fork we take a slightly different approach to recovering physical
-parameters from photometric observations <span class="math notranslate nohighlight">\(p(\theta \vert x)\)</span>. We first
-direct our attention away from emulating (and speeding up) the forward model,
-and towards the main objective which is to recover the physical galaxy
-parameters. We also eschew the MCMC methods used in this inference step in
-favour of a variational Bayesian attack; namely a conditional variational
-autoencoder <a class="reference internal" href="#cvae2015" id="id2"><span>[CVAE2015]</span></a>—a deep conditional generative model with latent
-variables.</p>
-<p>We motivate the use of this model by acknowledging that the low-dimensional
-photometric observations (8 for the Euclid survey) are potentially weakly
-predictive of the free galaxy parameters <span class="math notranslate nohighlight">\(\theta\)</span>; particularly if
-<span class="math notranslate nohighlight">\(\theta\)</span> is relatively high dimensional. We are therefore trying to learn
-a ‘few-to-many’ mapping where the conditional distribution <span class="math notranslate nohighlight">\(p(\theta \vert
-x)\)</span> is complicated and multi-modal.</p>
-<p>If we were to use a discriminative model (such as a conventional feedforward
-neural network, directly learning the mapping <span class="math notranslate nohighlight">\(f: \mathcal{X} \to \Theta\)</span>)
-then we would merely be making use of <em>correlations</em> in the dataset of simulated
-<span class="math notranslate nohighlight">\((\theta, x)\)</span> pairs; <span class="math notranslate nohighlight">\(\mathcal{D} = \{(\theta_{i},
-x_{i})\}_{i=1}^{n}\)</span> to make predictions.</p>
-<p>Attempting to model the generative process by using a CVAE may allow us to
-uncover causal relations in an unsupervised manner <a class="reference internal" href="#ivae2019" id="id3"><span>[IVAE2019]</span></a>, using only the
-simulated dataset <span class="math notranslate nohighlight">\(\mathcal{D}\)</span>. This may make this approach more robust
-to extrapolation, and use in different surveys.</p>
-<section id="conditional-variational-autoencoders">
-<h2><span class="section-number">4.1. </span>(Conditional) Variational Autoencoders<a class="headerlink" href="#conditional-variational-autoencoders" title="Permalink to this headline"></a></h2>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>To avoid a clash of notation, we will henceforth denote the physical
-galaxy parameters as <span class="math notranslate nohighlight">\(y\)</span> (previously <span class="math notranslate nohighlight">\(\theta\)</span>). This matches
-the machine learning nomenclature of denoting outputs to be predicted as
-<span class="math notranslate nohighlight">\(y\)</span>, and model parameters as <span class="math notranslate nohighlight">\(\theta\)</span>.</p>
-</div>
-<section id="latent-variable-models">
-<h3><span class="section-number">4.1.1. </span>Latent Variable Models<a class="headerlink" href="#latent-variable-models" title="Permalink to this headline"></a></h3>
-<p>A variational autoencoder (VAE) is an example of a <em>latent variable model</em>
-(LVM). Latent variables, often denoted <span class="math notranslate nohighlight">\(z\)</span>, are unobserved variables which
-ideally represent some disentangled, semantically meaningful, and statistically
-independent causal factors for variation in the data.</p>
-<p>A latent variable model (LVM) is a distribution over the data we care about and
-the latent variables <span class="math notranslate nohighlight">\(p(y, z)\)</span>. We can factorise this in two ways: either
-working with the posterior <span class="math notranslate nohighlight">\(p(z \vert y)\)</span> to, perhaps stochastically,
-map (or <em>encode</em>) a datapoint <span class="math notranslate nohighlight">\(y\)</span> to its latent representation <span class="math notranslate nohighlight">\(z\)</span>,
-or the posterior <span class="math notranslate nohighlight">\(p(y \vert z)\)</span> to generate (or <em>decode</em> latents <span class="math notranslate nohighlight">\(z\)</span>
-to) new plausible <span class="math notranslate nohighlight">\(y\)</span> samples.</p>
-<p>In the second factorisation <span class="math notranslate nohighlight">\(p(y, z) = p(y \vert z) p(z)\)</span>, the LVM takes
-the form of</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\begin{align*}
-p_{\theta_{z}}(z) &amp;= f_{z}(z; \theta_{z}) \\
-p_{\theta_{y}}(y \vert z) &amp;= f_{y}(y; z, \theta_{y}),
-\end{align*}\end{split}\]</div>
-<p>where <span class="math notranslate nohighlight">\(f_{z}\)</span> and <span class="math notranslate nohighlight">\(f_{y}\)</span> are valid density functions, and
-<span class="math notranslate nohighlight">\(\theta = \{\theta_{z}, \theta_{y}\}\)</span> parametrises the generative process.
-To sample from <span class="math notranslate nohighlight">\(p_{\theta_{y}}(y \vert z)\)</span> we first sample from the
-prior over the latent variables <span class="math notranslate nohighlight">\(\hat{z} \sim p_{\theta_{z}}(z)\)</span>, and
-condition on this <span class="math notranslate nohighlight">\(\hat{y} \sim p_{\theta_{y}}(y \vert \hat{z})\)</span>. In
-practice we use neural networks to parametrise <span class="math notranslate nohighlight">\(f_{z}\)</span> and <span class="math notranslate nohighlight">\(f_{y}\)</span>.</p>
-<p>We could train this model by maximising the log marginal likelihood
-<span class="math notranslate nohighlight">\(\log p(y)\)</span>, which we may interpret as minimising some distance measure
-<span class="math notranslate nohighlight">\(D\big[p_{\theta}(y) \Vert p^{*}(y)\big]\)</span> between our model
-<span class="math notranslate nohighlight">\(p_{\theta}(y)\)</span> and the true data distribution <span class="math notranslate nohighlight">\(p^{*}(y)\)</span> (i.e. a
-mixture of Diracs; one for each point in the training dataset).</p>
-<p>Since we are interested in inferring galaxy parameters <span class="math notranslate nohighlight">\(y\)</span> <em>given</em> some
-photometric observation <span class="math notranslate nohighlight">\(x\)</span>, we can extend this idea to a <em>conditional</em> VAE,
-where we are now after <span class="math notranslate nohighlight">\(p_{\theta}(y \vert x) \approx p^{*}(y \vert x)\)</span>;
-or equivalently minimising <span class="math notranslate nohighlight">\(D\big[p_{\theta}(y \vert x) \Vert p^{*}(y
-\vert x)\big]\)</span>.</p>
-<p>A <em>conditional</em> latent variable model is a joint distribution over both some data
-<span class="math notranslate nohighlight">\(y\)</span> and the latent variables <span class="math notranslate nohighlight">\(z\)</span>, conditioned on some context
-<span class="math notranslate nohighlight">\(x\)</span>; <span class="math notranslate nohighlight">\(p(y, z \vert x) = p(y \vert z, x)p(z \vert x)\)</span>—in this
-application <span class="math notranslate nohighlight">\(y\)</span> are the physical galaxy parameters, and <span class="math notranslate nohighlight">\(x\)</span> are the
-photometric observations. By analogy to the above, the conditional latent
-variable model is of the form</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\begin{align*}
-p_{\theta_{z}}(z \vert x) &amp;= f_{z}(z; x, \theta_{z}) \\
-p_{\theta_{y}}(y \vert z, x) &amp;= f_{y}(y; z, x, \theta_{y}).
-\end{align*}\end{split}\]</div>
-<p>Thus we first condition the distribution over the latent variable <span class="math notranslate nohighlight">\(z\)</span> on
-the photometric observations <span class="math notranslate nohighlight">\(x\)</span>. In turn, we condition the distribution
-over the physical galaxy parameters <span class="math notranslate nohighlight">\(y\)</span> on both the (conditional) latent
-samples and the photometric observations.</p>
-<p>As above, our objective is to find some <span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> such that
-<span class="math notranslate nohighlight">\(p_{\theta}(y \vert x) \approx p^{*}(y \vert x)\)</span>, and this can be acheived
-by maximising the (log) marginal likelihood of the <span class="math notranslate nohighlight">\(N\)</span> iid. training
-observations under our model:</p>
-<div class="math notranslate nohighlight" id="equation-lvmobjective">
-<span class="eqno">(1)<a class="headerlink" href="#equation-lvmobjective" title="Permalink to this equation"></a></span>\[ \underset{\theta \in \Theta}{\mathrm{argmax}}
- \sum_{i=1}^{N} \log p_{\theta}(y_{i} \vert x_{i})
- =
- \underset{\theta \in \Theta}{\mathrm{argmax}}
- \sum_{i=1}^{N} \log \int_{\mathcal{Z}} p_{\theta}(y_{i} \vert z, x_{i}) dz.\]</div>
-<p>Integrating out the latent variable from the LVM <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z,
-x)\)</span> to find the marginal likelihood (or <em>model evidence</em>) is often intractable.
-Taking the variational Bayesian approach, we instead optimise a lower-bound on
-this intractable model evidence, referred to as the <em>evidence lower bound</em>
-(ELBO).</p>
-</section>
-<section id="lvm-objective">
-<h3><span class="section-number">4.1.2. </span>LVM Objective<a class="headerlink" href="#lvm-objective" title="Permalink to this headline"></a></h3>
-<p>We will derive this lower bound twice, to appreciate two different intuitions.
-While we use the conditional form of the VAE throughout—which is certainly
-more verbose than the vanilla VAE derivations—I think that the consistency
-with later sections as well as the accompanying codebase justifies this.</p>
-<p>Beginning with the importance sampling perspective, we ideally want to take a
-Monte Carlo approximation to the integral in <a class="reference internal" href="#equation-lvmobjective">Equation 1</a>. Unfortunately
-for most <span class="math notranslate nohighlight">\(z\)</span>, <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span> is likely to be close to
-zero. Rather than taking the expectation uniformly over <span class="math notranslate nohighlight">\(z\)</span>, we instead
-take it over a ‘proposal distribution’ <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>. We want
-samples of <span class="math notranslate nohighlight">\(z \sim q_{\phi}(z \vert y, x)\)</span> to be likely to have produced
-<span class="math notranslate nohighlight">\(y\)</span>; that is, to give non-zero <span class="math notranslate nohighlight">\(p(y \vert z, x)\)</span> for <span class="math notranslate nohighlight">\((x, y)\)</span>
-in the training data, so that we can approximate the integral with fewer
-samples.</p>
-<p>Taking the expectation wrt. the proposal distribution <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y,
-x)\)</span> on both sides of <a class="reference internal" href="#equation-lvmobjective">Equation 1</a> (first line below), and introducing
-<span class="math notranslate nohighlight">\(q_{\phi}\)</span> on the right hand side as a ratio of itself (second line) while
-applying Bayes rule to rearrange <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span> (also second
-line) gives:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\log p_{\theta}(y \vert x) &amp;=
-\int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log p_{\theta}(y \vert z, x)dz \\
-&amp;= \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \left(
-\log \frac{p_{\theta}(y, z \vert x)}{q_{\phi}(z \vert y, x)} +
-\log \frac{q_{\phi}(z \vert y, x)}{p_{\theta}(z \vert x)}
-\right) dz \\
-&amp;= \underbrace{\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
-\log p_{\theta}(y, z \vert x) - \log q_{\phi}(z \vert y, x)
-\right]}_{\text{variational lower-bound, } \mathcal{L}(\theta, \phi; x, y)} +
-D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\end{split}\]</div>
-<p>Since the KL divergence is non-negative, the <span class="math notranslate nohighlight">\(\mathcal{L}(\theta, \phi; x,
-y)\)</span> term indeed lower-bounds the evidence:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\log p_{\theta}(y \vert x) &amp;\ge
-\mathbb{E}_{q_{\phi}(z \vert y, x)} \left[
- \log p_{\theta}(y \vert z, x) + \log p_{\theta}(z \vert x) -
- \log q_{\phi}(z \vert y, x) \right] \\
-&amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
- \log p_{\theta}(y \vert z, x)
- \right] + \int_{\mathcal{Z}} q_{\phi}(z \vert y, x) \log
- \frac{p_{\theta}(z \vert x)}{q_{\phi}(z \vert y, x)} dz \\
-  &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
-  - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\end{split}\]</div>
-<p>This last line above is the canonical form in which the ELBO is usually
-given.</p>
-<hr class="docutils" />
-<aside class="sidebar">
-<p class="sidebar-title">Jensen’s inequality</p>
-<img alt="_images/jensens-inequality.svg" src="_images/jensens-inequality.svg" /><p>Put loosely, Jensen’s inequality states that <span class="math notranslate nohighlight">\(\varphi(\mathbb{E}[x])
-\ge \mathbb{E}[\varphi(x)]\)</span>, for <span class="math notranslate nohighlight">\(\varphi(\cdot)\)</span> a concave function
-e.g. <span class="math notranslate nohighlight">\(log(\cdot)\)</span>.</p>
-</aside>
-<p>For another perspective, we may derive the lower bound using Jensen’s
-inequality.</p>
-<p>In the first line below, we explicitly write the marginalisation
-over the latents <span class="math notranslate nohighlight">\(z\)</span>, and we also introduce the encoder or <em>recognition
-model</em> <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> as a ratio of itself. On the second line,
-we use Jensen’s inequality to push the logarithm (a concave function) inside the
-expectation and introduce the lower bound:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\log p_{\theta}(y \vert x) &amp;=
-\log \int_{\mathcal{Z}} p_{\theta}(y, z \vert x)
-\frac{q_{\phi}(z \vert y, x)}{q_{\phi}(z \vert y, x)} dz \\
-&amp;\ge \int_{\mathcal{Z}}q_{\phi}(z \vert y, x)\big(\log p_{\theta}(y, z \vert x)
-- \log q_{\phi}(z \vert y, x)\big) dz \\
-  &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y, z \vert x) -
-  \log q_{\phi}(z \vert y, x)\right] \\
-  &amp;\doteq \mathcal{L}(\theta, \phi; x, y).\end{split}\]</div>
-<p>We can now perform the same rearrangements as above on
-<span class="math notranslate nohighlight">\(\mathcal{L}(\theta, \phi; x, y)\)</span> to reach the canonical form for the ELBO
-objective that we try to maximise which, for completeness, is</p>
-<div class="math notranslate nohighlight">
-\[\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
-\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
- - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\]</div>
-<p>From the above, we can see that the ELBO optimises two quantities that we care
-about concurrently:</p>
-<ol class="arabic simple">
-<li><p>We (approximately) maximise the marginal likelihood, since
-<span class="math notranslate nohighlight">\(\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z,
-x)\right] = \log p_{\theta}(y \vert x)\)</span>, which makes our generative model
-better.</p></li>
-<li><p>We make the approximate posterior <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> more similar
-to the true posterior <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span>; making the recognition
-model better.</p></li>
-</ol>
-</section>
-<section id="sgd-elbo-optimisation">
-<h3><span class="section-number">4.1.3. </span>SGD ELBO Optimisation<a class="headerlink" href="#sgd-elbo-optimisation" title="Permalink to this headline"></a></h3>
-<p>We wish to optimise this ELBO objective over both <span class="math notranslate nohighlight">\(\theta\)</span> and
-<span class="math notranslate nohighlight">\(\phi\)</span>. While the gradient <span class="math notranslate nohighlight">\(\nabla_{\theta, \phi}\mathcal{L}(\theta,
-\phi; y, x)\)</span> is in general intractable, we can use Monte Carlo approximations as
-well as the ‘reparametrisation trick’ to obtain a good unbiased estimator
-<span class="math notranslate nohighlight">\(\tilde{\nabla}_{\theta, \phi}\mathcal{L}(\theta, \phi; y, x)\)</span>.</p>
-<p>The derivative wrt. <span class="math notranslate nohighlight">\(\theta\)</span> can be straightforwardly obtained with a
-Monte Carlo approximation of the expectation:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\nabla_{\theta}\mathcal{L}(\theta, \phi; y, x) &amp;=
-\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[
-\nabla_{\theta}\big(\log p_{\theta}(y, z \vert x) -
-\log q_{\phi}(z \vert y, x)\big) \right] \\
-&amp;\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\theta}
-\log p_{\theta}(y, z \vert x).\end{split}\]</div>
-<p>However, when trying to get unbiased gradients of the ELBO wrt. the variational
-parameters <span class="math notranslate nohighlight">\(\nabla_{\phi}\mathcal{L}(\theta, \phi; y, x)\)</span>, we can no
-longer commute the derivative with the expectation:
-<span class="math notranslate nohighlight">\(\nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] \ne
-\mathbb{E}_{q_{\phi}(z \vert y, x)}[\nabla_{\phi}f(x, y, z)]\)</span>. We resolve to
-apply the change of variables formula for probability distributions (also called
-the <em>reparametrisation trick</em>), which will result in:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\nabla_{\phi}\mathbb{E}_{q_{\phi}(z \vert y, x)}[f(x, y, z)] &amp;=
-\mathbb{E}_{p(\epsilon)}\big[\nabla_{\phi}f\big(x, y, g(\phi, y, x,
-\epsilon)\big)\big] \\
-&amp;\approx \frac{1}{K}\sum_{i=1}^{K} \nabla_{\phi} f\big(x, y, z^{(i)}\big),
-\hspace{0.5cm} z^{(i)} = g(\phi, y, x, \epsilon),\end{split}\]</div>
-<p>where <span class="math notranslate nohighlight">\(g(\cdot)\)</span> is an invertible and differentiable function, and
-<span class="math notranslate nohighlight">\(p(\epsilon)\)</span> is a fixed density (e.g. a standard Gaussian) which we
-can easily sample from.</p>
-<p>While it is straightforward to generate reparametrised samples from
-<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> (we just evaluate <span class="math notranslate nohighlight">\(g(\phi, \epsilon', y,
-x)\)</span> for some <span class="math notranslate nohighlight">\(\epsilon' \sim p(\epsilon)\)</span>), it is slightly more
-complicated to evaluate the density of some <span class="math notranslate nohighlight">\(z\)</span> under this posterior
-distribution, which is given by</p>
-<div class="math notranslate nohighlight">
-\[\log q_{\phi}(z \vert y, x) = \log p(\epsilon) - \log \left\vert \det
-\frac{\partial g_{\phi}}{\partial\epsilon}(y, x, \epsilon)\right\vert,\]</div>
-<p>We must subtract the log of the determinant of the Jacobian
-<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon}\)</span> in order to conserve unit probability
-mass before and after the transformation <span class="math notranslate nohighlight">\(g\)</span>. It follows that we would
-like to select (flexible) transformations <span class="math notranslate nohighlight">\(g\)</span> where the log determinant of
-the Jacobian term is cheap to compute.</p>
-<hr class="docutils" />
-<p><strong>Factorised Gaussian Encoder</strong></p>
-<p>A good first attempt at specifying the form for <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>
-might be to use an isotropic Gaussian. That is, <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) =
-\mathcal{N}\big(z; \mu, \text{diag}(\sigma^2)\big)\)</span>, where the parameters of
-this Gaussian <span class="math notranslate nohighlight">\((\mu, \log \sigma)\)</span> are the outputs of the encoder network.
-Hence we may draw samples from <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> as follows:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\epsilon &amp;\sim \mathcal{N}(0, \mathbf{I}) \\
-(\mu, \log \sigma) &amp;= f_{\text{enc}}(\phi, y, x) \\
-z &amp;= \mu + \sigma \odot \epsilon\end{split}\]</div>
-<p>where <span class="math notranslate nohighlight">\(\odot\)</span> represents an element-wise product and
-<span class="math notranslate nohighlight">\(f_{\text{enc}}\)</span> is the ‘<em>encoder</em>’ neural network. The neural network
-directly outputs the log standard deviation for more stable training.</p>
-<p>To evaluate the density of some <span class="math notranslate nohighlight">\(z\)</span> under this distribution, we first find
-the Jacobian of this transformation, which in this isotropic Gaussian case is
-<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon} = \text{diag}(\sigma)\)</span>. The
-determinant of a diagonal matrix is merely the product of the diagonal terms, so
-we may compute the log determinant of the Jacobian in <span class="math notranslate nohighlight">\(O(n)\)</span> time as:</p>
-<div class="math notranslate nohighlight">
-\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
-\sum_{i=1}^{n}\log \sigma_{i},\]</div>
-<p>where <span class="math notranslate nohighlight">\(n\)</span> is the dimensionality of the latent space. Since <span class="math notranslate nohighlight">\(q\)</span> is
-isotropic Gaussian, we may find the density of a latent vector as a product of
-univariate Gaussians: <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) =
-\prod_{i=1}^{n}\mathcal{N}(z_{i}; \mu_{i}, \sigma_{i})\)</span>, and so the posterior density
-can be expressed as a single sum and evaluated in linear time:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\log q_{\phi}(z \vert y, x) &amp;= \sum_{i=1}^{n} \log \mathcal{N}(\epsilon_{i};
-0, 1) - \log \sigma_{i} \\
-&amp;= -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) + \epsilon_{i}^2\big) +
-\log \sigma_{i},\end{split}\]</div>
-<p>when <span class="math notranslate nohighlight">\(z = g(\phi, \epsilon, y, x)\)</span>.</p>
-<hr class="docutils" />
-<p><strong>Full Covariance Gaussian Encoder</strong></p>
-<p>A more flexible inference model <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> will generally
-improve the tightness of the ELBO (since the KL divergence term
-<span class="math notranslate nohighlight">\(D_{\text{KL}}\big[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)]\)</span>,
-which introduces the inequality, will be smaller). We must maintain an efficient
-sampling procedure (e.g. reparametrised sampling, for which it must remain cheap
-to evaluate the log determinant of the Jacobian). A full-covariance Gaussian
-satisfies these desiderata; where <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x) = \mathcal{N}(z;
-\mu, \Sigma)\)</span>, and <span class="math notranslate nohighlight">\((\mu, \Sigma) = f_{\text{enc}}(\phi, y, x)\)</span> is a
-neural network.</p>
-<p>The reparametrised sampling procedure is:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\epsilon &amp;\sim \mathcal{N}(0, \mathbf{I}) \\
-z &amp;= \mu + L\epsilon\end{split}\]</div>
-<p>where L is a lower triangular matrix with non-zero diagonal elements. The reason
-for this constraint is that it makes the evaluating the density of
-<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>, which in turn requires finding the log
-determinant of the Jacobian of the above simple.  The Jacobian is
-<span class="math notranslate nohighlight">\(\frac{\partial z}{\partial \epsilon} = L\)</span>, and since the determinant of a
-triangular matrix is the product of the diagonal elements, we get:</p>
-<div class="math notranslate nohighlight">
-\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
-\sum_{i=1}^{n} \log \vert L_{ii} \vert.\]</div>
-<p>As an implementation point, we can output a matrix <span class="math notranslate nohighlight">\(L\)</span> with the desired
-properties from a neural network by constructing it as:</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}(\mu, \log \sigma, L') &amp;= f_{\text{enc}}(\phi, y, x) \\
-L &amp;= L_{\text{mask}} \odot L' + \text{diag}(\sigma),\end{split}\]</div>
-<p>where <span class="math notranslate nohighlight">\(L_{\text{mask}}\)</span> is a masking matrix with zeros on and above the
-diagonal, and ones below the diagonal. This ensures that <span class="math notranslate nohighlight">\(L\)</span> is
-triangular, with <span class="math notranslate nohighlight">\(\sigma\)</span> on the diagonal. We therefore recover the same
-log-determinant as the isotropic Gaussian case:</p>
-<div class="math notranslate nohighlight">
-\[\log \left\vert \det \frac{\partial z}{\partial \epsilon} \right\vert =
-\sum_{i=1}^{n} \log \sigma_{i}\]</div>
-<p>and therefore evaluating the density proceeds exactly as before:</p>
-<div class="math notranslate nohighlight">
-\[\log q_{\phi}(z \vert y, x) = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
-\epsilon_{i}^2\big) + \log \sigma_{i}.\]</div>
-<div class="admonition-todo admonition" id="id4">
-<p class="admonition-title">Todo</p>
-<p>Discuss approaches using normalising flows for the inference model,
-such as Normalising Flows or Inverse Autoregressive Flows.</p>
-<p>Note that the Normalising Flows approach is in theory a straightforward
-repetition of the full-covariance Gaussian approach outlined above.</p>
-</div>
-</section>
-<section id="likelihood">
-<h3><span class="section-number">4.1.4. </span>Likelihood<a class="headerlink" href="#likelihood" title="Permalink to this headline"></a></h3>
-<p>We have yet to specify a form for <span class="math notranslate nohighlight">\(p\)</span>. Recall that in our conditional LVM,
-the marginal likelihood is found by marginalising out the latent variable</p>
-<div class="math notranslate nohighlight">
-\[p_{\theta}(y \vert x) = \int_{\mathcal{Z}}p_{\theta}(y, z \vert x) dz.\]</div>
-<p>If we have a Gaussian likelihood <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x) =
-\mathcal{N}\big(y; \mu_{\theta}(z, x), \Sigma_{\theta}(z, x)\big)\)</span>, then the
-above is a Gaussian mixture model: for discrete <span class="math notranslate nohighlight">\(z\)</span> with <span class="math notranslate nohighlight">\(K\)</span>
-possible values, then there are <span class="math notranslate nohighlight">\(K\)</span> components, while for continuous
-<span class="math notranslate nohighlight">\(z\)</span> this is an infinite mixture, which can be very flexible.</p>
-<p>The likelihood needn’t be Gaussian however; for instance for binary MNIST images
-we might choose instead to use a (factorised) Bernoulli likelihood. We could
-even use a Laplace likelihood which would model something like the ‘median’
-digit image; resulting in sharper images—although this is perhaps a little
-unwise for it incurs a higher test log likelihood (due to a lower variety) and
-it’s certainly unusual.</p>
-<p>For fun, here is a comparison of some images sampled from the posterior
-<span class="math notranslate nohighlight">\(p(y \vert z, x)\)</span> for various likelihoods, where the CVAE was trained on
-the MNIST handwritten digit dataset in <code class="docutils literal notranslate"><span class="pre">/notebooks/VAE/basic_vae.ipynb</span></code>. (This
-is good for building intuition; we can immediately tell when a digit ‘looks
-right’, but we might not all have the same intuitions for galaxy parameters…)</p>
-<p><em>Gaussian likelihood:</em></p>
-<img alt="Gaussian likelihood" src="_images/gaussian_mnist.png" />
-<p><em>Laplace likelihood:</em></p>
-<img alt="Laplace likelihood" src="_images/laplace_likelihood.png" />
-<p><em>Bernoulli likelihood:</em></p>
-<img alt="Laplace likelihood" src="_images/bernoulli_likelihood.png" />
-</section>
-</section>
-<section id="implementation">
-<h2><span class="section-number">4.2. </span>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline"></a></h2>
-<p>We now have all the components we need to actually optimise the ELBO using SGD.
-We can re-arrange the ELBO as</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) &amp;=
-\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
- - D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right] \\
-   &amp;= \mathbb{E}_{q_{\phi}(z \vert y, x)}\big[\log p_{\theta}(y \vert z, x) +
-   \log p_{\theta}(z \vert x) - \log q_{\phi}(z \vert y, x)\big] \\
-   &amp;\doteq \mathbb{E}\big[\mathcal{L}_{\text{logpy}} +
-   \mathcal{L}_{\text{logpz}} - \mathcal{L}_{\text{logqz}} \big].\end{split}\]</div>
-<p>We have already derived the expression for evaluating <span class="math notranslate nohighlight">\(\log q_{\phi}(z
-\vert y, x)\)</span>:</p>
-<div class="math notranslate nohighlight">
-\[\mathcal{L}_{\text{logqz}} = -\sum_{i=1}^{n}\frac{1}{2} \big(\log (2\pi) +
-\epsilon_{i}^2\big) + \log \sigma_{i},\]</div>
-<p>where <span class="math notranslate nohighlight">\(z \in \mathbb{R}^{n}\)</span>.</p>
-<p>In conditional LVMs, some authors choose to sample <span class="math notranslate nohighlight">\(z\)</span> independently
-of the conditioning information <span class="math notranslate nohighlight">\(x\)</span> at test time, and they do so with a
-standard Gaussian for the prior density <span class="math notranslate nohighlight">\(p(z \vert x) = \mathcal{N}(z; 0,
-\mathbf{I})\)</span>. For this application however, conditioning the latent variable at
-test time on the photometric observations seems sensible. If we use an
-isotropic Gaussian distribution (to match our <span class="math notranslate nohighlight">\(q\)</span> distribution), then we
-get</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}(\mu, \log \sigma) &amp;= f_{\text{prior}}(\theta_{z}, x) \\
-\mathcal{L}_{\text{logpz}} &amp;= \log p(z \vert x) =
-\sum_{i=1}^{n} \log \mathcal{N}(z_{i}; \mu_{i}, \sigma_{i}) \\
-&amp;= - \sum_{i=1}^{n} \frac{1}{2} \left(\log (2\pi\sigma_{i}^2) +
-(z_{i} - \mu_{i})^{2}\sigma_{i}^{-2}\right).\end{split}\]</div>
-<p>Once again, in the above <span class="math notranslate nohighlight">\(n\)</span> is the dimension of the latent vector
-<span class="math notranslate nohighlight">\(z \in \mathbb{R}^{n}\)</span>.</p>
-<p>Finally for the log likelihood term <span class="math notranslate nohighlight">\(\mathcal{L}_{\text{logpy}}\)</span>, we
-merely evaluate the likelihood of the <span class="math notranslate nohighlight">\(y\)</span> training datapoint under the
-appropriate density. Be mindful that this step is prone to be slow; particularly
-if one naively chooses something like a full multivariate Gaussian likelihood,
-where evaluating the log probability will involve Cholesky decompositions to
-invert the covariance matrix. As a rule of thumb, factorising this distribution
-should be sufficient to keep things speedy.</p>
-<p>For expedience and convenience, it can be useful to use the analagous loss
-function for your chosen likelihood; for instance the mean squared error for a
-Gaussian likelihood, binary cross-entropy for a Bernoulli likelihood, L1
-(mean absolute error) loss for a Laplace likelihood and so on. Just remember to
-negate it before using it in the ELBO!</p>
-<p>Also note that these loss functions may only represent the negative log
-likelihood up to proportionality; this implicit scaling of the likelihood term
-relative to the KL divergence term in the ELBO might result in inadvertently
-‘tempering the posterior’, which is where we scale the KL divergence by some
-<span class="math notranslate nohighlight">\(\lambda &lt; 1\)</span>:</p>
-<div class="math notranslate nohighlight">
-\[\mathcal{L}_{\text{CVAE}}(\theta, \phi; x, y) =
-\mathbb{E}_{q_{\phi}(z \vert y, x)}\left[\log p_{\theta}(y \vert z, x)\right]
- - \lambda D_{\text{KL}}\left[q_{\phi}(z \vert y, x) \Vert p_{\theta}(z \vert x)\right].\]</div>
-<p>In the context of VAEs, this is often done intentionally as an implementation
-detail, where it is referred to as ‘warming up the KL term’ <a class="reference internal" href="#lvae2016" id="id5"><span>[LVAE2016]</span></a>.
-Here, <span class="math notranslate nohighlight">\(\lambda\)</span> is annealed from 0 to 1 at the beginning of
-training—without this, the ‘variational regularisation term’ (read, KL divergence
-term) causes the latents in <span class="math notranslate nohighlight">\(q\)</span> to be drawn towards their own prior, which
-leads to uninformative latents which the optimisation algorithm is not able to
-re-activate later in training.</p>
-<hr class="docutils" />
-<p>There are a fair number of moving parts involved with implementing a CVAE. For
-convenience I have tried to abstract away the common code into a base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code>
-class, so as to offer a framework with which to implement variations on the
-(C)VAE described above.</p>
-<p>The files relevant to CVAE implementation are structured as follows:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>agnfinder
-├── types.py              # arch_t definition
-├── inference             # Inference related code
-│   ├── base.py           # Base CVAE classes to extend
-│   ├── distributions.py  # Distribution objects for CVAE
-│   ├── inference.py      # Concrete Prior, Encoder, Decoder, CVAE
-│   └── utils.py
-└── config.py             # InferenceParams and CVAEParams
-</pre></div>
-</div>
-<section id="architecture-description-types-py">
-<h3><span class="section-number">4.2.1. </span>Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code><a class="headerlink" href="#architecture-description-types-py" title="Permalink to this headline"></a></h3>
-<p>There are up to three different neural networks needed to implement the CVAE:</p>
-<ul class="simple">
-<li><p>the recognition or <em>encoder</em> network <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>,</p></li>
-<li><p>the (conditional) prior network <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span></p></li>
-<li><p>the generation or <em>decoder</em> network <span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span></p></li>
-</ul>
-<p>For easy modification and quick comparisons, these networks are specified along
-with the other CVAE parameters in the CVAE <a class="reference external" href="#cvae-configuration-config-py">configuration</a> (described later).</p>
-<p>By specifying the MLP architectures through instances of <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> classes in
-the configuration, we can avoid having to write the same neural network
-initialisation code and further this keeps the neural network definitions close
-together for easy comparison.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">arch_t</span></code> constructor has the following signature:</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="arch_t.__init__">
-<span class="sig-prename descclassname"><span class="pre">arch_t.</span></span><span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_sizes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_sizes</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">,</span> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_activations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">nn.Module</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_norm</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#arch_t.__init__" title="Permalink to this definition"></a></dt>
-<dd><p>Describes a (non-convolutional) MLP architecture.</p>
+  <section id="inference-overview">
+<span id="inference"></span><h1><span class="section-number">3. </span>Inference Overview<a class="headerlink" href="#inference-overview" title="Permalink to this headline"></a></h1>
+<p>The task of inferring physical galaxy parameters from photometric observations
+can be seen as that of learning a mapping <span class="math notranslate nohighlight">\(f : \mathcal{X} \to
+\Theta\)</span>, where <span class="math notranslate nohighlight">\(\mathcal{X}\)</span> is the space of
+<span class="math notranslate nohighlight">\(n\)</span>-dimensional photometric observations (corresponding to <span class="math notranslate nohighlight">\(n\)</span>
+filters), and <span class="math notranslate nohighlight">\(\Theta\)</span> is the space of physical parameters, such
+as mass, star formation, E(B-V), AGN disk inclination and so forth.</p>
+<p>Since the photometric observations <span class="math notranslate nohighlight">\(\mathbf{x}\in\mathcal{X}\)</span> alone are
+unlikely to be sufficient to constrain the full range of physical parameters
+<span class="math notranslate nohighlight">\(\theta \in \Theta\)</span> that we’d like to infer, we resolve to output
+distributions physical parameters, conditioned on the information in the
+photometric observations. That is, the mapping <span class="math notranslate nohighlight">\(f\)</span> is one-to-many, and a
+reasonable way to deal with this is to work with distributions over the outputs
+<span class="math notranslate nohighlight">\(p(\theta \vert \mathbf{x})\)</span></p>
+<p>From the simulation section, we generated a dataset of <span class="math notranslate nohighlight">\((\theta,
+\mathbf{x})\)</span> pairs, <span class="math notranslate nohighlight">\(\mathcal{D} = \big\{(\theta_{i},
+\mathbf{x}_{i})\big\}_{i=1}^{N}\)</span>, giving us a fairly standard supervised machine
+learning setup.</p>
+<p>We can appeal to the broad machine learning literature which presents many ways
+to tackle this problem, for instance using generative models or autoregressive
+models. Accordingly, to avoid a clash of notation, we will henceforth denote the
+physical galaxy parameters as <span class="math notranslate nohighlight">\(\mathbf{y}\)</span> (previously <span class="math notranslate nohighlight">\(\theta\)</span>).
+This is to match the machine learning nomenclature of denoting the outputs to be
+predicted as <span class="math notranslate nohighlight">\(\mathbf{y}\)</span>, and the model parameters as <span class="math notranslate nohighlight">\(\theta\)</span>. The
+inputs remain <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>.</p>
+<section id="using-the-models">
+<h2><span class="section-number">3.1. </span>Using the Models<a class="headerlink" href="#using-the-models" title="Permalink to this headline"></a></h2>
+<p>In line with this program’s conventions of using configuration classes rather
+than command-line arguments, all the options for running inference can be set in
+the <code class="docutils literal notranslate"><span class="pre">config.py</span></code> file.</p>
+<p>There are two main classes to bear in mind:</p>
+<section id="general-inference-parameters">
+<h3><span class="section-number">3.1.1. </span>General Inference Parameters<a class="headerlink" href="#general-inference-parameters" title="Permalink to this headline"></a></h3>
+<p>Models in this program are equipped with a <code class="docutils literal notranslate"><span class="pre">trainmodel</span></code> method, which provides
+a consistent way to train different models. This method’s parameters are
+contained in the <code class="docutils literal notranslate"><span class="pre">InferenceParams</span></code> class (the base class for this is defined
+in <code class="docutils literal notranslate"><span class="pre">agnfinder/inference/inference.py</span></code>).</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="InferenceParams">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">InferenceParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#InferenceParams" title="Permalink to this definition"></a></dt>
+<dd><p>General parameters for the inference code.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>layer_sizes</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – size of input, and hidden layers.</p></li>
-<li><p><strong>head_sizes</strong> (<em>list</em><em>[</em><em>int</em><em>]</em>) – size of output layer(s)</p></li>
-<li><p><strong>activations</strong> (<em>nn.Module</em><em> | </em><em>list</em><em>[</em><em>nn.Module</em><em>]</em>) – instances of activation functions to apply to input / hidden layers. The same activation is re-used for all layers if this is not a list.</p></li>
-<li><p><strong>head_activations</strong> (<em>Optional</em><em>[</em><em>list</em><em>[</em><em>Optional</em><em>[</em><em>nn.Module</em><em>]</em><em>]</em><em>]</em>) – Optional list of activation functions to apply to outputs. Can be <code class="docutils literal notranslate"><span class="pre">None</span></code>, or a list of optional instances of activation functions.</p></li>
-<li><p><strong>batch_norm</strong> (<em>bool</em>) – whether to apply batch normalisation at each layer.</p></li>
+<li><p><strong>model</strong> (<em>model_t</em>) – The model to use for inference.</p></li>
+<li><p><strong>split_ratio</strong> (<em>int</em>) – The dataset train/test split ratio.</p></li>
+<li><p><strong>logging_frequency</strong> (<em>int</em>) – How often (in iterations) to output logs during training.</p></li>
+<li><p><strong>dataset_loc</strong> (<em>str</em>) – Path to a <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> file or directory of <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> files.</p></li>
+<li><p><strong>retrain_model</strong> (<em>bool</em>) – Whether to re-train an identically configured model.</p></li>
+<li><p><strong>overwrite_results</strong> (<em>bool</em>) – Whether to overwrite results from identical model.</p></li>
 </ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">layer_sizes</span></code> is an empty list (minimum: one input layer)</p></li>
-<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">len(layer_sizes)</span> <span class="pre">!=</span> <span class="pre">len(activations)</span></code> when activations is a list</p></li>
-<li><p><strong>ValueError</strong> – if an activation function does not extend nn.Module</p></li>
-<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">head_sizes</span></code> is not <code class="docutils literal notranslate"><span class="pre">list[int]</span></code> of length at least one</p></li>
-<li><p><strong>ValueError</strong> – if <code class="docutils literal notranslate"><span class="pre">len(head_sizes)</span> <span class="pre">!=</span> <span class="pre">len(head_activations)</span></code></p></li>
-</ul>
-</dd>
-<dt class="field-odd">Example</dt>
-<dd class="field-odd"><p>ANN with 1 hidden layer, ReLU activations, no batch normalisation,
-and 2 output heads with different activation functions</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">(</span><span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">28</span><span class="o">*</span><span class="mi">28</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
-<span class="gp">... </span>       <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span> \
-<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">(),</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()]</span> \
-<span class="gp">... </span>       <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</pre></div>
-</div>
 </dd>
 <dt class="field-even">Example</dt>
-<dd class="field-even"><p>ANN with 1 hidden layer, ReLU activations, no output activation &amp;
-batch normalisation:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">([</span><span class="mi">512</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="p">[</span><span class="mi">10</span><span class="p">],</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
-</pre></div>
-</div>
-</dd>
-<dt class="field-odd">Example</dt>
-<dd class="field-odd"><p>ANN with two output heads, one without and one with activation,
-respectively:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">arch_t</span><span class="p">([</span><span class="mi">2</span><span class="o">**</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)],</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> \
-<span class="gp">... </span>       <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
-<span class="gp">... </span>       <span class="n">head_activations</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">()])</span>
+<dd class="field-even"><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">InferenceParams</span><span class="p">(</span><span class="n">inference</span><span class="o">.</span><span class="n">InferenceParams</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">model</span><span class="p">:</span> <span class="n">model_t</span> <span class="o">=</span> <span class="n">san</span><span class="o">.</span><span class="n">SAN</span>
+<span class="gp">... </span>    <span class="n">split_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span>
+<span class="gp">... </span>    <span class="n">logging_frequency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="gp">... </span>    <span class="n">dataset_loc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/photometry_simulation.hdf5&#39;</span>
+<span class="gp">... </span>    <span class="n">retrain_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="gp">... </span>    <span class="n">overwrite_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 </pre></div>
 </div>
 </dd>
 </dl>
 </dd></dl>
 
+<p>Most argument names along with their corresponding type should be self-explanatory.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">dataset_loc</span></code> property should point to the output of a simulation run
+(that is, the output of running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">sim</span></code>). Please see the <a class="reference external" href="/sampling.html">Photometry
+Sampling</a> section for more information about this.</p>
+<p>When a model is initialised, a descriptive name is generated based on its
+parameters. If the training method (<code class="docutils literal notranslate"><span class="pre">trainmodel</span></code>, see below) is called on a
+model with identical parameters to a previously trained and saved model, and
+the <code class="docutils literal notranslate"><span class="pre">retrain_model</span></code> argument is set to <code class="docutils literal notranslate"><span class="pre">False</span></code>, then we attempt to load (the
+<code class="docutils literal notranslate"><span class="pre">state_dict</span></code> of) this previous identical model instead of training the model
+immediately. If loading fails for some reason (e.g. the file does not exist),
+then training proceeds as normal.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">retrain_model</span> <span class="pre">==</span> <span class="pre">True</span></code>, then the <code class="docutils literal notranslate"><span class="pre">overwrite_results</span></code> argument specifies
+what to do when saving the resulting model—if set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, then the
+previously saved model will be overwritten. If set to <code class="docutils literal notranslate"><span class="pre">False</span></code>, then a number
+is appended to the current model’s name to make it unique.</p>
 </section>
-<section id="base-cvae-classes-base-py">
-<h3><span class="section-number">4.2.2. </span>Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code><a class="headerlink" href="#base-cvae-classes-base-py" title="Permalink to this headline"></a></h3>
-<p>This file contains the base classes that implement standard, repetitive code and
-give structure to the concrete CVAE classes which extend them.</p>
-<p>Most of these classes define abstract properties and methods which need to be
-implemented by the inheriting class.</p>
-<p>If any of the classes listed below seem opaque or mystifying, it may be worth
-having a read through this file to see what’s happening in the background.</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> is a base distribution class which accepts a list of parameters
-(type aliased to <code class="docutils literal notranslate"><span class="pre">DistParams</span> <span class="pre">=</span> <span class="pre">list[Tensor]</span></code>) and has abstract <code class="docutils literal notranslate"><span class="pre">log_prob</span></code>
-and <code class="docutils literal notranslate"><span class="pre">sample</span></code> methods. It is perfectly valid to implement these by wrapping
-these existing methods in a standard PyTorch Distribution.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code> is almost identical to the above, however all the methods
-should be implemented using reparametrised sampling. The abstract methods are
-<code class="docutils literal notranslate"><span class="pre">log_prob</span></code> and <code class="docutils literal notranslate"><span class="pre">rsample</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CVAEPrior</span></code> is the base implementation of a prior distribution
-<span class="math notranslate nohighlight">\(p_{\theta_{z}}(z \vert x)\)</span>. The constructor accepts an (optional)
-neural network architecture description, which will automatically be
-instantiated. There is one abstract method for inheriting classes to
-implement: <code class="docutils literal notranslate"><span class="pre">get_dist</span></code>, which accepts the output of the prior network
-<span class="math notranslate nohighlight">\(f_{\text{prior}}(\theta_{z}, x)\)</span> passed to the constructor as
-argument (<code class="docutils literal notranslate"><span class="pre">None</span></code> if no network is used in the prior) and returns a
-correspondingly parametrised <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> object. .</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> is the base implementation of the recognition or <em>encoder</em> network
-<span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span>. As previously, the constructor accepts a
-neural network architecture description of type <code class="docutils literal notranslate"><span class="pre">arch_t</span></code>, except this time
-it is not optional. The only abstract method to implement is also
-<code class="docutils literal notranslate"><span class="pre">get_dist</span></code>, which takes the outputs of the encoder network as arguments, and
-returns a <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>. Recall that we must have a reparametrised
-distribution as the encoder distribution in order for SGD optimisation of the
-ELBO to work.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CVAEDec</span></code> is the base implementation of the generator or <em>decoder</em> network
-<span class="math notranslate nohighlight">\(p_{\theta_{y}}(y \vert z, x)\)</span>. The constructor accepts an <code class="docutils literal notranslate"><span class="pre">arch_t</span></code>
-network description, and the abstract <code class="docutils literal notranslate"><span class="pre">get_dist</span></code> method this time returns a
-<code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">CVAE</span></code> is the main base CVAE class, which handles the standard training
-procedure. You may override the <code class="docutils literal notranslate"><span class="pre">preprocess</span></code> method, which applies a
-transformation to the output of the DataLoader before each training iteration;
-the <code class="docutils literal notranslate"><span class="pre">ELBO</span></code> method which combines the log probability of all three
-distributions, as well as the <code class="docutils literal notranslate"><span class="pre">trainmodel</span></code> method. While there should be no
-need to modify it, it can be useful to see how all the components described
-above come together in the main training loop:</p></li>
+<section id="model-parameters">
+<h3><span class="section-number">3.1.2. </span>Model Parameters<a class="headerlink" href="#model-parameters" title="Permalink to this headline"></a></h3>
+<p>While each model has slightly different requirements for its parameterisation
+(for instance, the its architecture must be specified), there are some common
+parameters which are shared across all models in the codebase.</p>
+<p>To reflect this, model parameters inherit a base <a class="reference internal" href="#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class, which
+specifies things such as the datatype, device memory to use and so forth.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="ModelParams">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">ModelParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ModelParams" title="Permalink to this definition"></a></dt>
+<dd><p>General parameters for the inference code.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>epochs</strong> (<em>int</em>) – The number of epochs to train this model for.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – The mini-batch size.</p></li>
+<li><p><strong>dtype</strong> (<em>torch.dtype</em>) – PyTorch data type to use in model.</p></li>
+<li><p><strong>device</strong> (<em>torch.device</em>) – Device (and device memory) to use.</p></li>
+<li><p><strong>cond_dim</strong> (<em>int</em>) – Dimension of conditioning data (e.g. photometry)</p></li>
+<li><p><strong>data_dim</strong> (<em>int</em>) – Dimension of output data (e.g. physical params)</p></li>
 </ul>
-<div class="literal-block-wrapper docutils container" id="id6">
-<div class="code-block-caption"><span class="caption-text">Main CVAE training loop</span><a class="headerlink" href="#id6" title="Permalink to this code"></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
-<span class="linenos"> 2</span>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">train_loader</span><span class="p">):</span>
-<span class="linenos"> 3</span>
-<span class="linenos"> 4</span>        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
-<span class="linenos"> 5</span>
-<span class="linenos"> 6</span>        <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-<span class="linenos"> 7</span>        <span class="n">z</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
-<span class="linenos"> 8</span>
-<span class="linenos"> 9</span>        <span class="n">pr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prior</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-<span class="linenos">10</span>
-<span class="linenos">11</span>        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decoder</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-<span class="linenos">12</span>
-<span class="linenos">13</span>        <span class="n">logpy</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-<span class="linenos">14</span>        <span class="n">logpz</span> <span class="o">=</span> <span class="n">pr</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
-<span class="linenos">15</span>        <span class="n">logqz</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">log_prob</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
-<span class="linenos">16</span>
-<span class="linenos">17</span>        <span class="n">ELBO</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ELBO</span><span class="p">(</span><span class="n">logpy</span><span class="p">,</span> <span class="n">logpz</span><span class="p">,</span> <span class="n">logqz</span><span class="p">,</span> <span class="n">iteration_num</span><span class="p">,</span> <span class="n">total_iters</span><span class="p">)</span>
-<span class="linenos">18</span>
-<span class="linenos">19</span>        <span class="n">loss</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">ELBO</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
-<span class="linenos">20</span>        <span class="bp">self</span><span class="o">.</span><span class="n">opt</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
-<span class="linenos">21</span>        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
-<span class="linenos">22</span>        <span class="bp">self</span><span class="o">.</span><span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-</section>
-<section id="cvae-distributions-distributions-py">
-<h3><span class="section-number">4.2.3. </span>CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code><a class="headerlink" href="#cvae-distributions-distributions-py" title="Permalink to this headline"></a></h3>
-<p>The point of separating the distributions into their own classes, which are all
-collected in this file is that this maximises code re-use, and makes it
-effortless to experiment and perform ablation studies with different
-distributions by changing a few lines in the main configuration.</p>
-<p>Classes in this file should either extend <code class="docutils literal notranslate"><span class="pre">_CVAE_Dist</span></code> or <code class="docutils literal notranslate"><span class="pre">_CVAE_RDist</span></code>.</p>
-</section>
-<section id="agnfinder-cvae-classes-inference-py">
-<h3><span class="section-number">4.2.4. </span>AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code><a class="headerlink" href="#agnfinder-cvae-classes-inference-py" title="Permalink to this headline"></a></h3>
-<p>This is where the concrete <code class="docutils literal notranslate"><span class="pre">CVAEPrior</span></code>, <code class="docutils literal notranslate"><span class="pre">CVAEEnc</span></code> and <code class="docutils literal notranslate"><span class="pre">CVAEDec</span></code> classes
-(respectively, <span class="math notranslate nohighlight">\(p_{\theta}(z \vert x)\)</span>, <span class="math notranslate nohighlight">\(q_{\phi}(z \vert y, x)\)</span> and
-<span class="math notranslate nohighlight">\(p_{\theta}(y \vert z, x)\)</span>) are defined.</p>
-<p>Any changes to the vanilla CVAE training procedure, ELBO calculation or
-preprocessing can also be performed by extending the base <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> class.</p>
-</section>
-<section id="utility-classes-utils-py">
-<h3><span class="section-number">4.2.5. </span>Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code><a class="headerlink" href="#utility-classes-utils-py" title="Permalink to this headline"></a></h3>
-<p>Contains data loaders for galaxy data. It is better to perform any data
-transformations here (once, before of running the inference code), rather than in
-the <code class="docutils literal notranslate"><span class="pre">CVAE.preprocess</span></code> method, which is run once at the beginning of each
-iteration of each epoch.</p>
-</section>
-<section id="cvae-configuration-config-py">
-<h3><span class="section-number">4.2.6. </span>CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code><a class="headerlink" href="#cvae-configuration-config-py" title="Permalink to this headline"></a></h3>
-<p>The components of the CVAE implementation are structured in the way that they
-are mainly because this affords us a very flexible way to compose different
-components of the model. Hence with minimal changes to the configuration file,
-we can perform fast experimentation using tested components.</p>
-<p>There are two main configuration classes relating to the inference code. The
-first, <code class="docutils literal notranslate"><span class="pre">InferenceParams</span></code> relates to high-level details:</p>
-<div class="literal-block-wrapper docutils container" id="id7">
-<div class="code-block-caption"><span class="caption-text">InferenceParams example configuration</span><a class="headerlink" href="#id7" title="Permalink to this code"></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos">1</span><span class="k">class</span> <span class="nc">InferenceParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">):</span>
-<span class="linenos">2</span>    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
-<span class="linenos">3</span>    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
-<span class="linenos">4</span>    <span class="n">split_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span>  <span class="c1"># train / test split ratio</span>
-<span class="linenos">5</span>    <span class="n">dtype</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">float64</span>
-<span class="linenos">6</span>    <span class="n">device</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
-<span class="hll"><span class="linenos">7</span>    <span class="n">model</span><span class="p">:</span> <span class="n">cvae_t</span> <span class="o">=</span> <span class="n">CVAE</span>
-</span><span class="linenos">8</span>    <span class="n">dataset_loc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/photometry_simulation_100000n_z_0p0000_to_4p0000.hdf5&#39;</span>
-</pre></div>
-</div>
-</div>
-<p>On line 7, we specify a reference to a class extending <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> in <code class="docutils literal notranslate"><span class="pre">base.py</span></code>
-(or <code class="docutils literal notranslate"><span class="pre">CVAE</span></code> itself).</p>
-<p>The model is parametrised by <code class="docutils literal notranslate"><span class="pre">CVAEParams</span></code>, which is a condensed description of
-the entire CVAE</p>
-<div class="literal-block-wrapper docutils container" id="id8">
-<div class="code-block-caption"><span class="caption-text">CVAEParams example</span><a class="headerlink" href="#id8" title="Permalink to this code"></a></div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="k">class</span> <span class="nc">CVAEParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">,</span> <span class="n">base</span><span class="o">.</span><span class="n">CVAEParams</span><span class="p">):</span>
-<span class="linenos"> 2</span>    <span class="n">cond_dim</span> <span class="o">=</span> <span class="mi">8</span>  <span class="c1"># x; dimension of photometry (Euclid)</span>
-<span class="linenos"> 3</span>    <span class="n">data_dim</span> <span class="o">=</span> <span class="mi">9</span>  <span class="c1"># y; len(FreeParameters()); dimensions of physical params</span>
-<span class="linenos"> 4</span>    <span class="n">latent_dim</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># z</span>
-<span class="linenos"> 5</span>
-<span class="linenos"> 6</span>    <span class="c1"># Standard Gaussian prior p_{theta}(z | x)</span>
-<span class="linenos"> 7</span>    <span class="n">prior</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">StandardGaussianPrior</span>
-<span class="linenos"> 8</span>    <span class="n">prior_arch</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="linenos"> 9</span>
-<span class="linenos">10</span>    <span class="c1"># Gaussian recognition model q_{phi}(z | y, x)</span>
-<span class="linenos">11</span>    <span class="n">encoder</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">GaussianEncoder</span>
-<span class="linenos">12</span>    <span class="n">enc_arch</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
-<span class="linenos">13</span>        <span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">data_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span>
-<span class="linenos">14</span>        <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
-<span class="linenos">15</span>        <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">latent_dim</span><span class="p">,</span> <span class="n">latent_dim</span><span class="p">],</span>
-<span class="linenos">16</span>        <span class="n">head_activations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="linenos">17</span>        <span class="n">batch_norm</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<span class="linenos">18</span>
-<span class="linenos">19</span>    <span class="c1"># generator network arch: p_{theta}(y | z, x)</span>
-<span class="linenos">20</span>    <span class="n">decoder</span> <span class="o">=</span> <span class="n">inference</span><span class="o">.</span><span class="n">GaussianDecoder</span>
-<span class="linenos">21</span>    <span class="n">dec_arch</span> <span class="o">=</span> <span class="n">arch_t</span><span class="p">(</span>
-<span class="linenos">22</span>        <span class="n">layer_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">latent_dim</span> <span class="o">+</span> <span class="n">cond_dim</span><span class="p">,</span> <span class="mi">32</span><span class="p">],</span>
-<span class="linenos">23</span>        <span class="n">activations</span><span class="o">=</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
-<span class="linenos">24</span>        <span class="n">head_sizes</span><span class="o">=</span><span class="p">[</span><span class="n">data_dim</span><span class="p">,</span> <span class="n">data_dim</span><span class="p">],</span>
-<span class="linenos">25</span>        <span class="n">head_activations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="linenos">26</span>        <span class="n">batch_norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<p>Hopefully the above is mostly self explanatory. The only slight subtlety is that
-you must ensure that the number of outputs of the distribution networks
-(the length of the <code class="docutils literal notranslate"><span class="pre">head_sizes</span></code> array) matches the number of parameters that
-the corresponding distribution is expecting.</p>
-</section>
-</section>
-<section id="references">
-<h2><span class="section-number">4.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h2>
-<dl class="citation">
-<dt class="label" id="cvae2015"><span class="brackets"><a class="fn-backref" href="#id2">CVAE2015</a></span></dt>
-<dd><p>Sohn, Kihyuk, Honglak Lee, and Xinchen Yan. ‘Learning Structured
-Output Representation Using Deep Conditional Generative Models’. In Advances
-in Neural Information Processing Systems, Vol. 28. Curran Associates, Inc.,
-2015. <a class="reference external" href="https://proceedings.neurips.cc/paper/2015/hash/8d55a249e6baa5c06772297520da2051-Abstract.html">https://proceedings.neurips.cc/paper/2015/hash/8d55a249e6baa5c06772297520da2051-Abstract.html</a>.</p>
-</dd>
-<dt class="label" id="spec2020"><span class="brackets"><a class="fn-backref" href="#id1">SPEC2020</a></span></dt>
-<dd><p>Alsing Justin, Hiranya Peiris, Joel Leja, ChangHoon Hahn, Rita
-Tojeiro, Daniel Mortlock, Boris Leistedt, Benjamin D. Johnson, and Charlie
-Conroy. ‘SPECULATOR: Emulating Stellar Population Synthesis for Fast and
-Accurate Galaxy Spectra and Photometry’. The Astrophysical Journal Supplement
-Series 249, no. 1 (26 June 2020): 5.
-<a class="reference external" href="https://doi.org/10.3847/1538-4365/ab917f">https://doi.org/10.3847/1538-4365/ab917f</a>.</p>
-</dd>
-<dt class="label" id="ivae2019"><span class="brackets"><a class="fn-backref" href="#id3">IVAE2019</a></span></dt>
-<dd><p>Kingma, Diederik P., and Max Welling. ‘An Introduction to
-Variational Autoencoders’. Foundations and Trends® in Machine Learning 12,
-no. 4 (2019): 307–92. <a class="reference external" href="https://doi.org/10.1561/2200000056">https://doi.org/10.1561/2200000056</a>.</p>
-</dd>
-<dt class="label" id="lvae2016"><span class="brackets"><a class="fn-backref" href="#id5">LVAE2016</a></span></dt>
-<dd><p>Sønderby, Casper Kaae, Tapani Raiko, Lars Maaløe, Søren Kaae
-Sønderby, and Ole Winther. ‘Ladder Variational Autoencoders’. In Advances in
-Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
-2016.
-<a class="reference external" href="https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html">https://papers.nips.cc/paper/2016/hash/6ae07dcb33ec3b7c814df797cbda0f87-Abstract.html</a>.</p>
 </dd>
 </dl>
+<p>The following example contains a minimal concrete instance of <a class="reference internal" href="#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a>
+(real models are likely to require additional parameters).</p>
+<dl class="field-list">
+<dt class="field-odd">Example</dt>
+<dd class="field-odd"><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">ExampleModelParams</span><span class="p">(</span><span class="n">ModelParams</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="gp">... </span>    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="gp">... </span>    <span class="n">dtype</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+<span class="gp">... </span>    <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">cond_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="gp">... </span>    <span class="n">data_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">9</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Since all models are concerned with learning a distribution <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert
+\mathbf{x})\)</span>, for <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}^{N}\)</span> and <span class="math notranslate nohighlight">\(\mathbf{x}
+\in \mathbb{R}^{M}\)</span>, we can reliably set parameters <code class="docutils literal notranslate"><span class="pre">data_dim</span> <span class="pre">=</span> <span class="pre">N</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cond_dim</span> <span class="pre">=</span> <span class="pre">M</span></code> for all models.</p>
+<p><strong>Aside</strong>:</p>
+<blockquote>
+<div><p>At first, putting <code class="docutils literal notranslate"><span class="pre">epochs</span></code> in the <a class="reference internal" href="#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> (instead of the
+<code class="docutils literal notranslate"><span class="pre">InferenceParams</span></code>) might seem to commit a ‘type error’: <cite>surely the training
+duration has more to do with the training procedure than the model itself?</cite> The
+<code class="docutils literal notranslate"><span class="pre">batch_size</span></code> parameter might also seem similarly misplaced. Since these
+parameters have a large effect on model performance, I claim that they
+should be treated similarly to architectural parameters, and are therefore
+associated with a model.</p>
+<p>For instance, when we come to load a trained model, we <cite>do</cite> care how
+long it was trained for, therefore it makes more sense to associate this
+parameter with the model itself; treating it as a model parameter rather than
+merely a parameter of the training procedure.</p>
+</div></blockquote>
+</section>
+<section id="training-the-models">
+<h3><span class="section-number">3.1.3. </span>Training the models<a class="headerlink" href="#training-the-models" title="Permalink to this headline"></a></h3>
+<p>To train a model, first ensure that you have correctly set the model and
+inference parameters. Note that these configuration classes needn’t necessarily
+be the ones in <code class="docutils literal notranslate"><span class="pre">config.py</span></code>—you are free to define new configuration classes
+anywhere in the code.</p>
+<p>You will also need a dataset loaded to train the model on. A utility function
+(<code class="docutils literal notranslate"><span class="pre">utils.load_simulated_data</span></code>) is available to help with this.</p>
+<p>You can now initialise a model by passing the initialised model parameters to
+your model’s constructor. Finally the <code class="docutils literal notranslate"><span class="pre">trainmodel</span></code> method can be called to
+run the training procedure.</p>
+<p>Note that models are automatically saved to disk after a training run. If you
+are re-training an identical parametrised model, the code will first attempt to
+load an existing saved model before falling back to running the training
+procedure.</p>
+<p>The following is a full example, using the <a class="reference external" href="san_inference.html">SAN</a> model:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">agnfinder.nbutils</span> <span class="k">as</span> <span class="nn">nbu</span>
+
+<span class="c1"># Configure the logger (defaults to INFO-level logs)</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">configure_logging</span><span class="p">()</span>
+
+<span class="c1"># Initialise the inference, and model parameters; defined in config.py</span>
+<span class="n">ip</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">InferenceParams</span><span class="p">()</span>
+<span class="n">sp</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">SANParams</span><span class="p">()</span>
+
+<span class="c1"># Get the dataloaders for training and testing</span>
+<span class="n">train_loader</span><span class="p">,</span> <span class="n">test_loader</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">load_simulated_data</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">ip</span><span class="o">.</span><span class="n">dataset_loc</span><span class="p">,</span>
+    <span class="n">split_ratio</span><span class="o">=</span><span class="n">ip</span><span class="o">.</span><span class="n">split_ratio</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+    <span class="n">normalise_phot</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">normalise_phot_np</span><span class="p">,</span>
+    <span class="n">transforms</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">()</span>
+    <span class="p">])</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created data loaders&#39;</span><span class="p">)</span>
+
+<span class="c1"># Initialise the model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SAN</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initialised SAN model&#39;</span><span class="p">)</span>
+
+<span class="c1"># Run the training procedure</span>
+<span class="n">model</span><span class="o">.</span><span class="n">trainmodel</span><span class="p">(</span><span class="n">train_loader</span><span class="p">,</span> <span class="n">ip</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Trained SAN model&#39;</span><span class="p">)</span>
+
+<span class="c1"># (Example: use the model for something)</span>
+<span class="n">x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nbu</span><span class="o">.</span><span class="n">new_sample</span><span class="p">(</span><span class="n">test_loader</span><span class="p">)</span>
+<span class="n">posterior_samples</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully sampled from model&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="creating-new-models">
+<h2><span class="section-number">3.2. </span>Creating New Models<a class="headerlink" href="#creating-new-models" title="Permalink to this headline"></a></h2>
+<p>To ensure that there are consistent interfaces for all the models (to the
+benefit of users), and that common code is not duplicated between models (to the
+benefit of developers), all the models implemented in the codebase inherit from
+an abstract <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> class (found in <code class="docutils literal notranslate"><span class="pre">agnfinder/inference/inference.py:Model</span></code>).</p>
+<p>Put simply, to create a new model, inherit the <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> class and ensure that
+you have implemented all the abstract properties and methods.</p>
+<p>The following shows the constructor, and abstract methods of the <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a>
+class.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="Model">
+<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">Model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">torch.nn.Module</span></em>, <em class="sig-param"><span class="pre">ABC</span></em><span class="sig-paren">)</span><a class="headerlink" href="#Model" title="Permalink to this definition"></a></dt>
+<dd><p>Base model class for AGNFinder</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mp</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="#ModelParams" title="ModelParams"><span class="pre">ModelParams</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_results</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logging_callbacks</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#Model.__init__" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mp</strong> (<a class="reference internal" href="#ModelParams" title="ModelParams"><em>ModelParams</em></a>) – The model parameters.</p></li>
+<li><p><strong>overwrite_results</strong> (<em>bool</em>) – Overwrite previous results when saving.</p></li>
+<li><p><strong>logging_callbacks</strong> (<em>list</em><em>[</em><em>Callable</em><em>[</em><em>[</em><a class="reference internal" href="#Model" title="Model"><em>Model</em></a><em>]</em><em>, </em><em>None</em><em>]</em><em>]</em>) – Functions executed when logging.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#Model.name" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a natural-language name for the model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.__repr__">
+<span class="sig-name descname"><span class="pre">__repr__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#Model.__repr__" title="Permalink to this definition"></a></dt>
+<dd><p>Give a natural-language description of the model. Do include information
+such as <code class="docutils literal notranslate"><span class="pre">self.epochs</span></code>, <code class="docutils literal notranslate"><span class="pre">self.name</span></code> and <code class="docutils literal notranslate"><span class="pre">self.batch_size</span></code>, as well
+as other architecture-specific details for your specific model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.fpath">
+<span class="sig-name descname"><span class="pre">fpath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#Model.fpath" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a file path to save the model to, which should be unique for
+every different parametrisation of the model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.preprocess">
+<span class="sig-name descname"><span class="pre">preprocess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">,</span> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#Model.preprocess" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>Tensor</em>) – The input (usually photometric observations)</p></li>
+<li><p><strong>y</strong> (<em>Tensor</em>) – The output (usually physical galaxy parameters)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The pre-processed parameters (e.g. cast to a specific data type, re-ordered or placed on a specific device’s memory.)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.trainmodel">
+<span class="sig-name descname"><span class="pre">trainmodel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_loader</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">DataLoader</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ip</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><a class="reference internal" href="overview.html#InferenceParams" title="InferenceParams"><span class="pre">InferenceParams</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#Model.trainmodel" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>train_loader</strong> (<em>DataLoader</em>) – The PyTorch DataLoader containing the training data.</p></li>
+<li><p><strong>ip</strong> (<a class="reference internal" href="overview.html#InferenceParams" title="InferenceParams"><em>InferenceParams</em></a>) – Inference parameters containing details of the training procedure.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Note that any additional model-specific arguments can also be provided.</p>
+<p>This method has a decorator applied in the superclass (which is
+inherited by all sub-classes) which takes care of saving the trained
+model to disk (using <a class="reference internal" href="#Model.fpath" title="Model.fpath"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model.fpath</span></code></a>), as well as loading up an
+existing model rather than repeating training.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="Model.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="headerlink" href="#Model.sample" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>Tensor</em>) – The conditioning data, <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>.</p></li>
+<li><p><strong>n_samples</strong> (<em>int</em>) – The number of samples to draw from the posterior.</p></li>
+</ul>
+</dd>
+</dl>
+<p>A convenience method for drawing (conditional) samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert
+\mathbf{x})\)</span> for a single conditioning point.</p>
+<p>Since different models may require additional parameters to arguments to
+perform the sampling, these can be provided using the <code class="docutils literal notranslate"><span class="pre">args</span></code> and
+<code class="docutils literal notranslate"><span class="pre">kwargs</span></code> parameters.</p>
+<p>This is the only function pertaining to the actual use of the models
+which is required to be consistent across models. Individual models may
+provide different methods to use them.</p>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 </section>
 
@@ -786,7 +389,8 @@ Neural Information Processing Systems, Vol. 29. Curran Associates, Inc.,
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="sampling.html" class="btn btn-neutral float-left" title="3. Photometry Sampling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sampling.html" class="btn btn-neutral float-left" title="2. Photometry Sampling" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="san_inference.html" class="btn btn-neutral float-right" title="4. Inferring Galaxy Parameters (SAN)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

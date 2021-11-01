@@ -42,6 +42,14 @@ Quickstart
         # Makefile, around line 28
         PYTHON = /absolute/path/to/your/python3.9
 
+   2.2 **Issues with GPy**
+
+       The GPy package requires the Python3 development libraries to build.
+       These can be found under ``python3-dev`` on Debian based Linux distros,
+       or ``python3-devel`` for others (e.g. Arch, Fedora, RedHat). If you
+       encounter issues with the GPy wheel, use your package manager to install
+       the Python3 development libraries.
+
    If you encounter an error during the ``make install`` step, please see the
    `Manual Installation`_ section for guidance.
 
