@@ -269,7 +269,7 @@ class Model(nn.Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample(self, x: Tensor, n_samples = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: Tensor, n_samples: int = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 

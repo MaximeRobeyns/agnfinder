@@ -287,8 +287,6 @@ class CMADE(Model):
         # self.opt = t.optim.Adam(self.parameters(), 1e-3, weight_decay=1e-4)
         self.opt = t.optim.Adam(self.parameters(), 1e-3)
 
-        self.name: str = f'{self.likelihood.name}_MADE'
-
     name: str = 'MADE'
 
     def __repr__(self) -> str:

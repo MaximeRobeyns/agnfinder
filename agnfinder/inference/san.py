@@ -260,7 +260,6 @@ class SAN(Model):
         # samples were drawn for the last forward pass.
         # Useful for evaluating NLL of data under model.
         # Size: [mini-batch, likelihood_params]
-        # self.last_pass_params: Optional[Tensor] = None
         self.last_params: Optional[Tensor] = None
 
         self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
@@ -271,8 +270,6 @@ class SAN(Model):
         # Strange mypy error requires this to be put here although it is
         # perfectly well defined and typed in the super class ¯\_(ツ)_/¯
         self.savepath_cached: str = ""
-
-        self.name: str = f'{self.likelihood.name}_SAN'
 
     name: str = 'SAN'
 
