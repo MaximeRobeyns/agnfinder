@@ -66,11 +66,13 @@ class FilterSet():
         return self.value == other
 
 class _Euclid(FilterSet): pass
+class _DES(FilterSet): pass
 class _Reliable(FilterSet): pass
 class _All(FilterSet): pass
 
 class Filters():
     Euclid = _Euclid('euclid', 8)
+    DES = _DES('des', 7)
     Reliable = _Reliable('reliable', 12)
     All = _All('all', 12)
 

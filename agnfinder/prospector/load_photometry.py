@@ -28,7 +28,7 @@ from agnfinder.types import FilterSet, Filters
 
 
 class Filter(object):
-    def __init__(self, bandpass_file: str, mag_col:str, error_col:str):
+    def __init__(self, bandpass_file: str, mag_col: str, error_col: str):
         """Encapsulates a sedpy filter.
 
         Args:
@@ -74,6 +74,13 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
             error_col=f'magerr_auto_cfhtwide_{b}_dr7')
         for b in ['g', 'i', 'r', 'u', 'z']]
 
+    des = [
+        Filter(
+            bandpass_file=f'DES_{b}',
+            mag_col=f'mag_auto_des_{b}_dr2',  # TODO verify this!
+            error_col=f'magerr_auto_des_{b}_dr2')  # TODO verify this!
+        for b in ['g', 'i', 'r']]
+
     kids = [
         Filter(
             bandpass_file=f'{b}_kids',
@@ -95,6 +102,13 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
             error_col='magerr_auto_viking_{}_dr2'.format(b.lower().strip('s')))
         for b in ['H', 'J', 'Y']]
 
+    vista_des = [
+        Filter(
+            bandpass_file=f'VISTA_{b}',
+            mag_col='mag_auto_viking_{}_dr2'.format(b.lower().strip('s')),
+            error_col='magerr_auto_viking_{}_dr2'.format(b.lower().strip('s')))
+        for b in ['H', 'J', 'Y', 'Z']]
+
     sdss = [
         Filter(
             bandpass_file=f'{b}_sloan',
@@ -112,7 +126,9 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
     # These are _not_ in wavelength order.
     all_filters = galex + sdss + cfht + kids + vista + wise
 
-    if filter_selection == 'reliable':
+    if filter_selection == 'des':
+        return des + vista_des
+    elif filter_selection == 'reliable':
         return sdss + vista + wise
     elif filter_selection == 'euclid':
         return sdss + vista_euclid

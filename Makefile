@@ -39,6 +39,8 @@ endif
 
 # Targets ---------------------------------------------------------------------
 
+default: test
+
 sim: ## To run the main sampling / simulation program
 ifndef SPS_HOME
 		@source setup.sh

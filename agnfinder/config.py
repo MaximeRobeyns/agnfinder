@@ -68,13 +68,13 @@ class FreeParams(FreeParameters):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 100000
-    concurrency: int = 2  # set this to os.cpu_count() (or slightly less)
+    n_samples: int = 4000000
+    concurrency: int = 6  # set this to os.cpu_count() (or slightly less)
     redshift_min: float = 0.
     redshift_max: float = 1.
-    save_dir: str = './data/cubes'
+    save_dir: str = './data/cubes/des_sample'
     noise: bool = False
-    filters: FilterSet = Filters.Euclid  # {Euclid, Reliable, All}
+    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
 
 # ============================= CPz Parameters ================================

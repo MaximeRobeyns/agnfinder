@@ -279,7 +279,6 @@ def work_func(zmin: float, zmax: float, worker_idx: int) -> None:
     # Save the sample results to disk
     sim.save_samples()
 
-
 if __name__ == '__main__':
 
     # Configure the root logger using the values in config.py:logging_config

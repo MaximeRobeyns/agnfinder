@@ -5,7 +5,7 @@ Inferring Galaxy Parameters (SAN)
 #################################
 
 The method described in this page, the *Sequential Autoregressive Network*,
-(SAN) is currently the highest performing method in the codebase.
+(SAN) is currently the best performing method in the codebase.
 As a reminder, we wish to estimate the distribution of physical galaxy
 parameters :math:`\mathbf{y} \in \mathbb{R}^{9}`, given some photometric
 observations :math:`\mathbf{x} \in \mathbb{R}^{8}`; that is :math:`p(\mathbf{y}
@@ -29,7 +29,7 @@ autoregressive models.
 Strictly speaking, an 'autoregressive model' is one where the output of the
 model (usually indexed by `time`) depends on the previously outputted values of
 the model and some stochastic term. For example, they are commonly employed to
-predict the next value(s) in a time seris.
+predict the next value(s) in a time series.
 
 In this context, we use a model with this `autoregressive property` to
 estimate a multivariate distribution, one dimension at a time. That is, rather
@@ -47,7 +47,7 @@ we must make sure that
 
     \int_{\mathcal{X}} p(\mathbf{x}) d\mathbf{x} = 1.
 
-Even for small :math:`d`, this can be an expensive prodecure unless this
+Even for small :math:`d`, this can be an expensive procedure unless this
 normalisation consideration is explicitly thought about when designing the
 model.
 
@@ -66,7 +66,7 @@ the desired multivariate distribution as a product of its nested conditionals:
 
 Recall that during training we have :math:`(\text{photometry},
 \text{parameter})` pairs :math:`(\mathbf{x}, \mathbf{y})`, and that we are not
-intersted in learning the joint :math:`p(\mathbf{x}, \mathbf{y})` (as the
+interested in learning the joint :math:`p(\mathbf{x}, \mathbf{y})` (as the
 equation above suggests) so much as the distribution of parameters conditioned
 on photometry :math:`p(\mathbf{y} \vert \mathbf{x})`.
 
@@ -131,7 +131,7 @@ This combination of features is somewhat unusual:
   equivalent) are passed through iterations, and not the network outputs for
   previous iterations :math:`\hat{\mathbf{y}}_{<d}`.
 
-Since we can return an arbitrary nuber of parameters at the output of each
+Since we can return an arbitrary number of parameters at the output of each
 sequential block, we are free to parametrise any distribution we like for
 :math:`p(y_d \vert \hat{\mathbf{y}}_{<d}, \mathbf{x})`. In the diagram above, we
 show a Gaussian mixture with :math:`K` components, with the
@@ -140,8 +140,8 @@ show a Gaussian mixture with :math:`K` components, with the
 and mixture weights :math:`\{\varphi_{d,i}\}_{i=1}^{K}` such that
 :math:`\sum_{i=1}^K \varphi_{d,i} = 1`.
 
-This model architecure was found to satisfy the desiderata of fast sampling (one
-can draw posterior 10,000 samples from :math:`p(\mathbf{y} \vert \mathbf{x})` in
+This model architecture was found to satisfy the desiderata of fast sampling (one
+can draw 10,000 posterior samples from :math:`p(\mathbf{y} \vert \mathbf{x})` in
 the order of 10ms), and reasonable accuracy:
 
 .. figure:: ./_static/san_result.png
@@ -156,8 +156,6 @@ The configurations for this model (see the `inference overview
 <inference.html>`_ for general configuration information) are defined in
 ``config.py``.
 
-Here is an example configuration:
-
 .. py:class:: SANParams(san.SANParams)
 
    :param int epochs: The NLL will converge rapidly initially, however it can take between 10 and 20 epochs to get the best performance.
@@ -171,8 +169,8 @@ Here is an example configuration:
    :param Optional[dict[str, Any]] likelihood_kwargs: any keyword arguments (such as the number of mixture commponents) to pass to the likelihood's constructor.
    :param bool batch_norm: whether to apply batch normalisation in the sequential blocks of the network. Generally this provides a modest improvement.
 
-   The following example contains a minimal concrete instance of :class:`ModelParams`
-   (real models are likely to require additional parameters).
+   Here is an example configuration for use with ``SAN``. Recall that
+   ``SANParams`` extends :class:`ModelParams`.
 
    :Example:
 

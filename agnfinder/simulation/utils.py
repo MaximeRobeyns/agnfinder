@@ -22,6 +22,7 @@ import h5py
 import glob
 import pyDOE2
 import shutil
+import pathlib
 import logging
 import torch as t
 import numpy as np
@@ -154,7 +155,7 @@ def ensure_partials_dir(save_dir: str) -> None:
     if os.path.exists(path):
         logging.warning(f'Removing existing partials directory at {path}')
         shutil.rmtree(path)
-    os.mkdir(path)
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def _must_get_grp(f: h5py.File, key: str) -> h5py.Group:
