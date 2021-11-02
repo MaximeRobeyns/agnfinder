@@ -263,7 +263,7 @@ class CMADE(Model):
 
         # Setup GPU mask cache ================================================
 
-        self.num_masks = mp.num_masks
+        self.num_masks: int = mp.num_masks
         self.natural_ordering = mp.natural_ordering
 
         # Initialise a list of masks for each layer as well as a tensor of
@@ -298,6 +298,10 @@ class CMADE(Model):
 
     def fpath(self) -> str:
         """Returns a file path to save the model to, based on parameters."""
+
+        # For some inexlicable reason, mypy cannot determine the type of
+        # savepath_cached without this line...
+        self.savepath_cached: str
         if self.savepath_cached == "":
             base = './results/mademodels/'
             hs = '_'.join([str(l) for l in self.hidden_sizes])

@@ -110,38 +110,16 @@ out/*
 *.pickle
 *.h5py
 results
-data/*.hdf5
-data/testdata/photometry_simulation*
-data/old_data
-data/nbrun
-data/agnfinder_data
-data/cubes_dummy_galaxy
-data/old_cubes
-results/*.png
-data/*.png
+data/clumpy_models_201410_tvavg.hdf5
 data/testdata/MNIST
+data/testdata/*.hdf5
+data/nbrun
+results/**/*.pt
+results/**/*.png
 *.parquet
-.vscode/*
-*.hdf5
-*.tfrecord
-report.txt
 
-.vscode/settings.json
-example_galaxy*
-temp*
-*.npy
-tmp*.py
-docker/*
 license_boilerplate.txt
 
 deps
-old_tests
-old_agnfinder
-old_notebooks
 agnvenv
-logs.txt
-notebooks/Masked_Autoregressive_Models
-notebooks/VAE/basic_cvae.ipynb
-
-# Excluded old code, kept locally for reference
-legacy
+**logs.txt
