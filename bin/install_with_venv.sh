@@ -30,6 +30,11 @@ command -v tar >/dev/null 2>&1 || {
     exit 1
 }
 
+# Extract required data file
+if [[ ! -f ./data/cpz_paper_sample_week3.parquet ]]; then
+    tar xzf ./data/cpz_paper_sample_week3.parquet.tar.gz
+fi
+
 # This is required before installing fsps
 export SPS_HOME=$(pwd)/deps/fsps
 
