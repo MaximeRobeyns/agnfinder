@@ -85,7 +85,7 @@
 <section id="inferring-galaxy-parameters-san">
 <h1><span class="section-number">4. </span>Inferring Galaxy Parameters (SAN)<a class="headerlink" href="#inferring-galaxy-parameters-san" title="Permalink to this headline"></a></h1>
 <p>The method described in this page, the <em>Sequential Autoregressive Network</em>,
-(SAN) is currently the highest performing method in the codebase.
+(SAN) is currently the best performing method in the codebase.
 As a reminder, we wish to estimate the distribution of physical galaxy
 parameters <span class="math notranslate nohighlight">\(\mathbf{y} \in \mathbb{R}^{9}\)</span>, given some photometric
 observations <span class="math notranslate nohighlight">\(\mathbf{x} \in \mathbb{R}^{8}\)</span>; that is <span class="math notranslate nohighlight">\(p(\mathbf{y}
@@ -105,7 +105,7 @@ autoregressive models.</p>
 <p>Strictly speaking, an ‘autoregressive model’ is one where the output of the
 model (usually indexed by <cite>time</cite>) depends on the previously outputted values of
 the model and some stochastic term. For example, they are commonly employed to
-predict the next value(s) in a time seris.</p>
+predict the next value(s) in a time series.</p>
 <p>In this context, we use a model with this <cite>autoregressive property</cite> to
 estimate a multivariate distribution, one dimension at a time. That is, rather
 than specifying the value of a stochastic process at a given timestep, each
@@ -118,7 +118,7 @@ of points <span class="math notranslate nohighlight">\(\{\mathbf{x}_{i}\}_{i=1}^
 we must make sure that</p>
 <div class="math notranslate nohighlight">
 \[\int_{\mathcal{X}} p(\mathbf{x}) d\mathbf{x} = 1.\]</div>
-<p>Even for small <span class="math notranslate nohighlight">\(d\)</span>, this can be an expensive prodecure unless this
+<p>Even for small <span class="math notranslate nohighlight">\(d\)</span>, this can be an expensive procedure unless this
 normalisation consideration is explicitly thought about when designing the
 model.</p>
 <p>Autoregressive models can be used to do just this (i.e. side-step the need to
@@ -132,7 +132,7 @@ p(\mathbf{x}) &amp;= \prod^d_{i=1}p(x_i \vert \mathbf{x}_{&lt;i}) \\
 <p>(On notation, <span class="math notranslate nohighlight">\(\mathbf{x}_{&lt;d} \doteq [x_{1}, \ldots, x_{d-1}]^\top\)</span>.)</p>
 <p>Recall that during training we have <span class="math notranslate nohighlight">\((\text{photometry},
 \text{parameter})\)</span> pairs <span class="math notranslate nohighlight">\((\mathbf{x}, \mathbf{y})\)</span>, and that we are not
-intersted in learning the joint <span class="math notranslate nohighlight">\(p(\mathbf{x}, \mathbf{y})\)</span> (as the
+interested in learning the joint <span class="math notranslate nohighlight">\(p(\mathbf{x}, \mathbf{y})\)</span> (as the
 equation above suggests) so much as the distribution of parameters conditioned
 on photometry <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span>.</p>
 <p>We can straightforwardly extend the above to include the conditioning
@@ -186,7 +186,7 @@ conditioning information <span class="math notranslate nohighlight">\(\mathbf{x}
 equivalent) are passed through iterations, and not the network outputs for
 previous iterations <span class="math notranslate nohighlight">\(\hat{\mathbf{y}}_{&lt;d}\)</span>.</p></li>
 </ul>
-<p>Since we can return an arbitrary nuber of parameters at the output of each
+<p>Since we can return an arbitrary number of parameters at the output of each
 sequential block, we are free to parametrise any distribution we like for
 <span class="math notranslate nohighlight">\(p(y_d \vert \hat{\mathbf{y}}_{&lt;d}, \mathbf{x})\)</span>. In the diagram above, we
 show a Gaussian mixture with <span class="math notranslate nohighlight">\(K\)</span> components, with the
@@ -194,8 +194,8 @@ show a Gaussian mixture with <span class="math notranslate nohighlight">\(K\)</s
 <span class="math notranslate nohighlight">\(\{\mu_{d,i}\}_{i=1}^{K}\)</span>, scales <span class="math notranslate nohighlight">\(\{\sigma^2_{d,i}\}_{i=1}^{K}\)</span>,
 and mixture weights <span class="math notranslate nohighlight">\(\{\varphi_{d,i}\}_{i=1}^{K}\)</span> such that
 <span class="math notranslate nohighlight">\(\sum_{i=1}^K \varphi_{d,i} = 1\)</span>.</p>
-<p>This model architecure was found to satisfy the desiderata of fast sampling (one
-can draw posterior 10,000 samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> in
+<p>This model architecture was found to satisfy the desiderata of fast sampling (one
+can draw 10,000 posterior samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> in
 the order of 10ms), and reasonable accuracy:</p>
 <figure class="align-default">
 <a class="reference external image-reference" href="_images/san_results.png"><img alt="SAN results" src="_images/san_result.png" /></a>
@@ -204,7 +204,6 @@ the order of 10ms), and reasonable accuracy:</p>
 <h3><span class="section-number">4.2.1. </span>Using the SAN Model<a class="headerlink" href="#using-the-san-model" title="Permalink to this headline"></a></h3>
 <p>The configurations for this model (see the <a class="reference external" href="inference.html">inference overview</a> for general configuration information) are defined in
 <code class="docutils literal notranslate"><span class="pre">config.py</span></code>.</p>
-<p>Here is an example configuration:</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="SANParams">
 <em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">SANParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">san.SANParams</span></em><span class="sig-paren">)</span><a class="headerlink" href="#SANParams" title="Permalink to this definition"></a></dt>
@@ -224,8 +223,8 @@ the order of 10ms), and reasonable accuracy:</p>
 </ul>
 </dd>
 </dl>
-<p>The following example contains a minimal concrete instance of <a class="reference internal" href="inference.html#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a>
-(real models are likely to require additional parameters).</p>
+<p>Here is an example configuration for use with <code class="docutils literal notranslate"><span class="pre">SAN</span></code>. Recall that
+<code class="docutils literal notranslate"><span class="pre">SANParams</span></code> extends <a class="reference internal" href="inference.html#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a>.</p>
 <dl class="field-list">
 <dt class="field-odd">Example</dt>
 <dd class="field-odd"><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">SANParams</span><span class="p">(</span><span class="n">san</span><span class="o">.</span><span class="n">SANParams</span><span class="p">):</span>
