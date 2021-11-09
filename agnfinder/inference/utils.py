@@ -38,17 +38,23 @@ class InMemoryGalaxyDataset(Dataset):
 
     def __init__(self, path: str,
                  normalise_phot: Optional[Callable[[Any], Any]] = None,
-                 transforms: list[Callable[[Any], Any]] = []):
+                 transforms: list[Callable[[Any], Any]] = [],
+                 x_transforms: list[Callable[[Any], Any]] = [],
+                 y_transforms: list[Callable[[Any], Any]] = []):
         """Load the galaxy dataset
 
         Args:
             path: either the path of a hdf5 file or directory containing hdf5
                 files, with (theta, photometry) pairs, output from a simulation
                 run.
-            transforms: any transformations to apply to the data
+            transforms: any transformations to apply to the data now
+            x_transforms: photometry specific transforms
+            y_transforms: parameter specific transforms
         """
 
         self.transforms = transforms
+        self.x_transforms = x_transforms
+        self.y_transforms = y_transforms
         files = []
 
         if os.path.isdir(path):
@@ -73,8 +79,16 @@ class InMemoryGalaxyDataset(Dataset):
 
         if normalise_phot is not None:
             xs = normalise_phot(xs)
+
+        # eagerly compute transformations (instead of during __getitem__)
+        for xtr in self.x_transforms:
+            xs = xtr(xs)
+        for ytr in self.y_transforms:
+            ys = ytr(ys)
+
         self._x_dim, self._y_dim = xs.shape[-1], ys.shape[-1]
         self.dataset = np.concatenate((xs, ys), -1)
+
         logging.info(f'Galaxy dataset loaded.')
 
     def _get_x_y_from_file(self, file: str) -> tuple[np.ndarray, np.ndarray]:
@@ -100,7 +114,7 @@ class InMemoryGalaxyDataset(Dataset):
         except:
             theta = samples.get('theta')
             colnames = list(theta.attrs['columns'])
-        permlist = [column_order.index(cn) for cn in colnames]
+        permlist = [colnames.index(cn) for cn in column_order]
         ys = ys[:, permlist]
         return xs, ys
 
@@ -156,6 +170,8 @@ def load_simulated_data(
         test_batch_size: Optional[int] = None,
         normalise_phot: Optional[Callable[[Any], Any]] = None,
         transforms: list[Callable[[Any], Any]] = [t.from_numpy],
+        x_transforms: list[Callable[[Any], Any]] = [],
+        y_transforms: list[Callable[[Any], Any]] = [],
         split_seed: int = 0
         ) -> tuple[DataLoader, DataLoader]:
     """Load simulated (theta, photometry) data as train and test data loaders.
@@ -169,6 +185,8 @@ def load_simulated_data(
         normalise_phot: an optional normalisation transformation to apply to
             simulated photometry.
         transforms: list of transformations to apply to data before returning
+        x_transforms: any photometry specific transformations
+        y_transforms: any parameter specific transformations
         split_seed: PyTorch Generator Seed for reproducible train/test splits.
 
     Returns:
@@ -182,7 +200,8 @@ def load_simulated_data(
     test_kwargs: dict[str, Any] = {
         'batch_size': tbatch_size, 'shuffle': True} | cuda_kwargs
 
-    dataset = InMemoryGalaxyDataset(path, normalise_phot, transforms)
+    dataset = InMemoryGalaxyDataset(path, normalise_phot, transforms,
+                                    x_transforms, y_transforms)
 
     n_train = int(len(dataset) * split_ratio)
     n_test = len(dataset) - n_train
@@ -230,6 +249,32 @@ def normalise_phot_np(x: np.ndarray) -> np.ndarray:
     """
     x_log = np.log(x)
     return (x_log - x_log.mean(0)) / x_log.std(0)
+
+
+def maggies_to_colours(x_np: np.ndarray) -> np.ndarray:
+    """Compute the 'colours' from maggies [f₁, f₂, …, fₙ]:
+
+    {(fᵢ - fⱼ) | i, j ∈ {1, …, N}, i < j}
+
+    Args:
+        x: Matrix of N input points [N, D]; D filters per row
+
+    Returns:
+        Tensor: an [N, C] array, for C = N(N-1)/2, the number of colours.
+    """
+    x = t.from_numpy(x_np)
+
+    i = t.triu_indices(x.shape[-1]-1, x.shape[-1]-1)+1
+    mat = x[...,None].expand(*x.shape, x.shape[-1])
+    out = mat[...,i[0],i[1]] - mat[...,i[1],i[0]]
+
+    return out.numpy()
+
+
+def get_colours_length(filters: int) -> int:
+    """Returns the number of colours for the specified number of filters.
+    """
+    return int(filters * (filters - 1) / 2)
 
 
 # Testing Utilities -----------------------------------------------------------

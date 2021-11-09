@@ -38,6 +38,7 @@ from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters
 from agnfinder.inference.inference import model_t
+from agnfinder.inference.utils import get_colours_length
 
 
 # ============================= Free Parameters ===============================
@@ -46,7 +47,7 @@ from agnfinder.inference.inference import model_t
 class FreeParams(FreeParameters):
     """Note: Keys prefixed by 'log_*' are exponentiated later"""
 
-    redshift: tuple[float, float] = (0., 4.)
+    redshift: tuple[float, float] = (0., 6.)
     # Mass of the galaxy
     log_mass: tuple[float, float] = (8, 12)
     # Brightness of the galaxy, from 10**-7 to 15
@@ -68,10 +69,10 @@ class FreeParams(FreeParameters):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 4000000
+    n_samples: int = 40000000
     concurrency: int = 6  # set this to os.cpu_count() (or slightly less)
     redshift_min: float = 0.
-    redshift_max: float = 1.
+    redshift_max: float = 6.
     save_dir: str = './data/cubes/des_sample'
     noise: bool = False
     filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
@@ -196,7 +197,7 @@ class CVAEParams(cvae.CVAEParams):
     batch_size: int = 32
     dtype: t.dtype = t.float64
 
-    cond_dim: int = 8  # x; dimension of photometry
+    cond_dim: int = get_colours_length(8)  # x; dimension of photometry / colours
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     latent_dim: int = 4  # z
     adam_lr: float = 1e-3

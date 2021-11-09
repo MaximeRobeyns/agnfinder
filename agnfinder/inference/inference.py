@@ -312,7 +312,9 @@ if __name__ == '__main__':
         normalise_phot=utils.normalise_phot_np,
         transforms=[
             transforms.ToTensor()
-        ])
+        ]
+        # TODO add x transforms here for maggies_to_colours
+        )
     logging.info('Created data loaders')
 
     model = ip.model(mp)

@@ -72,7 +72,7 @@ class _All(FilterSet): pass
 
 class Filters():
     Euclid = _Euclid('euclid', 8)
-    DES = _DES('des', 7)
+    DES = _DES('des', 7)  # Dark Energy Survey
     Reliable = _Reliable('reliable', 12)
     All = _All('all', 12)
 
@@ -156,9 +156,11 @@ class OptionalValue(Optional):
 
 # Free Parameter Configuration ------------------------------------------------
 
-
 column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage', 'log_tau',
         'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass', 'inclination']
+
+# column_order: list[str] = ['redshift', 'log_mass', 'agn_eb_v', 'dust2',
+#         'log_agn_mass', 'log_agn_torus_mass', 'inclination', 'tage', 'log_tau']
 
 
 class FreeParameters(ConfigClass):

@@ -31,8 +31,10 @@ command -v tar >/dev/null 2>&1 || {
 }
 
 # Extract required data file
-if [[ ! -f ./data/cpz_paper_sample_week3.parquet ]]; then
-    tar xzf ./data/cpz_paper_sample_week3.parquet.tar.gz
+DFILE="cpz_paper_sample_week3.parquet"
+if [[ ! -f ./data/$DFILE ]]; then
+    tar xzf ./data/${DFILE}.tar.gz
+    mv ${DFILE} ./data
 fi
 
 # This is required before installing fsps
