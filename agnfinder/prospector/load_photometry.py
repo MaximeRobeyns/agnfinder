@@ -77,8 +77,8 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
     des = [
         Filter(
             bandpass_file=f'DES_{b}',
-            mag_col=f'mag_auto_des_{b}_dr2',  # TODO verify this!
-            error_col=f'magerr_auto_des_{b}_dr2')  # TODO verify this!
+            mag_col=f'mag_auto_{b}',
+            error_col=f'magerr_auto{b}')
         for b in ['g', 'i', 'r']]
 
     kids = [
@@ -105,8 +105,8 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
     vista_des = [
         Filter(
             bandpass_file=f'VISTA_{b}',
-            mag_col='mag_auto_viking_{}_dr2'.format(b.lower().strip('s')),
-            error_col='magerr_auto_viking_{}_dr2'.format(b.lower().strip('s')))
+            mag_col='{b}AUTOMAG',
+            error_col='{b}AUTOMAGERR')
         for b in ['H', 'J', 'Y', 'Z']]
 
     sdss = [

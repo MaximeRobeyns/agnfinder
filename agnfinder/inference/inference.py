@@ -29,7 +29,6 @@ from agnfinder import config as cfg
 from agnfinder.types import Tensor
 from agnfinder.utils import ConfigClass
 from agnfinder.inference import utils
-from agnfinder.inference.utils import load_simulated_data
 
 
 # Abstract inference parameters ------------------------------------------------
@@ -312,9 +311,8 @@ if __name__ == '__main__':
         normalise_phot=utils.normalise_phot_np,
         transforms=[
             transforms.ToTensor()
-        ]
-        # TODO add x transforms here for maggies_to_colours
-        )
+        ],
+        x_transforms=[utils.maggies_to_colours_np])
     logging.info('Created data loaders')
 
     model = ip.model(mp)

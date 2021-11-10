@@ -197,7 +197,8 @@ class CVAEParams(cvae.CVAEParams):
     batch_size: int = 32
     dtype: t.dtype = t.float64
 
-    cond_dim: int = get_colours_length(8)  # x; dimension of photometry / colours
+    # cond_dim: int = 8  # x; dimension of photometry / colours
+    cond_dim: int = get_colours_length(8)  # x; number of colours
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     latent_dim: int = 4  # z
     adam_lr: float = 1e-3
@@ -241,7 +242,8 @@ class MADEParams(made.MADEParams):
     batch_size: int = 1024
     dtype: t.dtype = t.float32
 
-    cond_dim: int = 8  # x; dimensions of photometry
+    # cond_dim: int = 8  # x; dimension of photometry / colours
+    cond_dim: int = get_colours_length(8)  # x; number of colours
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
     # TODO make much larger and deeper
     hidden_sizes: list[int] = [4, 8]
@@ -267,7 +269,8 @@ class SANParams(san.SANParams):
     batch_size: int = 1024
     dtype: t.dtype = t.float32
 
-    cond_dim: int = 8  # dimensions of conditioning info (e.g. photometry)
+    # cond_dim: int = 8  # x; dimension of photometry / colours
+    cond_dim: int = get_colours_length(8)  # x; number of colours
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
     module_shape: list[int] = [512, 512]  # shape of the network 'modules'
     sequence_features: int = 8  # features passed between sequential blocks

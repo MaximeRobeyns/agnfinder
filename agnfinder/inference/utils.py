@@ -251,10 +251,10 @@ def normalise_phot_np(x: np.ndarray) -> np.ndarray:
     return (x_log - x_log.mean(0)) / x_log.std(0)
 
 
-def maggies_to_colours(x_np: np.ndarray) -> np.ndarray:
+def maggies_to_colours(x: Tensor) -> Tensor:
     """Compute the 'colours' from maggies [f₁, f₂, …, fₙ]:
 
-    {(fᵢ - fⱼ) | i, j ∈ {1, …, N}, i < j}
+        {(fᵢ - fⱼ) | i, j ∈ {1, …, N}, i < j}
 
     Args:
         x: Matrix of N input points [N, D]; D filters per row
@@ -262,13 +262,14 @@ def maggies_to_colours(x_np: np.ndarray) -> np.ndarray:
     Returns:
         Tensor: an [N, C] array, for C = N(N-1)/2, the number of colours.
     """
-    x = t.from_numpy(x_np)
-
     i = t.triu_indices(x.shape[-1]-1, x.shape[-1]-1)+1
     mat = x[...,None].expand(*x.shape, x.shape[-1])
-    out = mat[...,i[0],i[1]] - mat[...,i[1],i[0]]
+    return mat[...,i[0],i[1]] - mat[...,i[1],i[0]]
 
-    return out.numpy()
+
+def maggies_to_colours_np(x_np: np.ndarray) -> np.ndarray:
+    """Numpy version of the above."""
+    return maggies_to_colours(t.from_numpy(x_np)).numpy()
 
 
 def get_colours_length(filters: int) -> int:
