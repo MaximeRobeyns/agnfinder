@@ -36,7 +36,8 @@ from agnfinder.inference.utils import Squareplus
 from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
-        FilterSet, Filters
+        FilterSet, Filters \
+        MCMCMethod, EMCEE, Dynesty
 from agnfinder.inference.inference import model_t
 from agnfinder.inference.utils import get_colours_length
 
@@ -184,8 +185,49 @@ class InferenceParams(inference.InferenceParams):
     # If you update SamplingParams, you will need to change this file path!
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
 
+    # The catalogue of real observations
+    catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
+    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
+
     retrain_model: bool = False  # don't re-train an identical (existing) model
     overwrite_results: bool = False  # if retrain_model, don't overwrite old one
+
+
+# ======================= Inference (MCMC) Parameters =========================
+
+
+class DynestyParams(ConfigClass):
+    nested_method: str = 'rwalk'
+    nested_bound: str = 'multi'  # bounding method TODO make enum
+    nested_bootstrap: int = 0  # TODO make bool?
+    nested_sample: str = 'unif'  # sampling method TODO make enum
+    nested_nlive_init: int = 100
+    nested_nlive_batch: int = 100
+    nested_weight_kwargs: dict[str, Any] = {"pfrac": 1.0}
+    nested_stop_kwargs: dict[str, Any] = {"post_thresh": 0.1}
+    nested_dlogz_init: float = 0.05
+    nested_posterior_thresh: float = 0.05
+    nested_maxcall: int = int(1e7)
+    nlive_init: int = 400
+    nlive_batch: int = 200
+
+
+class EMCEEParams(ConfigClass):
+    # emcee specific:
+    nwalkers: int = 128
+    nburn: list[int] = [16, 32, 64]
+    niter: int = 512
+    interval: float = 0.25
+    initial_disp: float = 0.1
+
+
+class MCMCParams(ConfigClass):
+    do_powell: bool = False
+    ftol: float = 0.5e-5
+    maxfev: int = 5000
+    do_levenberg: bool = True
+    nmin: int = 10
+    inference_procedure: MCMCMethod = EMCEE # or Dynesty
 
 
 # ======================= Inference (CVAE) Parameters =========================

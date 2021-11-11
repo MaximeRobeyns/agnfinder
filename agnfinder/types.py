@@ -77,6 +77,17 @@ class Filters():
     All = _All('all', 12)
 
 
+# MCMC sampling method --------------------------------------------------------
+
+
+class EMCEE(): pass
+class Dynesty(): pass
+
+class MCMCMethod():
+    EMCEE = EMCEE()
+    Dynesty = Dynesty()
+
+
 # Maybe 'monad' ---------------------------------------------------------------
 # Monad for safer and more explicit CPz model parameter definitions.
 

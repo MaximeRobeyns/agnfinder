@@ -65,6 +65,13 @@ ifndef SPS_HOME
 endif
 	@python agnfinder/inference/san.py
 
+mcmc: ## To run the MCMC inference code specifically
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/mcmc.py
+
+
 cvae: ## To run the CVAE inference code specifically
 ifndef SPS_HOME
 		@source setup.sh

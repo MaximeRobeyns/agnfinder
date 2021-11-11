@@ -21,6 +21,7 @@ import logging
 import numpy as np
 import pandas as pd
 from sedpy import observate
+from astropy.io import fits
 
 from . import columns
 
@@ -177,7 +178,7 @@ def load_catalogue(catalogue_loc: str) -> pd.DataFrame:
     # assume that that catalog has already had mag and maggies columns
     # calculated. We can do this using the exploration notebook that creates
     # the parquet.
-    logging.info(f'Using {catalogue_loc} as catalog')
+    logging.info(f'Using {catalogue_loc} as catalogue')
 
     filters = get_filters(filter_selection = Filters.Euclid)
     required_cols = [f.maggie_col for f in filters] + \
@@ -197,6 +198,22 @@ def load_catalogue(catalogue_loc: str) -> pd.DataFrame:
         ~pd.isnull(df['redshift'])
     ].query('redshift > 1e-2').query('redshift < 4').reset_index()
     return df_with_spectral_z
+
+
+def load_fits_catalogue(catalogue_loc: str, filters: FilterSet
+                        ) -> pd.DataFrame:
+    logging.info(f'Using {catalogue_loc} as catalogue')
+
+    filters = get_filters(filter_selection=filters)
+    required_cols = [f.maggie_col for f in filters] + \
+                    [f.maggie_error_col for f in filters] + \
+                    ['redshift']
+
+    with fits.open(catalog_loc) as data:
+        # NOTE this is probably (in fact, definitily!) brittle...
+        df = pd.DataFrame(data[1].data)
+
+    # TODO pick up from here
 
 
 def load_galaxy(catalogue_loc: str, index: int = 0, forest_class: str = None,

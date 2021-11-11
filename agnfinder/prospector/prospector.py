@@ -31,7 +31,7 @@ class Prospector(object):
 
     def __init__(self, filter_selection: FilterSet, emulate_ssp: bool,
                  catalogue_loc: str = ""):
-        """Construct a prospector class / 'problem'
+        """Construct a prospector class / 'problem' for simulation.
 
         Args:
             filter_selection: filters to use; e.g. Filters.Euclid.
