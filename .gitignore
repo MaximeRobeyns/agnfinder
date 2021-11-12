@@ -114,6 +114,7 @@ data/clumpy_models_201410_tvavg.hdf5
 data/testdata/MNIST
 data/testdata/*.hdf5
 data/cpz_paper_sample_week3.parquet
+data/DES_VIDEO_v1.0.1.fits
 data/nbrun
 data/cubes
 results/**/*.pt

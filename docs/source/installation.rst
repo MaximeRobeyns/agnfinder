@@ -74,11 +74,27 @@ Quickstart
 
      make test
 
+   The above will skip some slow(er)-running tests. If you would like to run
+   these slow tests too, then you can ``make alltest``.
+
 Manual Installation
 -------------------
 
 You can look at the contents of ``./bin/install_with_venv.sh`` to see what the
 installation procedure above does.
+
+We first need to setup two data files. The smaller of the two is bundled with
+the repository as a tarball, and should be extracted using::
+
+    tar xzf ./data/cpz_paper_sample_week3.parquet.tar.gz
+    mv cpz_paper_sample_week3.parquet ./data
+
+The second file is much larger and needs to be downloaded separately. It is (for
+now) kindly hosted by the good folks behind the `clumpy
+<https://www.clumpy.org/>`_ project, and you can download it with::
+
+	wget -O ./data/clumpy_models_201410_tvavg.hdf5 \
+            https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
 
 In order to install ``python-fsps`` (which the project uses), we need to export
 an ``SPS_HOME`` environment variable to point a directory where `FSPS
