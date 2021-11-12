@@ -144,6 +144,8 @@ setup your shell by running:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">test</span>
 </pre></div>
 </div>
+<p>The above will skip some slow(er)-running tests. If you would like to run
+these slow tests too, then you can <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">alltest</span></code>.</p>
 </li>
 </ol>
 </section>
@@ -151,6 +153,18 @@ setup your shell by running:</p>
 <h2><span class="section-number">1.2. </span>Manual Installation<a class="headerlink" href="#manual-installation" title="Permalink to this headline"></a></h2>
 <p>You can look at the contents of <code class="docutils literal notranslate"><span class="pre">./bin/install_with_venv.sh</span></code> to see what the
 installation procedure above does.</p>
+<p>We first need to setup two data files. The smaller of the two is bundled with
+the repository as a tarball, and should be extracted using:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tar</span> <span class="n">xzf</span> <span class="o">./</span><span class="n">data</span><span class="o">/</span><span class="n">cpz_paper_sample_week3</span><span class="o">.</span><span class="n">parquet</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+<span class="n">mv</span> <span class="n">cpz_paper_sample_week3</span><span class="o">.</span><span class="n">parquet</span> <span class="o">./</span><span class="n">data</span>
+</pre></div>
+</div>
+<p>The second file is much larger and needs to be downloaded separately. It is (for
+now) kindly hosted by the good folks behind the <a class="reference external" href="https://www.clumpy.org/">clumpy</a> project, and you can download it with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">wget</span> <span class="o">-</span><span class="n">O</span> <span class="o">./</span><span class="n">data</span><span class="o">/</span><span class="n">clumpy_models_201410_tvavg</span><span class="o">.</span><span class="n">hdf5</span> \
+    <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">clumpy</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">downloads</span><span class="o">/</span><span class="n">clumpy_models_201410_tvavg</span><span class="o">.</span><span class="n">hdf5</span>
+</pre></div>
+</div>
 <p>In order to install <code class="docutils literal notranslate"><span class="pre">python-fsps</span></code> (which the project uses), we need to export
 an <code class="docutils literal notranslate"><span class="pre">SPS_HOME</span></code> environment variable to point a directory where <a class="reference external" href="https://github.com/cconroy20/fsps">FSPS</a>’s source code lies. In this case, we will
 install it in the <code class="docutils literal notranslate"><span class="pre">./deps</span></code> directory:</p>

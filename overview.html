@@ -16,7 +16,7 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
@@ -84,7 +84,7 @@ you to pretty-print out a configuration for logging or debugging by
 simply calling <code class="docutils literal notranslate"><span class="pre">print(my-config-class)</span></code>.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="InferenceParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">InferenceParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#InferenceParams" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">InferenceParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#InferenceParams" title="Permalink to this definition"></a></dt>
 <dd><p>General parameters for the inference code.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters</dt>
@@ -115,7 +115,7 @@ simply calling <code class="docutils literal notranslate"><span class="pre">prin
 
 <dl class="py class">
 <dt class="sig sig-object py" id="CVAEParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">CVAEParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ConfigClass</span></em>, <em class="sig-param"><span class="pre">base.CVAEParams</span></em><span class="sig-paren">)</span><a class="headerlink" href="#CVAEParams" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">CVAEParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base.CVAEParams</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CVAEParams" title="Permalink to this definition"></a></dt>
 <dd><p>A self-contained description of the CVAE to use for inference.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters</dt>
@@ -166,7 +166,7 @@ simply calling <code class="docutils literal notranslate"><span class="pre">prin
 
 <dl class="py class">
 <dt class="sig sig-object py" id="FreeParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">FreeParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#FreeParams" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">FreeParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#FreeParams" title="Permalink to this definition"></a></dt>
 <dd><p>The free parameters class specifies the physical galaxy parameters that we
 attempt to recover from photometric observations. Keys prefixed by <code class="docutils literal notranslate"><span class="pre">log_</span></code> will
 automatically be exponentiated later. These are all tuples of floats
@@ -191,7 +191,7 @@ automatically be exponentiated later. These are all tuples of floats
 
 <dl class="py class">
 <dt class="sig sig-object py" id="SamplingParameters">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">SamplingParameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#SamplingParameters" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SamplingParameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#SamplingParameters" title="Permalink to this definition"></a></dt>
 <dd><p>These are program parameters for the sampling procedure, where the dataset of
 (params, photometry) pairs is simulated.</p>
 <dl class="field-list">
@@ -217,7 +217,7 @@ automatically be exponentiated later. These are all tuples of floats
 
 <dl class="py class">
 <dt class="sig sig-object py" id="CPzParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">CPzParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CPzParams" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">CPzParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#CPzParams" title="Permalink to this definition"></a></dt>
 <dd><p>Configuration for the CPz (“classification-aided photometric-redshift
 estimation”) parameters.</p>
 <p>Boolean attributes can be turned on or off as you please.</p>
@@ -262,7 +262,7 @@ better ‘type safety’ to configuration values.)</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="SPSParams">
-<em class="property"><span class="pre">class</span> </em><span class="sig-name descname"><span class="pre">SPSParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#SPSParams" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SPSParams</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ConfigClass</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#SPSParams" title="Permalink to this definition"></a></dt>
 <dd><p>Configuration parameters for FSPS stellar population synthesis.</p>
 <dl class="field-list">
 <dt class="field-odd">Note</dt>
