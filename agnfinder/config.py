@@ -218,14 +218,21 @@ class DynestyParams(ConfigClass):
     posterior_thresh: float = 0.05
     maxcall: int = int(1e7)
 
+    optimize: bool = False
+    nmin: int = 10
+    min_method: str = ''  # 'lm' | 'powell'
+
 
 class EMCEEParams(ConfigClass):
-    # emcee specific:
-    nwalkers: int = 16  # 128
-    nburn: list[int] = [32]
-    niter: int = 10
+    nwalkers: int = 128
+    nburn: list[int] = [512]
+    niter: int = 1024
     interval: float = 0.25
     initial_disp: float = 0.1
+
+    optimize: bool = True
+    nmin: int = 10
+    min_method: str = 'powell'  # 'lm' | 'powell'
 
 
 class MCMCParams(mcmc_util.MCMCParams):
@@ -237,11 +244,11 @@ class MCMCParams(mcmc_util.MCMCParams):
     catalogue_loc: str = InferenceParams.catalogue_loc
 
     # TODO ensure that we are using these measurements in fit_model, or get rid of them.
-    do_powell: bool = False
-    ftol: float = 0.5e-5
-    maxfev: int = 5000
-    do_levenberg: bool = True
-    nmin: int = 10
+    # do_powell: bool = False
+    # ftol: float = 0.5e-5
+    # maxfev: int = 5000
+    # do_levenberg: bool = True
+    # nmin: int = 10
 
 
 # ======================= Inference (CVAE) Parameters =========================

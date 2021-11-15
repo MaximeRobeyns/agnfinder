@@ -25,6 +25,7 @@ import pandas as pd
 import numpy as np
 
 from typing import Callable
+from emcee import EnsembleSampler
 from torch.utils.data import DataLoader
 from prospect.fitting import lnprobfn
 from prospect.fitting import fit_model
@@ -89,16 +90,12 @@ class MCMC(Model):
         assert isinstance(x, pd.Series)
         galaxy = x
 
-        print('galaxy at this point is:')
-        print(galaxy)
-
         p = Prospector(self.filters, self.emulate_ssp, galaxy)
 
         start_time = datetime.datetime.now()
         logging.info(f'Begining MCMC ({self.inference_procedure}) sample at {start_time}')
 
         if self.inference_procedure == Dynesty:
-            # TODO verify that these are indeed denormalised.
             denormed_samples = self._dynesty_galaxy(p, n_samples)
         else:
             assert self.inference_procedure == EMCEE
@@ -106,13 +103,16 @@ class MCMC(Model):
         assert denormed_samples is not None
 
         duration = datetime.datetime.now() - start_time
-        logging.info(f'{self.inference_procedure} sampling took {duration.seconds} seconds')
+        logging.info(f'{self.inference_procedure()} sampling took {duration.seconds} seconds')
+
+        # zind = column_order.index('redshift')
+        # lims_without_z = column_order[:zind] + column_order[zind+1:]
+        # fp2 = cfg.FreeParams(lims_without_z)
+        # use: cfg.FreeParams(lims_without_z)
 
         # normalise the samples
-        zind = column_order.index('redshift')
-        lims_without_z = column_order[:zind] + column_order[zind+1:]
         norm_samples = normalise_theta(
-                t.Tensor(denormed_samples), cfg.FreeParams(lims_without_z))
+                t.Tensor(denormed_samples), cfg.FreeParams())
 
         return norm_samples
 
@@ -123,40 +123,41 @@ class MCMC(Model):
             f'{params.niter}, burn-in: {params.nburn}'))
 
         run_params: prun_params_t = p.run_params | {
-            'optimize': True,
             'emcee': True,
             'dynesty': False,
+            'optimize': params.optimize,
+            'min_method': params.min_method,
             'nwalkers': params.nwalkers,
-            # 'niter': params.niter,
-            'niter': n_samples,
+            'niter': params.niter,
+            # TODO restore this
+            # 'niter': n_samples,
             'nburn': params.nburn,
         }
 
         output = fit_model(p.obs, p.model, p.sps, lnprobfn=lnprobfn, **run_params)
-
-        return output['sampling'][0].samples
+        sampler: EnsembleSampler = output['sampling'][0]
+        return sampler.flatchain
 
     def _dynesty_galaxy(self, p: Prospector, n_samples: int) -> np.ndarray:
         params = cfg.DynestyParams()
         logging.info(f'Running Dynesty (nested) sampling')
 
+        dp = cfg.DynestyParams()
         run_params: prun_params_t = p.run_params | {
             'dynesty': True,
-            'optimize': False,
             'emcee': False,
-        }
 
-        dp = cfg.DynestyParams()
-        # TODO figure out which of these parameters controls the number of samples.
-        dynesty_params: prun_params_t = {
+            # TODO figure out which of these parameters controls the number of samples.
             'nested_method': dp.method,
             'nlive_init': dp.nlive_init,
             'nlive_batch': dp.nlive_batch,
             'nested_dlogz_init': dp.dlogz_init,
             'nested_posterior_thresh': dp.posterior_thresh,
-            'nested_maxcall': dp.maxcall
+            'nested_maxcall': dp.maxcall,
+            'optimize': dp.optimize,
+            'min_method': dp.min_method,
+            'nmin': dp.nmin
         }
-        run_params |= dynesty_params
 
         output = fit_model(p.obs, p.model, p.sps, lnprobfn=lnprobfn, **run_params)
         return output['sampling'][0].samples
@@ -180,6 +181,7 @@ if __name__ == '__main__':
 
     # catalogue: pd.DataFrame = load_catalogue(ip.catalogue_loc, Filters.DES)
     galaxy, idx = load_galaxy(ip.catalogue_loc, Filters.DES, index)
-    mcmc.sample(galaxy, 10000)
+    samples = mcmc.sample(galaxy, 10000)
+    print(samples)
 
     logging.info('MCMC sampling')
