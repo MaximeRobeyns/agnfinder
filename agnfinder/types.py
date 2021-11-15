@@ -20,6 +20,7 @@ import typing
 import numpy as np
 import torch as t
 import torch.nn as nn
+import pandas as pd
 
 from sedpy import observate
 from prospect.models import priors
@@ -39,7 +40,7 @@ cpz_obs_dict_t = dict[str, Union[np.ndarray, list[observate.Filter], Any]]
 pdict_t = dict[str, Union[float, bool, str, priors.Prior]]
 
 # Type for prospector run parameters
-prun_params_t = dict[str, Union[int, bool, float, None]]
+prun_params_t = dict[str, Union[int, bool, float, None, list[int], str]]
 
 
 # Neural network related ------------------------------------------------------
@@ -50,7 +51,7 @@ Tensor = t.Tensor
 # One or more tensors used to parametrise a distribution
 DistParams = list[Tensor]
 # NumPy array or PyTorch tensor
-tensor_like = Union[np.ndarray, Tensor]
+tensor_like = Union[np.ndarray, Tensor, pd.Series]
 
 
 # Filters ---------------------------------------------------------------------
@@ -77,15 +78,23 @@ class Filters():
     All = _All('all', 12)
 
 
-# MCMC sampling method --------------------------------------------------------
+# Inference Procedures --------------------------------------------------------
 
-
-class EMCEE(): pass
-class Dynesty(): pass
 
 class MCMCMethod():
-    EMCEE = EMCEE()
-    Dynesty = Dynesty()
+    def __init__(self) -> None:
+        self.name = 'MCMC'
+
+    def __repr__(self) -> str:
+        return self.name
+
+class EMCEE(MCMCMethod):
+    def __init__(self) -> None:
+        self.name = 'EMCEE'
+
+class Dynesty(MCMCMethod):
+    def __init__(self) -> None:
+        self.name = 'Dynesty'
 
 
 # Maybe 'monad' ---------------------------------------------------------------
@@ -167,19 +176,17 @@ class OptionalValue(Optional):
 
 # Free Parameter Configuration ------------------------------------------------
 
+
 column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage', 'log_tau',
         'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass', 'inclination']
-
-# column_order: list[str] = ['redshift', 'log_mass', 'agn_eb_v', 'dust2',
-#         'log_agn_mass', 'log_agn_torus_mass', 'inclination', 'tage', 'log_tau']
 
 
 class FreeParameters(ConfigClass):
 
-    def __init__(self):
+    def __init__(self, col_ord: list[str] = column_order):
 
         # This list provides the order for the physical parameters.
-        self.raw_members: list[str] = column_order
+        self.raw_members: list[str] = col_ord
 
         self.raw_params: paramspace_t = {}
 

@@ -27,16 +27,21 @@ import logging
 from typing import Any, Union, Type
 from logging.config import dictConfig
 
+# TODO put these in the inference module's __init__ file
+# or, extend the 'enum' for inference_procedure to avoid having to
+# import these modules at all
 import agnfinder.inference as inference
 import agnfinder.inference.san as san
 import agnfinder.inference.cvae as cvae
 import agnfinder.inference.made as made
+# mcmc has a Prospector dependency.
+import agnfinder.inference.mcmc_util as mcmc_util
 
 from agnfinder.inference.utils import Squareplus
 from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
-        FilterSet, Filters \
+        FilterSet, Filters, \
         MCMCMethod, EMCEE, Dynesty
 from agnfinder.inference.inference import model_t
 from agnfinder.inference.utils import get_colours_length
@@ -129,7 +134,7 @@ class SPSParams(ConfigClass):
     # using e.g. a GP (or some other function approximator).
     emulate_ssp: bool = False
     # catalogue_loc: typing.Optional[str] = "./data/cpz_paper_sample_week3.parquet"
-    catalogue_loc: typing.Optional[str] = ""
+    catalogue_loc: typing.Optional[str] = None
 
 
 # ======================== Quasar Template Parameters =========================
@@ -177,57 +182,66 @@ class ExtinctionTemplateParams(ConfigClass):
 
 
 class InferenceParams(inference.InferenceParams):
+    # The model to use for estimating PDFs
     model: model_t = san.SAN
-    split_ratio: float = 0.8  # train / test split ratio
     logging_frequency: int = 10000
+    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
+    # Training Inference Models -----------------------------------------------
+    # Note: not all methods (e.g. MCMC) will need this
+    split_ratio: float = 0.8  # train / test split ratio
     # If you do not have this dataset, run `make sim`
     # If you update SamplingParams, you will need to change this file path!
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
+    retrain_model: bool = False  # don't re-train an identical (existing) model
+    overwrite_results: bool = False  # if retrain_model, don't overwrite old one
+
+    # Predicting PDFs ---------------------------------------------------------
 
     # The catalogue of real observations
     catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
-    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
-
-    retrain_model: bool = False  # don't re-train an identical (existing) model
-    overwrite_results: bool = False  # if retrain_model, don't overwrite old one
 
 
 # ======================= Inference (MCMC) Parameters =========================
 
 
 class DynestyParams(ConfigClass):
-    nested_method: str = 'rwalk'
-    nested_bound: str = 'multi'  # bounding method TODO make enum
-    nested_bootstrap: int = 0  # TODO make bool?
-    nested_sample: str = 'unif'  # sampling method TODO make enum
-    nested_nlive_init: int = 100
-    nested_nlive_batch: int = 100
-    nested_weight_kwargs: dict[str, Any] = {"pfrac": 1.0}
-    nested_stop_kwargs: dict[str, Any] = {"post_thresh": 0.1}
-    nested_dlogz_init: float = 0.05
-    nested_posterior_thresh: float = 0.05
-    nested_maxcall: int = int(1e7)
+    method: str = 'rwalk'
+    bound: str = 'multi'  # bounding method TODO make enum
+    bootstrap: int = 0  # TODO make bool?
+    sample: str = 'unif'  # sampling method TODO make enum
     nlive_init: int = 400
     nlive_batch: int = 200
+    weight_kwargs: dict[str, Any] = {"pfrac": 1.0}
+    stop_kwargs: dict[str, Any] = {"post_thresh": 0.1}
+    dlogz_init: float = 0.05
+    posterior_thresh: float = 0.05
+    maxcall: int = int(1e7)
 
 
 class EMCEEParams(ConfigClass):
     # emcee specific:
-    nwalkers: int = 128
-    nburn: list[int] = [16, 32, 64]
-    niter: int = 512
+    nwalkers: int = 16  # 128
+    nburn: list[int] = [32]
+    niter: int = 10
     interval: float = 0.25
     initial_disp: float = 0.1
 
 
-class MCMCParams(ConfigClass):
+class MCMCParams(mcmc_util.MCMCParams):
+
+    cond_dim: int = InferenceParams().filters.dim
+    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
+    filters: FilterSet = InferenceParams.filters  # {Euclid, DES, Reliable, All}
+    inference_procedure: Type[MCMCMethod] = EMCEE # or Dynesty
+    catalogue_loc: str = InferenceParams.catalogue_loc
+
+    # TODO ensure that we are using these measurements in fit_model, or get rid of them.
     do_powell: bool = False
     ftol: float = 0.5e-5
     maxfev: int = 5000
     do_levenberg: bool = True
     nmin: int = 10
-    inference_procedure: MCMCMethod = EMCEE # or Dynesty
 
 
 # ======================= Inference (CVAE) Parameters =========================
@@ -239,8 +253,9 @@ class CVAEParams(cvae.CVAEParams):
     batch_size: int = 32
     dtype: t.dtype = t.float64
 
-    # cond_dim: int = 8  # x; dimension of photometry / colours
-    cond_dim: int = get_colours_length(8)  # x; number of colours
+    # Use get_colours_length(cond_dim) if using colours.
+    cond_dim: int = InferenceParams().filters.dim
+
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     latent_dim: int = 4  # z
     adam_lr: float = 1e-3
@@ -284,8 +299,9 @@ class MADEParams(made.MADEParams):
     batch_size: int = 1024
     dtype: t.dtype = t.float32
 
-    # cond_dim: int = 8  # x; dimension of photometry / colours
-    cond_dim: int = get_colours_length(8)  # x; number of colours
+    # Use get_colours_length(cond_dim) if using colours.
+    cond_dim: int = InferenceParams().filters.dim
+
     data_dim: int = 9  # y; dimensions of physical parameters to be estimated
     # TODO make much larger and deeper
     hidden_sizes: list[int] = [4, 8]
@@ -311,8 +327,9 @@ class SANParams(san.SANParams):
     batch_size: int = 1024
     dtype: t.dtype = t.float32
 
-    # cond_dim: int = 8  # x; dimension of photometry / colours
-    cond_dim: int = get_colours_length(8)  # x; number of colours
+    # Use get_colours_length(cond_dim) if using colours.
+    cond_dim: int = InferenceParams().filters.dim
+
     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
     module_shape: list[int] = [512, 512]  # shape of the network 'modules'
     sequence_features: int = 8  # features passed between sequential blocks

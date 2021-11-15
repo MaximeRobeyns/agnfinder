@@ -20,8 +20,9 @@ module"""
 
 import logging
 import numpy as np
+import pandas as pd
 
-from typing import Callable
+from typing import Callable, Optional
 
 from prospect.utils.obsutils import fix_obs
 from prospect.models import priors
@@ -35,22 +36,17 @@ from agnfinder.prospector import load_photometry
 from agnfinder.prospector.csp_classes import CSPSpecBasisAGN, CSPSpecBasisNoEm
 
 
-def build_cpz_obs(filter_selection: FilterSet, catalogue_loc: str = ""
-                 ) -> cpz_obs_dict_t:
+def build_cpz_obs(filter_selection: FilterSet,
+                  galaxy: Optional[pd.Series] = None) -> cpz_obs_dict_t:
     """Build a dictionary of photometry (and maybe eventually spectra).
 
     Args:
         filter_selection: the SPS filter selection to use
-        catalogue_loc: an optional string giving the catalogue location, to
-            replace the dummy galaxy with a real one.
+        galaxy: an optional galaxy to use
 
     Returns:
         None: A dictionary of observational data to use in the fit.
     """
-
-    # load galaxy only if catalogue location is provided
-    galaxy = load_photometry.load_galaxy(catalogue_loc) if catalogue_loc != "" \
-             else None
 
     obs: cpz_obs_dict_t = {}
     if galaxy is not None:

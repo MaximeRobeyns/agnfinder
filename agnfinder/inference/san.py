@@ -21,6 +21,7 @@ procedure for generating autoregressive samples.
 
 import os
 import logging
+import numpy as np
 import torch as t
 import torch.nn as nn
 import torch.nn.functional as F
@@ -32,7 +33,7 @@ from typing import Optional, Callable, Any, Type
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from agnfinder.types import Tensor
+from agnfinder.types import Tensor, tensor_like
 from agnfinder.inference import utils
 from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 
@@ -422,7 +423,7 @@ class SAN(Model):
                         .format(e+1, self.epochs, i, len(train_loader)-1,
                                 loss.item()))
 
-    def sample(self, x: Tensor, n_samples = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: tensor_like, n_samples = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 
@@ -434,6 +435,10 @@ class SAN(Model):
         Returns:
             Tensor: a tensor of shape [n_samples, data_dim]
         """
+
+        if isinstance(x, np.ndarray):
+            x = t.Tensor(x)
+
         x = x.unsqueeze(0) if x.dim() == 1 else x
         x, _ = self.preprocess(x, t.empty(x.shape))
         return self.forward(x.repeat_interleave(n_samples, 0))
@@ -464,6 +469,9 @@ if __name__ == '__main__':
     # NOTE: uses cached model (if available), and saves to disk after training.
     model.trainmodel(train_loader, ip)
     logging.info('Trained SAN model')
+
+    # TODO replace this with predicting PDF from a randomly chosen galaxy from
+    # a real survey.
 
     x, _ = nbu.new_sample(test_loader)
     model.sample(x, n_samples=1000)

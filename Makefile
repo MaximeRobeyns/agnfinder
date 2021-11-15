@@ -103,7 +103,7 @@ docsimg: ## To explicitly build the Docker image for writing documentation.
 	@docker build -f ./docs/Dockerfile -t agnfinderdocs ./docs
 
 ./data/clumpy_models_201410_tvavg.hdf5:
-	wget -O $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
+	wget -LO $@ https://www.clumpy.org/downloads/clumpy_models_201410_tvavg.hdf5
 
 install: ./data/clumpy_models_201410_tvavg.hdf5 ## To install everything (warning: downloads ~1.5Gb of data)
 	@./bin/install_with_venv.sh $(PYTHON)

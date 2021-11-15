@@ -126,3 +126,4 @@ license_boilerplate.txt
 deps
 agnvenv
 **logs.txt
+sync

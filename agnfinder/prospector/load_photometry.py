@@ -17,10 +17,14 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Loads filters and other data."""
 
+import random
 import logging
 import numpy as np
 import pandas as pd
+import torch as t
+
 from sedpy import observate
+from typing import Optional
 from astropy.io import fits
 
 from . import columns
@@ -79,7 +83,7 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
         Filter(
             bandpass_file=f'DES_{b}',
             mag_col=f'mag_auto_{b}',
-            error_col=f'magerr_auto{b}')
+            error_col=f'magerr_auto_{b}')
         for b in ['g', 'i', 'r']]
 
     kids = [
@@ -106,8 +110,8 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
     vista_des = [
         Filter(
             bandpass_file=f'VISTA_{b}',
-            mag_col='{b}AUTOMAG',
-            error_col='{b}AUTOMAGERR')
+            mag_col=f'{b}AUTOMAG',
+            error_col=f'{b}AUTOMAGERR')
         for b in ['H', 'J', 'Y', 'Z']]
 
     sdss = [
@@ -139,17 +143,18 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
         raise ValueError(f'Filter selection {filter_selection} not recognized')
 
 
-def add_maggies_cols(input_df: pd.DataFrame) -> pd.DataFrame:
+def add_maggies_cols(input_df: pd.DataFrame, fset: FilterSet) -> pd.DataFrame:
     """Add maggies column to calalogue of real galaxies.
 
     Args:
         input_df: galaxy catalogue
+        fset: the FilterSet used to make the observations.
     """
     df = input_df.copy()  # we don't modify the df inplace
     # Assuming filled values for all 'reliable' filters does not work; instead,
     # we only use only Euclid
-    filters = get_filters(Filters.Euclid)
-    logging.info('Adding maggies cols...')
+    filters = get_filters(fset)
+    logging.info(f'Adding maggies cols for {fset}')
     for f in filters:
         mc = df[f.mag_col]
         assert mc is not None
@@ -173,52 +178,66 @@ def calculate_maggie_uncertainty(mag_error, maggie):
     return maggie * mag_error / 1.09
 
 
-def load_catalogue(catalogue_loc: str) -> pd.DataFrame:
+def load_catalogue(catalogue_loc: str, filters: FilterSet) -> pd.DataFrame:
     # catalog_loc could be '../cpz_paper_sample_week3_maggies.parquet' or
     # assume that that catalog has already had mag and maggies columns
     # calculated. We can do this using the exploration notebook that creates
     # the parquet.
     logging.info(f'Using {catalogue_loc} as catalogue')
 
-    filters = get_filters(filter_selection = Filters.Euclid)
-    required_cols = [f.maggie_col for f in filters] + \
-                    [f.maggie_error_col for f in filters] + \
-                    ['redshift'] + columns.cpz_cols['metadata'] + \
-                    columns.cpz_cols['random_forest']
+    fs = get_filters(filter_selection=filters)
 
-    if catalogue_loc.endswith('.parquet'):
-        df = pd.read_parquet(catalogue_loc)
-        assert isinstance(df, pd.DataFrame)
-        df = add_maggies_cols(df)
+    # TODO verify that column ordering is correct
+    if catalogue_loc.endswith('.fits'):
+        required_cols = [f.maggie_col for f in fs] + \
+                        [f.maggie_error_col for f in fs] + \
+                        ['redshift']
+        with fits.open(catalogue_loc) as f:
+            # NOTE this is probably (in fact, definitily!) a brittle approach...
+            df = pd.DataFrame(f[1].data)
+            df = add_maggies_cols(df, filters)
+        print(f'the df columns are: {df.columns}')
+        print(f'the required columns are: {required_cols}')
+        return df[required_cols]
     else:
-        df = pd.read_csv(catalogue_loc, usecols=required_cols)
-    df = df.dropna(subset=required_cols)
-    assert df is not None
-    df_with_spectral_z = df[
-        ~pd.isnull(df['redshift'])
-    ].query('redshift > 1e-2').query('redshift < 4').reset_index()
-    return df_with_spectral_z
+        required_cols = [f.maggie_col for f in fs] + \
+                        [f.maggie_error_col for f in fs] + \
+                        ['redshift'] + columns.cpz_cols['metadata'] + \
+                        columns.cpz_cols['random_forest']
+
+        if catalogue_loc.endswith('.parquet'):
+            df = pd.read_parquet(catalogue_loc)
+            assert isinstance(df, pd.DataFrame)
+            df = add_maggies_cols(df, filters)
+        else:
+            df = pd.read_csv(catalogue_loc, usecols=required_cols)
+        df = df.dropna(subset=required_cols)
+        assert df is not None
+        df_with_spectral_z = df[
+            ~pd.isnull(df['redshift'])
+        ].query('redshift > 1e-2').query('redshift < 4').reset_index()
+        return df_with_spectral_z
 
 
-def load_fits_catalogue(catalogue_loc: str, filters: FilterSet
-                        ) -> pd.DataFrame:
-    logging.info(f'Using {catalogue_loc} as catalogue')
+def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
+                index: Optional[int] = None, forest_class: Optional[str] = None,
+                spectro_class: Optional[str] = None,
+                ) -> tuple[pd.Series, int]:
+    """Load a galaxy from a catalogue of real-world observations.
 
-    filters = get_filters(filter_selection=filters)
-    required_cols = [f.maggie_col for f in filters] + \
-                    [f.maggie_error_col for f in filters] + \
-                    ['redshift']
+    Args:
+        catalogue_loc: the filepath to the .fits, .csv or .parquer file
+        filters: the filters used in the survey
+        index: the optional index of the galaxy to return. If omitted, index is
+            random
+        forest_class: optional
+        spectro_class: optional
 
-    with fits.open(catalog_loc) as data:
-        # NOTE this is probably (in fact, definitily!) brittle...
-        df = pd.DataFrame(data[1].data)
+    Returns:
+        pd.Series: the galaxy's photometry
+    """
+    df = load_catalogue(catalogue_loc, filters=filters)
 
-    # TODO pick up from here
-
-
-def load_galaxy(catalogue_loc: str, index: int = 0, forest_class: str = None,
-                spectro_class: str = None) -> pd.Series:
-    df = load_catalogue(catalogue_loc)
     if forest_class is not None:
         logging.warning(f'Selecting forest-identified {forest_class} galaxies')
         df = df.sort_values(f'Pr[{forest_class}]_case_III', ascending=False)
@@ -231,7 +250,9 @@ def load_galaxy(catalogue_loc: str, index: int = 0, forest_class: str = None,
         df = df.reset_index()
     assert df is not None
     df.reset_index(drop=True)
-    return df.iloc[index]
+    if index is None:
+        index = random.randint(0, len(df))
+    return df.iloc[index], index
 
 
 def filter_has_valid_data(f: Filter, galaxy: pd.Series) -> bool:
@@ -260,12 +281,16 @@ def load_galaxy_for_prospector(
     ) -> tuple[list[observate.Filter], np.ndarray, np.ndarray]:
     all_filters = get_filters(filter_selection)
     valid_filters = [f for f in all_filters if filter_has_valid_data(f, galaxy)]
+
     if filter_selection == Filters.Reliable and len(valid_filters) != 12:
         raise ValueError(
             f'Some reliable bands are missing - only got {valid_filters}')
     elif filter_selection == Filters.Euclid and len(valid_filters) != 8:
         raise ValueError(
             f'Need 8 valid Euclid bands - only got {valid_filters}')
+    elif filter_selection == Filters.DES and len(valid_filters) != 7:
+        raise ValueError(
+            f'Need 7 valid DES bands - only got {valid_filters}')
     maggies, maggies_unc = load_maggies_to_array(galaxy, valid_filters)
     filters = observate.load_filters([f.bandpass_file for f in valid_filters])
     return filters, maggies, maggies_unc

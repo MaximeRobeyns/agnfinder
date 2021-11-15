@@ -19,6 +19,7 @@
 
 import logging
 import numpy as np
+import pandas as pd
 from typing import Callable, Optional
 
 import agnfinder.config as cfg
@@ -30,19 +31,18 @@ from agnfinder.prospector import cpz_builders
 class Prospector(object):
 
     def __init__(self, filter_selection: FilterSet, emulate_ssp: bool,
-                 catalogue_loc: str = ""):
+            galaxy: Optional[pd.Series] = None):
         """Construct a prospector class / 'problem' for simulation.
 
         Args:
             filter_selection: filters to use; e.g. Filters.Euclid.
             emulate_ssp: deprecated; always set this to false
-            catalogue_loc: an optional string giving the catalogue location, to
-                replace the dummy galaxy used to make prospector happy with a
-                real one. Unused for sampling.
+            galaxy: an optional galaxy. If None, a dummy galaxy will be used to
+                make prospector happy (e.g. for sampling).
         """
         logging.debug('initialising prospector class')
 
-        self.obs = cpz_builders.build_cpz_obs(filter_selection, catalogue_loc)
+        self.obs = cpz_builders.build_cpz_obs(filter_selection, galaxy)
         logging.debug(f'Created obs dict: {self.obs}')
 
         self.cpz_params = CPzParams()

@@ -24,13 +24,16 @@ import tqdm
 import h5py
 import logging
 import numpy as np
+import pandas as pd
 
+from typing import Optional
 from multiprocessing import Pool
 
 from agnfinder import config as cfg
 from agnfinder.simulation import utils
 from agnfinder.types import Tensor, FilterSet, Filters
 from agnfinder.prospector import Prospector
+from agnfinder.prospector.load_photometry import load_galaxy
 
 class Simulator(object):
 
@@ -51,6 +54,7 @@ class Simulator(object):
             sp: Sampling parameters for testing; do not override in normal use.
             sps: SPS parameters for testing; do not override in normal use.
         """
+        # a bit unnecessary...
         super(Simulator, self).__init__()
 
         n_samples = int(sp.n_samples / sp.concurrency)
@@ -120,7 +124,13 @@ class Simulator(object):
     def create_forward_model(self):
         """Initialises a Prospector class, and obtains the forward model."""
 
-        p = Prospector(self.filters, self.emulate_ssp, self.catalogue_loc)
+        galaxy: Optional[pd.Series]
+        if self.catalogue_loc is not None and self.catalogue_loc != "":
+            galaxy, _ = load_galaxy(self.catalogue_loc)
+        else:
+            galaxy = None
+
+        p = Prospector(self.filters, self.emulate_ssp, galaxy)
 
         # The calculate_sed method has side-effects, which includes updating
         # the p.obs dict.
@@ -229,11 +239,14 @@ class Simulator_f(object):
             l = log.getEffectiveLevel()
             log.setLevel(logging.ERROR)
 
-        catalogue_loc: str = "" if sps.catalogue_loc is None \
-                             else sps.catalogue_loc
+        galaxy: Optional[pd.Series]
+        if sps.catalogue_loc is not None and sps.catalogue_loc != "":
+            galaxy, _ = load_galaxy(sps.catalogue_loc)
+        else:
+            galaxy = None
 
-        p = Prospector(filter_selection=sp.filters, emulate_ssp=sps.emulate_ssp,
-                 catalogue_loc=catalogue_loc)
+        p = Prospector(sp.filters, sps.emulate_ssp, galaxy)
+
         p.calculate_sed()
         self.forward_model = p.get_forward_model()
 

@@ -27,6 +27,7 @@ documentation and you are discouraged from using it.
 import os
 import abc
 import logging
+import numpy as np
 import torch as t
 import torch.nn as nn
 
@@ -38,7 +39,7 @@ from abc import abstractmethod
 from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 
 from agnfinder import config as cfg
-from agnfinder.types import Tensor
+from agnfinder.types import Tensor, tensor_like
 from agnfinder.inference import utils
 
 
@@ -391,7 +392,7 @@ class CMADE(Model):
         out = out.mean(0)
         return out
 
-    def sample(self, x: Tensor, n_samples: int = 1000,
+    def sample(self, x: tensor_like, n_samples: int = 1000,
                *_, **kwargs) -> Tensor:
         """
         Draw a sample from p(y | x) by sequentially sampling
@@ -413,6 +414,9 @@ class CMADE(Model):
             A [n_samples, data_dim] shaped tensor of samples.
         """
         mask_idxs: Tensor = kwargs['mask_idxs']
+
+        if isinstance(x, np.ndarray):
+            x = t.Tensor(x)
 
         if mask_idxs is None:
             # use all available masks

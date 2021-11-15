@@ -28,7 +28,7 @@ from torch.utils.data import DataLoader
 import agnfinder.config as cfg
 import agnfinder.inference.cvae_dist as dist
 
-from agnfinder.types import Tensor, DistParams, arch_t
+from agnfinder.types import Tensor, DistParams, arch_t, tensor_like
 from agnfinder.inference import utils
 from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 from agnfinder.inference.cvae_base import CVAEPrior, CVAEEnc, CVAEDec, \
@@ -513,7 +513,7 @@ class CVAE(Model):
             loss -= NLL.mean(0)
         return float(loss / len(test_loader))
 
-    def sample(self, x: Tensor, n_samples = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: tensor_like, n_samples = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 

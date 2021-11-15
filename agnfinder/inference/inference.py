@@ -26,7 +26,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from agnfinder import config as cfg
-from agnfinder.types import Tensor
+from agnfinder.types import Tensor, tensor_like
 from agnfinder.utils import ConfigClass
 from agnfinder.inference import utils
 
@@ -268,7 +268,7 @@ class Model(nn.Module, ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def sample(self, x: Tensor, n_samples: int = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: tensor_like, n_samples: int = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 
@@ -283,6 +283,19 @@ class Model(nn.Module, ABC):
 
 
 model_t = Type[Model]
+
+
+# Inference ====================================================================
+
+
+class Inference(object):
+    """A class to carry out parameter inference."""
+
+    def __init__(self, ip: InferenceParams, model: model_t):
+
+        # get the appropriate model parameters
+
+        pass
 
 
 if __name__ == '__main__':

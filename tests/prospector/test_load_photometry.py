@@ -80,13 +80,13 @@ def test_get_filters():
 
 def test_load_galaxy():
     catalogue_loc = './data/cpz_paper_sample_week3.parquet'
-    galaxy = load_photometry.load_galaxy(catalogue_loc)
+    galaxy, _ = load_photometry.load_galaxy(catalogue_loc)
     assert(isinstance(galaxy, pd.Series))
 
 
 def test_load_galaxy_for_prospector():
     catalogue_loc = './data/cpz_paper_sample_week3.parquet'
-    galaxy = load_photometry.load_galaxy(catalogue_loc)
+    galaxy, _ = load_photometry.load_galaxy(catalogue_loc)
     filters, _, _ = load_photometry.load_galaxy_for_prospector(
         galaxy, filter_selection=Filters.Euclid)
     assert all([isinstance(f, observate.Filter) for f in filters])
