@@ -24,7 +24,7 @@ import pandas as pd
 import torch as t
 
 from sedpy import observate
-from typing import Optional
+from typing import Optional, Union
 from astropy.io import fits
 
 from . import columns
@@ -143,11 +143,12 @@ def get_filters(filter_selection: FilterSet) -> list[Filter]:
         raise ValueError(f'Filter selection {filter_selection} not recognized')
 
 
-def add_maggies_cols(input_df: pd.DataFrame, fset: FilterSet) -> pd.DataFrame:
+def add_maggies_cols(input_df: Union[pd.DataFrame, pd.Series], fset: FilterSet
+                     ) -> Union[pd.DataFrame, pd.Series]:
     """Add maggies column to calalogue of real galaxies.
 
     Args:
-        input_df: galaxy catalogue
+        input_df: either full dataframe galaxy catalogue, or single row (pd.Series)
         fset: the FilterSet used to make the observations.
     """
     df = input_df.copy()  # we don't modify the df inplace
@@ -158,11 +159,17 @@ def add_maggies_cols(input_df: pd.DataFrame, fset: FilterSet) -> pd.DataFrame:
     for f in filters:
         mc = df[f.mag_col]
         assert mc is not None
-        df[f.maggie_col] = mc.apply(mags_to_maggies)
+        if isinstance(df, pd.DataFrame):
+            df[f.maggie_col] = mc.apply(mags_to_maggies)
+        else:
+            df[f.maggie_col] = mags_to_maggies(mc)
         mec = df[[f.mag_error_col, f.maggie_col]]
         assert mec is not None
-        df[f.maggie_error_col] = mec.apply(
-                lambda x: calculate_maggie_uncertainty(*x), axis=1)
+        if isinstance(df, pd.DataFrame):
+            df[f.maggie_error_col] = mec.apply(
+                    lambda x: calculate_maggie_uncertainty(*x), axis=1)
+        else:
+            df[f.maggie_error_col] = calculate_maggie_uncertainty(mec[0], mec[1])
     logging.info('Completed adding maggies cols.')
     return df
 
@@ -178,40 +185,66 @@ def calculate_maggie_uncertainty(mag_error, maggie):
     return maggie * mag_error / 1.09
 
 
-def load_catalogue(catalogue_loc: str, filters: FilterSet) -> pd.DataFrame:
-    # catalog_loc could be '../cpz_paper_sample_week3_maggies.parquet' or
-    # assume that that catalog has already had mag and maggies columns
-    # calculated. We can do this using the exploration notebook that creates
-    # the parquet.
+def load_catalogue(catalogue_loc: str, filters: FilterSet,
+                   compute_maggies_cols: bool = False) -> pd.DataFrame:
+    """Load a catalogue of photometric observations.
+
+    Regrettably, this function is a little brittle in the sense that we expect
+    certain catalogues with certain columns. If this function fails on a new
+    catalogue, then alter the *_required_cols (perhaps provide them as an
+    argument to this function).
+
+    Args:
+        catalogue_loc: file path to the catalogue on disk
+        filters: filters used
+        compute_maggies_cols: whether to compute maggie_* columns from mag_*
+            columns.
+
+    Returns:
+        pd.DataFrame: the loaded catalogue.
+    """
     logging.info(f'Using {catalogue_loc} as catalogue')
 
     fs = get_filters(filter_selection=filters)
 
-    # TODO verify that column ordering is correct
-    if catalogue_loc.endswith('.fits'):
-        required_cols = [f.maggie_col for f in fs] + \
-                        [f.maggie_error_col for f in fs] + \
+    maggie_required_cols = [f.maggie_col for f in fs] + \
+                           [f.maggie_error_col for f in fs] + \
+                           ['redshift']
+    mag_required_cols = [f.mag_col for f in fs] + \
+                        [f.mag_error_col for f in fs] + \
                         ['redshift']
+
+    if catalogue_loc.endswith('.fits'):
         with fits.open(catalogue_loc) as f:
-            # NOTE this is probably (in fact, definitily!) a brittle approach...
             df = pd.DataFrame(f[1].data)
-            df = add_maggies_cols(df, filters)
-        print(f'the df columns are: {df.columns}')
-        print(f'the required columns are: {required_cols}')
-        return df[required_cols]
+            if compute_maggies_cols:
+                df = add_maggies_cols(df, filters)
+                return df[maggie_required_cols]
+            else:
+                return df[mag_required_cols]
     else:
-        required_cols = [f.maggie_col for f in fs] + \
-                        [f.maggie_error_col for f in fs] + \
-                        ['redshift'] + columns.cpz_cols['metadata'] + \
-                        columns.cpz_cols['random_forest']
+        maggie_required_cols += columns.cpz_cols['metadata'] + \
+                                columns.cpz_cols['random_forest']
+        mag_required_cols += columns.cpz_cols['metadata'] + \
+                             columns.cpz_cols['random_forest']
 
         if catalogue_loc.endswith('.parquet'):
             df = pd.read_parquet(catalogue_loc)
             assert isinstance(df, pd.DataFrame)
-            df = add_maggies_cols(df, filters)
+            if compute_maggies_cols:
+                df = add_maggies_cols(df, filters)
         else:
-            df = pd.read_csv(catalogue_loc, usecols=required_cols)
-        df = df.dropna(subset=required_cols)
+            if compute_maggies_cols:
+                df = pd.read_csv(catalogue_loc, usecols=maggie_required_cols)
+            else:
+                df = pd.read_csv(catalogue_loc, usecols=mag_required_cols)
+
+        assert isinstance(df, pd.DataFrame)
+        if compute_maggies_cols:
+            df = df.dropna(subset=maggie_required_cols)
+        else:
+            df = df.dropna(subset=mag_required_cols)
+
         assert df is not None
         df_with_spectral_z = df[
             ~pd.isnull(df['redshift'])
@@ -236,7 +269,7 @@ def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
     Returns:
         pd.Series: the galaxy's photometry
     """
-    df = load_catalogue(catalogue_loc, filters=filters)
+    df = load_catalogue(catalogue_loc, filters=filters, compute_maggies_cols=False)
 
     if forest_class is not None:
         logging.warning(f'Selecting forest-identified {forest_class} galaxies')
@@ -252,7 +285,10 @@ def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
     df.reset_index(drop=True)
     if index is None:
         index = random.randint(0, len(df))
-    return df.iloc[index], index
+
+    df_series = add_maggies_cols(df.iloc[index], filters)
+    assert isinstance(df_series, pd.Series)
+    return df_series, index
 
 
 def filter_has_valid_data(f: Filter, galaxy: pd.Series) -> bool:

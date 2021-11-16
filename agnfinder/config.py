@@ -226,7 +226,8 @@ class DynestyParams(ConfigClass):
 class EMCEEParams(ConfigClass):
     nwalkers: int = 128
     nburn: list[int] = [512]
-    niter: int = 1024
+    # niter: int = 1024
+    niter: int = 4
     interval: float = 0.25
     initial_disp: float = 0.1
 
@@ -240,7 +241,7 @@ class MCMCParams(mcmc_util.MCMCParams):
     cond_dim: int = InferenceParams().filters.dim
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     filters: FilterSet = InferenceParams.filters  # {Euclid, DES, Reliable, All}
-    inference_procedure: Type[MCMCMethod] = EMCEE # or Dynesty
+    inference_procedure: Type[MCMCMethod] = Dynesty # or Dynesty
     catalogue_loc: str = InferenceParams.catalogue_loc
 
     # TODO ensure that we are using these measurements in fit_model, or get rid of them.
