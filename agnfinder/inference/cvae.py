@@ -341,21 +341,19 @@ class CVAE(Model):
                 f'{self.latent_dim} trained for {self.epochs} epochs with '
                 f'batches of size {self.batch_size}')
 
-    def fpath(self) -> str:
+    def fpath(self, ident: str='') -> str:
         """Returns a file path to save the model to, based on parameters."""
-        # TODO generate a more unique model name based on network architectures
-        # (not sequence)
         if self.savepath_cached == "":
             base = './results/cvaemodels/'
             name = (f'p{self.prior.name}_e{self.encoder.name}_d{self.decoder.name}'
                     f'_ld{self.latent_dim}_e{self.epochs}_bs{self.batch_size}')
             if self.overwrite_results:
-                self.savepath_cached = f'{base}{name}.pt'
+                self.savepath_cached = f'{base}{name}{ident}.pt'
             else:
                 n = 0
-                while os.path.exists(f'{base}{name}_{n}.pt'):
+                while os.path.exists(f'{base}{name}{ident}_{n}.pt'):
                     n+=1
-                self.savepath_cached = f'{base}{name}_{n}.pt'
+                self.savepath_cached = f'{base}{name}{ident}_{n}.pt'
         return self.savepath_cached
 
     def ELBO(self, logpy: Tensor, logpz: Tensor, logqz: Tensor, i: int, tot: int
@@ -403,7 +401,8 @@ class CVAE(Model):
         ipe = len(train_loader) * b  # 'iterations per epoch'
         t = self.epochs * ipe
 
-        for e in range(self.epochs):
+        start_e = self.attempt_checkpoint_recovery(ip)
+        for e in range(start_e, self.epochs):
             for i, (x, y) in enumerate(train_loader):
 
                 # x photometry, y parameters (theta)
@@ -445,6 +444,7 @@ class CVAE(Model):
                         "Epoch: {:02d}/{:02d}, Batch: {:05d}/{:d}, Loss {:9.4f}"
                         .format(e, self.epochs, i, len(train_loader)-1,
                                 loss.item()))
+            self.checkpoint(ip.ident)
 
     def log_cond(self, y: Tensor, x: Tensor, K: int = 1000) -> Tensor:
         """Evaluates log p_{theta}(y | x)

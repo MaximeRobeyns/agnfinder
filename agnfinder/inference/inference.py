@@ -16,6 +16,8 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Entrypoint for inference tasks."""
 
+import os
+import re
 import logging
 import torch as t
 import torch.nn as nn
@@ -66,9 +68,26 @@ class InferenceParams(ConfigClass):
         return False
 
     @property
+    def use_existing_checkpoints(self) -> bool:
+        """Whether to attempt to use checkpoints (if any). If set to False, any
+        previous checkpoints (for identical model fpath) will be deleted to
+        allow new checkpoints to be saved."""
+        return True
+
+    @property
     def overwrite_results(self) -> bool:
         """If `retrain_model`, should we overwrite existing result on disk?"""
         return False
+
+    @property
+    def ident(self) -> str:
+        """An identifier for the training run. This could contain the name of
+        the dataset, or some other identifying feature of this model.
+
+        This is appended to `fpath` to allow for saving/loading specific model
+        versions.
+        """
+        return ""
 
 
 # Abstract model ---------------------------------------------------------------
@@ -196,7 +215,7 @@ class Model(nn.Module, ABC):
                **kwargs) -> None:
             # Attempt to load the model from disk instead of re-training an
             # identical model.
-            savepath: str = self.fpath()
+            savepath: str = self.fpath(ip.ident)
             if not ip.retrain_model:
                 try:
                     logging.info(
@@ -222,6 +241,85 @@ class Model(nn.Module, ABC):
                 f'Saved {self.name} model as: {savepath}')
         return _f
 
+
+    def checkpoint(self, ident: str='') -> None:
+
+        # remove extension from file
+        checkpoint_dir = '.'.join(self.fpath(ident).split('.')[:-1])
+        assert checkpoint_dir != '', "fpath must contain an extension; `.pt` recommended"
+
+        # check that directory exists
+        if not os.path.isdir(checkpoint_dir):
+            os.mkdir(checkpoint_dir)
+
+        checkpoints = os.listdir(checkpoint_dir)
+        r = re.compile('checkpoint_(?P<Num>\d+)\.pt$')
+        ints = []
+        for c in checkpoints:
+            match = r.match(c)
+            if match is not None and match.group('Num') is not None:
+                ints.append(int(match.group('Num')))
+
+        n = 1 if len(ints) == 0 else max(ints) + 1
+        savepath = checkpoint_dir + f'/checkpoint_{n}.pt'
+
+        # Save the checkpoint to disk
+        t.save(self.state_dict(), savepath)
+        logging.info(
+            f'Saved {self.name} checkpoint to {savepath}.')
+
+
+    def attempt_checkpoint_recovery(self, ip: InferenceParams) -> int:
+        """Attempts to load the latest checkpoint file.
+
+        Returns:
+            int: the checkpoint number
+        """
+
+        checkpoint_dir = '.'.join(self.fpath(ip.ident).split('.')[:-1])
+        if checkpoint_dir == '':
+            logging.warn(('Will not be able to save a checkpoint with fpath '
+                          'of {self.fpath(ip.ident)}!'))
+            return 0
+
+        if not os.path.isdir(checkpoint_dir) or not ip.use_existing_checkpoints:
+            logging.info(f'No previous checkpoints found at {checkpoint_dir}')
+            return 0
+
+        checkpoints = os.listdir(checkpoint_dir)
+        if not ip.use_existing_checkpoints:
+            logging.info(f'Removing old checkpoints from {checkpoint_dir}')
+            r = re.compile('checkpoint_\d+\.pt$')
+            files = [c for c in checkpoints if r.match(c)]
+            [os.remove(os.path.join(checkpoint_dir, c)) for c in files]
+            return 0
+        else:
+            ints = []
+            r = re.compile('checkpoint_(?P<Num>\d+)\.pt$')
+            for c in checkpoints:
+                match = r.match(c)
+                if match is not None and match.group('Num') is not None:
+                    ints.append(int(match.group('Num')))
+
+        if len(ints) == 0:
+            logging.info(f'No previous checkpoints found at {checkpoint_dir}')
+            return 0
+
+        latest_n = max(ints)
+        while latest_n > 0:
+            try:
+                logging.info(f'Attempting to load checkpoint {latest_n}')
+                cpath = os.path.join(checkpoint_dir, f'checkpoint_{latest_n}.pt')
+                self.load_state_dict(t.load(cpath))
+                self.to(self.device, self.dtype)
+                return latest_n
+            except:
+                logging.warning(f'Could not load checkpoint {latest_n}')
+                latest_n -= 1
+        logging.warning(f'Checkpoint loading failed')
+        return 0
+
+
     @abstractmethod
     def __repr__(self) -> str:
         """Classes inheriting `Model` _should_ override this method to give a
@@ -237,8 +335,12 @@ class Model(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def fpath(self) -> str:
-        """Returns a file path to save the model to, based on its parameters."""
+    def fpath(self, ident: str='') -> str:
+        """Returns a file path to save the model to, based on its parameters.
+
+        An optional identifier, if provided, is appended to the filename before
+        the extension.
+        """
         raise NotImplementedError
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -286,16 +388,6 @@ model_t = Type[Model]
 
 
 # Inference ====================================================================
-
-
-class Inference(object):
-    """A class to carry out parameter inference."""
-
-    def __init__(self, ip: InferenceParams, model: model_t):
-
-        # get the appropriate model parameters
-
-        pass
 
 
 if __name__ == '__main__':

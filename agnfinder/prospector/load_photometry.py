@@ -294,12 +294,12 @@ def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
 def filter_has_valid_data(f: Filter, galaxy: pd.Series) -> bool:
     """Ensures that galaxy data series has maggie cols"""
     filter_value = galaxy[f.maggie_col]
-    assert isinstance(filter_value, np.floating)
+    assert isinstance(filter_value, np.floating) or isinstance(filter_value, float)
     valid_value = not pd.isnull(filter_value) \
                   and filter_value > -98 \
                   and filter_value < 98
     filter_error = galaxy[f.maggie_error_col]
-    assert isinstance(filter_error , np.floating)
+    assert isinstance(filter_error, np.floating) or isinstance(filter_error, float)
     valid_error = not pd.isnull(filter_error) \
                   and filter_error > 0  # <0 if -99 (unknown) or -1 (only upper bound)
     return bool(valid_value and valid_error)

@@ -75,7 +75,8 @@ class FreeParams(FreeParameters):
 # These defaults can be overridden by command line arguments when invoking
 # agnfinder/simulation/simulation.py (run with --help flag to see options)
 class SamplingParams(ConfigClass):
-    n_samples: int = 40000000
+    # n_samples: int = 40000000
+    n_samples: int = 10000
     concurrency: int = 6  # set this to os.cpu_count() (or slightly less)
     redshift_min: float = 0.
     redshift_max: float = 6.
@@ -194,7 +195,9 @@ class InferenceParams(inference.InferenceParams):
     # If you update SamplingParams, you will need to change this file path!
     dataset_loc: str = './data/cubes/photometry_simulation_100000n_z_0p0000_to_1p0000.hdf5'
     retrain_model: bool = False  # don't re-train an identical (existing) model
+    use_existing_checkpoints: bool = True
     overwrite_results: bool = False  # if retrain_model, don't overwrite old one
+    ident: str = ''  # identifier for this training run
 
     # Predicting PDFs ---------------------------------------------------------
 
@@ -216,7 +219,8 @@ class DynestyParams(ConfigClass):
     stop_kwargs: dict[str, Any] = {"post_thresh": 0.1}
     dlogz_init: float = 0.05
     posterior_thresh: float = 0.05
-    maxcall: int = int(1e7)
+    maxcall: int = 200
+    # maxcall: int = int(1e7)
 
     optimize: bool = False
     nmin: int = 10
@@ -342,7 +346,8 @@ class SANParams(san.SANParams):
     module_shape: list[int] = [512, 512]  # shape of the network 'modules'
     sequence_features: int = 8  # features passed between sequential blocks
     likelihood: Type[san.SAN_Likelihood] = san.MoG
-    likelihood_kwargs: typing.Optional[dict[str, Any]] = {'K': 10}
+    likelihood_kwargs: typing.Optional[dict[str, Any]] = {
+            'K': 10, 'mult_eps': 1e-4, 'abs_eps': 1e-4}
     batch_norm: bool = True  # use batch normalisation in network?
 
     # Simple alternative Gaussian likelihood (retained for reference)

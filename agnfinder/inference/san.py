@@ -107,13 +107,17 @@ class Laplace(SAN_Likelihood):
 
 class MoG(SAN_Likelihood):
 
-    def __init__(self, K: int) -> None:
+    def __init__(self, K: int, mult_eps: float=1e-4, abs_eps: float=1e-4) -> None:
         """Mixture of Gaussians.
 
         Args:
             K: number of mixture components.
+            mult_eps: multiplicative stabilisation term
+            abs_eps: additive stabilisation term
         """
         self.K = K
+        self.mult_eps = mult_eps
+        self.abs_eps = abs_eps
 
     name: str = "MoG"
 
@@ -125,10 +129,22 @@ class MoG(SAN_Likelihood):
         loc, scale, k = params.reshape(B, -1, self.K, 3).tensor_split(3, 3)
         return loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1), F.softmax(k, -1).squeeze(-1)
 
+    def _stabilise(self, S: Tensor) -> Tensor:
+        while not S.gt(0.).all():
+            S = S.abs()*(1.+self.mult_eps) + self.abs_eps
+        return S
+
+    def stable_norms(self, loc: Tensor, scale: Tensor) -> t.distributions.Normal:
+        try:
+            return t.distributions.Normal(loc, scale)
+        except ValueError:
+            return t.distributions.Normal(loc, self._stabilise(scale))
+
     def log_prob(self, value: Tensor, params: Tensor) -> Tensor:
         loc, scale, k = self._extract_params(params)
         cat = t.distributions.Categorical(k)
-        norms = t.distributions.Normal(loc, scale)
+        # norms = t.distributions.Normal(loc, scale)
+        norms = self.stable_norms(loc, scale)
         return t.distributions.MixtureSameFamily(cat, norms).log_prob(value)
 
     def sample(self, params: Tensor) -> Tensor:
@@ -136,7 +152,12 @@ class MoG(SAN_Likelihood):
         loc, scale, k = params.reshape(B, self.K, 3).tensor_split(3, 2)
         loc, scale = loc.squeeze(-1), utils.squareplus_f(scale).squeeze(-1)
         cat = t.distributions.Categorical(F.softmax(k, -1).squeeze(-1))
-        norms = t.distributions.Normal(loc, scale)
+        # norms = t.distributions.Normal(loc, scale)
+        # logging.info(f'\nscale param is: {scale}\n')
+        # logging.info(f'All positive: {t.all(scale > 0)}')
+        # logging.info(f'NaN: {scale.isnan().any()}')
+        norms = self.stable_norms(loc, scale)
+
         return t.distributions.MixtureSameFamily(cat, norms).sample()
 
 class MoST(SAN_Likelihood):
@@ -280,7 +301,7 @@ class SAN(Model):
                 f'and {self.sequence_features} features between blocks trained '
                 f'for {self.epochs} epochs with batches of size {self.batch_size}')
 
-    def fpath(self) -> str:
+    def fpath(self, ident: str='') -> str:
         """Returns a file path to save the model to, based on its parameters."""
         if self.savepath_cached == "":
             base = './results/sanmodels/'
@@ -291,12 +312,12 @@ class SAN(Model):
                     f'lp{self.likelihood.n_params()}_bn{self.batch_norm}'
                     f'_e{self.epochs}_bs{self.batch_size}')
             if self.overwrite_results:
-                self.savepath_cached = f'{base}{name}.pt'
+                self.savepath_cached = f'{base}{name}{ident}.pt'
             else:
                 n = 0
-                while os.path.exists(f'{base}{name}_{n}.pt'):
+                while os.path.exists(f'{base}{name}{ident}_{n}.pt'):
                     n+=1
-                self.savepath_cached = f'{base}{name}_{n}.pt'
+                self.savepath_cached = f'{base}{name}{ident}_{n}.pt'
 
         return self.savepath_cached
 
@@ -396,9 +417,11 @@ class SAN(Model):
             ip: The parameters to use for training, defined in
                 `config.py:InferenceParams`.
         """
+        t.random.seed()
         self.train()
 
-        for e in range(self.epochs):
+        start_e = self.attempt_checkpoint_recovery(ip)
+        for e in range(start_e, self.epochs):
             for i, (x, y) in enumerate(train_loader):
                 x, y = self.preprocess(x, y)
 
@@ -422,6 +445,7 @@ class SAN(Model):
                         "Epoch: {:02d}/{:02d}, Batch: {:05d}/{:d}, Loss {:9.4f}"
                         .format(e+1, self.epochs, i, len(train_loader)-1,
                                 loss.item()))
+            self.checkpoint(ip.ident)
 
     def sample(self, x: tensor_like, n_samples = 1000, *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)

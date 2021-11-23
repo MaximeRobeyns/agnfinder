@@ -24,7 +24,7 @@ import torch as t
 import pandas as pd
 import numpy as np
 
-from typing import Callable
+from typing import Callable, Optional, Type
 from emcee import EnsembleSampler
 from torch.utils.data import DataLoader
 from prospect.fitting import lnprobfn
@@ -50,8 +50,11 @@ from agnfinder.inference.mcmc_util import MCMCParams
 
 class MCMC(Model):
 
-    def __init__(self, mp: MCMCParams, overwrite_results: bool = False,
-                 logging_callbacks: list[Callable] = []):
+    def __init__(self, mp: MCMCParams,
+                 emcee_params: Type[cfg.EMCEEParams] = cfg.EMCEEParams,
+                 dynesty_params: Type[cfg.DynestyParams] = cfg.DynestyParams,
+                 overwrite_results: bool = False,
+                 logging_callbacks: list[Callable] = []) -> None:
 
         self.device = mp.device
         self.dtype = mp.dtype
@@ -59,6 +62,9 @@ class MCMC(Model):
         self.emulate_ssp = mp.emulate_ssp
         self.catalogue_loc = mp.catalogue_loc
         self.inference_procedure = mp.inference_procedure
+
+        self.ep = emcee_params()
+        self.dp = dynesty_params()
 
         self.overwrite_results = overwrite_results
         self.logging_callbacks = logging_callbacks
@@ -93,7 +99,7 @@ class MCMC(Model):
         p = Prospector(self.filters, self.emulate_ssp, galaxy)
 
         start_time = datetime.datetime.now()
-        logging.info(f'Begining MCMC ({self.inference_procedure}) sample at {start_time}')
+        logging.info(f'Beginning MCMC ({self.inference_procedure()}) sample at {start_time}')
 
         if self.inference_procedure == Dynesty:
             denormed_samples = self._dynesty_galaxy(p, n_samples)
@@ -116,47 +122,48 @@ class MCMC(Model):
 
         return norm_samples
 
-    def _mcmc_galaxy(self, p: Prospector, n_samples: int) -> np.ndarray:
-        params = cfg.EMCEEParams()
+    def _mcmc_galaxy(self, p: Prospector, n_samples: Optional[int] = None
+                    ) -> np.ndarray:
         logging.info((
-            f'Running EMCEE with walkers: {params.nwalkers}, iterations: '
-            f'{params.niter}, burn-in: {params.nburn}'))
+            f'Running EMCEE with walkers: {self.ep.nwalkers}, iterations: '
+            f'{self.ep.niter}, burn-in: {self.ep.nburn}'))
+
+        samples = self.ep.niter if n_samples is None else n_samples
 
         run_params: prun_params_t = p.run_params | {
             'emcee': True,
             'dynesty': False,
-            'optimize': params.optimize,
-            'min_method': params.min_method,
-            'nwalkers': params.nwalkers,
-            'niter': params.niter,
-            # TODO restore this
-            # 'niter': n_samples,
-            'nburn': params.nburn,
+            'optimize': self.ep.optimize,
+            'min_method': self.ep.min_method,
+            'nwalkers': self.ep.nwalkers,
+            'niter': samples,
+            'nburn': self.ep.nburn,
         }
 
         output = fit_model(p.obs, p.model, p.sps, lnprobfn=lnprobfn, **run_params)
         sampler: EnsembleSampler = output['sampling'][0]
         return sampler.flatchain
 
-    def _dynesty_galaxy(self, p: Prospector, n_samples: int) -> np.ndarray:
-        params = cfg.DynestyParams()
+    def _dynesty_galaxy(self, p: Prospector, n_samples: Optional[int] = None
+                       ) -> np.ndarray:
         logging.info(f'Running Dynesty (nested) sampling')
 
-        dp = cfg.DynestyParams()
+        samples = self.dp.maxcall if n_samples is None else n_samples
+
         run_params: prun_params_t = p.run_params | {
             'dynesty': True,
             'emcee': False,
 
             # TODO figure out which of these parameters controls the number of samples.
-            'nested_method': dp.method,
-            'nlive_init': dp.nlive_init,
-            'nlive_batch': dp.nlive_batch,
-            'nested_dlogz_init': dp.dlogz_init,
-            'nested_posterior_thresh': dp.posterior_thresh,
-            'nested_maxcall': dp.maxcall,
-            'optimize': dp.optimize,
-            'min_method': dp.min_method,
-            'nmin': dp.nmin
+            'nested_method': self.dp.method,
+            'nlive_init': self.dp.nlive_init,
+            'nlive_batch': self.dp.nlive_batch,
+            'nested_dlogz_init': self.dp.dlogz_init,
+            'nested_posterior_thresh': self.dp.posterior_thresh,
+            'nested_maxcall': samples,
+            'optimize': self.dp.optimize,
+            'min_method': self.dp.min_method,
+            'nmin': self.dp.nmin
         }
 
         output = fit_model(p.obs, p.model, p.sps, lnprobfn=lnprobfn, **run_params)

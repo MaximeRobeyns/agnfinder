@@ -297,7 +297,7 @@ class CMADE(Model):
                 f'natural ordering, trained for {self.epochs} epochs with a '
                 f'batch size of {self.batch_size}')
 
-    def fpath(self) -> str:
+    def fpath(self, ident: str='') -> str:
         """Returns a file path to save the model to, based on parameters."""
 
         # For some inexlicable reason, mypy cannot determine the type of
@@ -310,12 +310,12 @@ class CMADE(Model):
             name = (f'CMADE_l:{self.likelihood.name}_h:{hs}_m:{self.num_masks}'
                     f'_nmasks:{self.num_masks}_no:{no}')
             if self.overwrite_results:
-                self.savepath_cached = f'{base}{name}.pt'
+                self.savepath_cached = f'{base}{name}{ident}.pt'
             else:
                 n = 0
-                while os.path.exists(f'{base}{name}_{n}.pt'):
+                while os.path.exists(f'{base}{name}{ident}_{n}.pt'):
                     n+=1
-                self.savepath_cached = f'{base}{name}_{n}.pt'
+                self.savepath_cached = f'{base}{name}{ident}_{n}.pt'
         return self.savepath_cached
 
     def update_mask_idxs(self, mask_idxs: Tensor = None) -> None:
@@ -554,7 +554,8 @@ class CMADE(Model):
 
         idxs: Optional[Tensor] = None
 
-        for e in range(self.epochs):
+        start_e = self.attempt_checkpoint_recovery(ip)
+        for e in range(start_e, self.epochs):
             for i, (x, y) in enumerate(train_loader):
 
                 if masks is not None:
@@ -584,6 +585,7 @@ class CMADE(Model):
                         "Epoch: {:02d}/{:02d}, Batch: {:05d}/{:d}, Loss {:9.4f}"
                         .format(e+1, self.epochs, i, len(train_loader)-1,
                                 loss.item()))
+            self.checkpoint(ip.ident)
 
 
 if __name__ == '__main__':

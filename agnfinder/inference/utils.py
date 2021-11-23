@@ -237,8 +237,11 @@ def squareplus_f(x, a=2):
     return (x + t.sqrt(t.square(x)+a*a))/2
 
 
-def normalise_phot_np(x: np.ndarray) -> np.ndarray:
+def centre_phot_np(x: np.ndarray) -> np.ndarray:
     """Normalise a numpy array along 0th dimension in log-space.
+
+    WARNING: using this without saving the mean and std for identical
+    application of normalisation to test data is not recommended.
 
     Args:
         x: array to normalise; assumed to be a tensor of photometric
@@ -249,6 +252,23 @@ def normalise_phot_np(x: np.ndarray) -> np.ndarray:
     """
     x_log = np.log(x)
     return (x_log - x_log.mean(0)) / x_log.std(0)
+
+
+def normalise_phot_np(x: np.ndarray) -> np.ndarray:
+    """Normalise the photometry, such that that log-observations across all
+    filters sum to 1.
+
+    Args:
+        x: raw photometric observations
+
+    Returns:
+        np.ndarray: normalised photometric observations
+    """
+    x_log = np.log(x)
+    # get the total magnitude of the log-photometry observations
+    mags = x_log.sum(1)
+    # ensure that the observation magnitudes across all filters sum to 1
+    return x_log / mags[:,None]
 
 
 def maggies_to_colours(x: Tensor) -> Tensor:
