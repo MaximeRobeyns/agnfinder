@@ -291,7 +291,8 @@ class Model(nn.Module, ABC):
             logging.info(f'Removing old checkpoints from {checkpoint_dir}')
             r = re.compile('checkpoint_\d+\.pt$')
             files = [c for c in checkpoints if r.match(c)]
-            [os.remove(os.path.join(checkpoint_dir, c)) for c in files]
+            for c in files:
+                os.remove(os.path.join(checkpoint_dir, c))
             return 0
         else:
             ints = []

@@ -95,8 +95,8 @@ if __name__ == '__main__':
     catalogue = load_catalogue(ip.catalogue_loc, ip.filters, True)
     fs = get_filters(filter_selection=ip.filters)
     required_cols = [f.maggie_col for f in fs]
-    xs = utils.normalise_phot_np(catalogue[required_cols].values)
-    xs = t.tensor(xs)
+    xs_np = utils.normalise_phot_np(catalogue[required_cols].values)
+    xs = t.from_numpy(xs_np)
 
     batch: int = 100  # batch size
     N: int = 10000    # samples per posterior
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     denorm_mode = denormalise_theta(values[:, sp.data_dim], fp)
     denorm_params = t.cat((denorm_median, denorm_mode), 1)
 
-    savepath = f'./results/params/{ip.ident}.h5')
+    save_path = f'./results/params/{ip.ident}.h5'
     with h5py.File(save_path, 'w') as f:
         grp = f.create_group(f'{ip.filters}')
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
     Model parameter configuration used:
 
-    {ms}
+    {sp}
 
     Free parameter configuration used:
 

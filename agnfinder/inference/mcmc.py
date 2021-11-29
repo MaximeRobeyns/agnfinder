@@ -81,7 +81,7 @@ class MCMC(Model):
             r += f' with ...'
         return r
 
-    def fpath(self) -> str:
+    def fpath(self, ident: str='') -> str:
         """Returns a file path to save the model to, based on its parameters."""
         raise AttributeError("MCMC doesn't support saving models.")
 
