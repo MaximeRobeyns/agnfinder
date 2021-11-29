@@ -105,12 +105,15 @@ class Simulator(object):
         if self.worker_idx == 0:
             logging.info(f'Completed Latin-hypercube sampling.')
 
-        rshift_idx = self.free_params.raw_members.index('redshift')
+        members = self.free_params.raw_members
+        rshift_param = [m for m in members if 'redshift' in m][0]
+        assert rshift_param is not None
+        rshift_idx = members.index(rshift_param)
 
         # Shift normalised redshift parameter to lie within the desired range.
         # Note: we must have the redshift parameter in index 0
         self.hcube[:, rshift_idx] = utils.shift_redshift_theta(
-            self.hcube[:, rshift_idx], self.free_params.redshift,
+            self.hcube[:, rshift_idx], getattr(self.free_params, rshift_param),
             self.rshift_range
         )
 

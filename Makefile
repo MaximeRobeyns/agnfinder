@@ -47,6 +47,18 @@ ifndef SPS_HOME
 endif
 	@python agnfinder/simulation/simulation.py
 
+saveparams:
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python bin/to_hdf.py
+
+params: ## Parameter estimation (median and mode) for real world observations
+ifndef SPS_HOME
+		@source setup.sh
+endif
+	@python agnfinder/inference/parameter_estimation.py
+
 inf: ## To run the main inference code
 ifndef SPS_HOME
 		@source setup.sh

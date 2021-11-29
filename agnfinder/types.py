@@ -177,16 +177,24 @@ class OptionalValue(Optional):
 # Free Parameter Configuration ------------------------------------------------
 
 
+# default column order
 column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage', 'log_tau',
         'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass', 'inclination']
 
 
 class FreeParameters(ConfigClass):
 
-    def __init__(self, col_ord: list[str] = column_order):
+    def __init__(self):
+
+        if self.column_order is not None:
+            # not a particularly pretty pattern :(
+            # (If self.column_order is specified in config.py, then we use that
+            # globally.)
+            global column_order
+            column_order = self.column_order
 
         # This list provides the order for the physical parameters.
-        self.raw_members: list[str] = col_ord
+        self.raw_members: list[str] = column_order
 
         self.raw_params: paramspace_t = {}
 
@@ -206,40 +214,44 @@ class FreeParameters(ConfigClass):
         return len(self.raw_params)
 
     @property
-    def redshift(self) -> tuple[float, float]:
-        raise NotImplementedError
+    def column_order(self) -> typing.Optional[list[str]]:
+        return None
 
-    @property
-    def log_mass(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def redshift(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def log_agn_mass(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def log_mass(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def log_agn_torus_mass(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def log_agn_mass(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def dust2(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def log_agn_torus_mass(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def tage(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def dust2(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def log_tau(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def tage(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def agn_eb_v(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def log_tau(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
-    @property
-    def inclination(self) -> tuple[float, float]:
-        raise NotImplementedError
+    # @property
+    # def agn_eb_v(self) -> tuple[float, float]:
+    #     raise NotImplementedError
+
+    # @property
+    # def inclination(self) -> tuple[float, float]:
+    #     raise NotImplementedError
 
 
 # Feed-Forward MLP Architecture Description -----------------------------------

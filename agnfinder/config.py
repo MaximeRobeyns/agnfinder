@@ -53,7 +53,8 @@ from agnfinder.inference.utils import get_colours_length
 class FreeParams(FreeParameters):
     """Note: Keys prefixed by 'log_*' are exponentiated later"""
 
-    redshift: tuple[float, float] = (0., 6.)
+    # redshift: tuple[float, float] = (0., 6.)
+    log_redshift: tuple[float, float] = (0., 6.)
     # Mass of the galaxy
     log_mass: tuple[float, float] = (8, 12)
     # Brightness of the galaxy, from 10**-7 to 15
@@ -69,6 +70,11 @@ class FreeParams(FreeParameters):
     inclination: tuple[float, float] = (0., 90.)
 
 
+    column_order: list[str] = ['log_redshift', 'log_mass', 'dust2', 'tage',
+            'log_tau', 'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass',
+            'inclination']
+
+
 # =========================== Sampling Parameters =============================
 
 
@@ -80,9 +86,10 @@ class SamplingParams(ConfigClass):
     concurrency: int = 6  # set this to os.cpu_count() (or slightly less)
     redshift_min: float = 0.
     redshift_max: float = 6.
-    save_dir: str = './data/cubes/des_sample'
+    save_dir: str = './data/cubes/des_log_z_sample'
     noise: bool = False
     filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
+    shuffle: bool = True  # whether to shuffle final samples
 
 
 # ============================= CPz Parameters ================================

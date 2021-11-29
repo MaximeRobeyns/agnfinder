@@ -17,6 +17,5 @@
 
 # Exposes common encoders / decoders
 from .cvae import *
-
 from .made import CMADE
 from .san import SAN

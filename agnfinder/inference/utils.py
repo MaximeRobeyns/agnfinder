@@ -34,6 +34,10 @@ from agnfinder.types import Tensor, tensor_like, column_order
 class InMemoryGalaxyDataset(Dataset):
     """This dataloader loads one or more hdf5 files containing generated
     (theta, photometry) pairs into (system) memory simultaneously.
+
+    For larger cubes this can easily be several Gb; if system memory
+    requirements grow too large, then implement GalaxyDataset (below) to
+    incrementally load data from disk.
     """
 
     def __init__(self, path: str,

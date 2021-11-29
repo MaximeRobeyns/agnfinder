@@ -223,6 +223,16 @@ def join_partial_samples(sp: SamplingParams) -> None:
 
     [theta, theta_norm, phot, wlengths] = DS
 
+    assert len(theta) == len(theta_norm)
+    assert len(theta) == len(phot)
+
+    if sp.shuffle:
+        logging.info('Shuffling samples before saving')
+        perm = np.random.permutation(len(theta))
+        theta = theta[perm]
+        theta_norm = theta_norm[perm]
+        phot = phot[perm]
+
     with h5py.File(save_path, 'w') as f:
         grp = f.create_group('samples')
         ds_x = grp.create_dataset('theta', data=theta)
