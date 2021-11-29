@@ -54,7 +54,7 @@ class FreeParams(FreeParameters):
     """Note: Keys prefixed by 'log_*' are exponentiated later"""
 
     # redshift: tuple[float, float] = (0., 6.)
-    log_redshift: tuple[float, float] = (0., 6.)
+    redshift: tuple[float, float] = (0., 6.)
     # Mass of the galaxy
     log_mass: tuple[float, float] = (8, 12)
     # Brightness of the galaxy, from 10**-7 to 15
@@ -69,8 +69,7 @@ class FreeParams(FreeParameters):
     agn_eb_v: tuple[float, float] = (0., 0.5)
     inclination: tuple[float, float] = (0., 90.)
 
-
-    column_order: list[str] = ['log_redshift', 'log_mass', 'dust2', 'tage',
+    column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage',
             'log_tau', 'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass',
             'inclination']
 

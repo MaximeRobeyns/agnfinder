@@ -21,7 +21,6 @@ import random
 import logging
 import numpy as np
 import pandas as pd
-import torch as t
 
 from sedpy import observate
 from typing import Optional, Union
