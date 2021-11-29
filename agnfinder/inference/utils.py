@@ -286,9 +286,13 @@ def maggies_to_colours(x: Tensor) -> Tensor:
     Returns:
         Tensor: an [N, C] array, for C = N(N-1)/2, the number of colours.
     """
-    i = t.triu_indices(x.shape[-1]-1, x.shape[-1]-1)+1
-    mat = x[...,None].expand(*x.shape, x.shape[-1])
-    return mat[...,i[0],i[1]] - mat[...,i[1],i[0]]
+    tmp = x.transpose(-1,-2)-x
+    i = t.triu_indices(x.shape[-1], x.shape[-1], 1)
+    return tmp[...,i[0],i[1]].abs()
+
+    # i = t.triu_indices(x.shape[-1]-1, x.shape[-1]-1)+1
+    # mat = x[...,None].expand(*x.shape, x.shape[-1])
+    # return mat[...,i[0],i[1]] - mat[...,i[1],i[0]]
 
 
 def maggies_to_colours_np(x_np: np.ndarray) -> np.ndarray:

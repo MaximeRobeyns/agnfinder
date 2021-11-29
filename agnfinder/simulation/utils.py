@@ -34,25 +34,6 @@ from agnfinder.types import Tensor
 from agnfinder.config import FreeParams, SamplingParams
 
 
-def argparse_to_kwargs(args: argparse.Namespace) -> dict[str, Any]:
-    """Extracts parsed command line arguments as keyword arguments to pass to
-    Simulator constructor.
-
-    Args:
-        args: parsed command line arguments
-
-    Returns:
-        dict[str, Any]: kwargs for Simulator constructor.
-    """
-    return {
-        'n_samples': args.n_samples,
-        'save_dir': args.save_dir,
-        'filters': args.filters,
-        'emulate_ssp': args.emulate_ssp,
-        'noise': args.noise
-    }
-
-
 def get_unit_latin_hypercube(dims: int, n_samples: int) -> Tensor:
     """Generate latin hypercube.
 
