@@ -238,6 +238,11 @@ class SANParams(ModelParams):
         """Whether to use batch normalisation or not"""
         pass
 
+    @property
+    def opt_lr(self) -> float:
+        """Optimiser learning rate"""
+        return 1e-4
+
 
 # Main SAN Class ==============================================================
 
@@ -260,6 +265,7 @@ class SAN(Model):
 
         self.module_shape = mp.module_shape
         self.sequence_features = mp.sequence_features
+        self.lr = mp.opt_lr
 
         kwargs = {} if mp.likelihood_kwargs is None else mp.likelihood_kwargs
         self.likelihood: SAN_Likelihood = mp.likelihood(**kwargs)
@@ -284,7 +290,7 @@ class SAN(Model):
         # Size: [mini-batch, likelihood_params]
         self.last_params: Optional[Tensor] = None
 
-        self.opt = t.optim.Adam(self.parameters(), lr=1e-3)
+        self.opt = t.optim.Adam(self.parameters(), lr=self.lr)
 
         if mp.device == t.device('cuda'):
             self.to(mp.device, mp.dtype)
@@ -309,8 +315,8 @@ class SAN(Model):
             ms = '_'.join([str(l) for l in s])
             name = (f'l{self.likelihood.name}_cd{self.cond_dim}'
                     f'_dd{self.data_dim}_ms{ms}_'
-                    f'lp{self.likelihood.n_params()}_bn{self.batch_norm}'
-                    f'_e{self.epochs}_bs{self.batch_size}')
+                    f'lp{self.likelihood.n_params()}_bn{self.batch_norm}_'
+                    f'lr{self.lr}_e{self.epochs}_bs{self.batch_size}')
             if self.overwrite_results:
                 self.savepath_cached = f'{base}{name}{ident}.pt'
             else:
@@ -348,7 +354,8 @@ class SAN(Model):
         for i, (j, k) in enumerate(zip(hs[:-1], hs[1:])):
             block.add_module(name=f'B{d}L{i}', module=nn.Linear(j, k))
             if self.batch_norm:
-                block.add_module(name=f'B{d}BN{i}', module=nn.BatchNorm1d(k))
+                # add affine=False to bn?
+                block.add_module(name=f'B{d}BN{i}', module=nn.BatchNorm1d(k, affine=False))
             block.add_module(name=f'B{d}A{i}', module=nn.ReLU())
         block.to(self.device, self.dtype)
 
@@ -379,6 +386,7 @@ class SAN(Model):
                 dimension's (univariate) distribution of size
                 [mini-batch, lparams]; giving p(y | x)
         """
+        assert x.dim() == 2, "Can only run SAN on two dimensional inputs"
 
         # batch size
         B = x.size(0)
@@ -427,7 +435,7 @@ class SAN(Model):
 
                 # The following implicitly updates self.last_params, and
                 # returns y_hat (a sapmle from p(y | x))
-                _ = self.forward(x)
+                r = self.forward(x)
                 assert (self.last_params is not None)
 
                 # Minimise the NLL of true ys using training parameters
@@ -447,12 +455,14 @@ class SAN(Model):
                                 loss.item()))
             self.checkpoint(ip.ident)
 
-    def sample(self, x: tensor_like, n_samples = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: tensor_like, n_samples: int = 1000, errs: Optional[tensor_like] = None,
+               *args, **kwargs) -> Tensor:
         """A convenience method for drawing (conditional) samples from p(y | x)
         for a single conditioning point.
 
         Args:
-            cond_data: the conditioning data; x
+            x: the conditioning data; x
+            errs: observation uncertainty in x (optional; only for 'real' observations)
             n_samples: the number of samples to draw
             kwargs: any additional model-specific arguments
 
@@ -461,11 +471,24 @@ class SAN(Model):
         """
 
         if isinstance(x, np.ndarray):
-            x = t.Tensor(x)
+            x = t.from_numpy(x)
+        x, _ = self.preprocess(x, t.empty(x.shape))
 
         x = x.unsqueeze(0) if x.dim() == 1 else x
-        x, _ = self.preprocess(x, t.empty(x.shape))
-        return self.forward(x.repeat_interleave(n_samples, 0))
+        assert x.dim() == 2, ""
+        n, d = x.shape
+
+        if errs is not None:
+            if isinstance(errs, np.ndarray):
+                errs = t.from_numpy(errs)
+            errs = errs.unsqueeze(0) if errs.dim() == 1 else errs
+            x = t.distributions.Normal(x, errs).sample((n_samples,)).reshape(-1, d)
+        else:
+            x = x.repeat_interleave(n_samples, 0)
+
+        assert x.shape == (n * n_samples, d)
+
+        return self.forward(x)
 
 
 if __name__ == '__main__':

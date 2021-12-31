@@ -29,8 +29,6 @@ def _create_test_sim() -> tuple[Simulator, SamplingParams]:
     sp = SamplingParams()
     sp.concurrency = 1
     sp.n_samples = 1000
-    sp.redshift_min = 0.
-    sp.redshift_max = 4.
     sp.save_dir = './data/testdata'
     sp.noise = False
     sp.filters = Filters.Euclid

@@ -153,8 +153,9 @@ Writing Documentation
 The documentation for this project is written in `sphinx
 <https://www.sphinx-doc.org/en/master/>`_, inside a Docker container.
 
-To write documentation, begin by ensuring that you have docker installed. You
-can either install docker manually by following the `instructions
+To write documentation, begin by ensuring that you have docker (or some other
+`OCI <https://opencontainers.org/>`_ container runtime) installed. You can
+either install docker manually by following the `instructions
 <https://docs.docker.com/get-docker/>`_ on their site, or by running the
 following::
 

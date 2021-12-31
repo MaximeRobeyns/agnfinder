@@ -217,41 +217,41 @@ class FreeParameters(ConfigClass):
     def column_order(self) -> typing.Optional[list[str]]:
         return None
 
-    # @property
-    # def redshift(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def redshift(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def log_mass(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def log_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def log_agn_mass(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def log_agn_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def log_agn_torus_mass(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def log_agn_torus_mass(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def dust2(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def dust2(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def tage(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def tage(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def log_tau(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def log_tau(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def agn_eb_v(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def agn_eb_v(self) -> tuple[float, float]:
+        raise NotImplementedError
 
-    # @property
-    # def inclination(self) -> tuple[float, float]:
-    #     raise NotImplementedError
+    @property
+    def inclination(self) -> tuple[float, float]:
+        raise NotImplementedError
 
 
 # Feed-Forward MLP Architecture Description -----------------------------------

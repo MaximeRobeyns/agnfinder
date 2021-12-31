@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
     "sphinx.ext.autosummary",
+    "sphinx.ext.autosectionlabel",
 ]
 
 autoclass_content = 'both'

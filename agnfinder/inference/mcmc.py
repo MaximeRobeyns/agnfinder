@@ -38,7 +38,7 @@ from agnfinder.prospector import Prospector
 from agnfinder.simulation.utils import normalise_theta
 from agnfinder.types import Filters, prun_params_t, \
                             column_order, EMCEE, Dynesty
-from agnfinder.prospector.load_photometry import load_galaxy
+from agnfinder.prospector.load_photometry import load_galaxy, sample_galaxies
 from agnfinder.inference.inference import Model, InferenceParams
 from agnfinder.inference.mcmc_util import MCMCParams
 
@@ -89,7 +89,7 @@ class MCMC(Model):
                    *args, **kwargs) -> None:
         raise AttributeError("MCMC doesn't support `trainmodel`")
 
-    def sample(self, x: tensor_like, n_samples: int = 1000, *args, **kwargs) -> Tensor:
+    def sample(self, x: tensor_like, n_samples: Optional[int] = None, *args, **kwargs) -> Tensor:
 
         # Since we need to retain the column names, we require either a structured
         # numpy array, or better still, the original pd.Series
@@ -124,11 +124,12 @@ class MCMC(Model):
 
     def _mcmc_galaxy(self, p: Prospector, n_samples: Optional[int] = None
                     ) -> np.ndarray:
-        logging.info((
-            f'Running EMCEE with walkers: {self.ep.nwalkers}, iterations: '
-            f'{self.ep.niter}, burn-in: {self.ep.nburn}'))
 
         samples = self.ep.niter if n_samples is None else n_samples
+
+        logging.info((
+            f'Running EMCEE with walkers: {self.ep.nwalkers}, iterations: '
+            f'{samples}, burn-in: {self.ep.nburn}'))
 
         run_params: prun_params_t = p.run_params | {
             'emcee': True,
@@ -172,23 +173,38 @@ class MCMC(Model):
     def _save_samples(self, samples: np.ndarray):
         raise NotImplementedError("TODO: implement saving MCMC samples to disk.")
 
+
+def work_func(idx: int, x: pd.Series):
+    logging.info(f'Starting sampling for galaxy {idx}')
+    mcmc = MCMC(cfg.MCMCParams())
+    samples = mcmc.sample(x)
+    # TODO put in _save_samples
+    t.save(samples, f'./results/mcmc/samples/mcmc_samples_{idx}.pt')
+    logging.info(f'Saved samples for galaxy {idx}')
+
+
 if __name__ == '__main__':
     cfg.configure_logging()
 
     ip = cfg.InferenceParams()
     mcmcp = cfg.MCMCParams()
 
-    mcmc = MCMC(mcmcp)
+    # Draw samples from mcmcp.n_galaxies random galaxies from the survey.
+    gs = sample_galaxies(ip.catalogue_loc, ip.filters, mcmcp.n_galaxies)
+    args: list[tuple[int, pd.Series]] = \
+        [(int(gs.index[i]), gs.iloc[i]) for i in range(len(gs))]
 
-    logging.info('Successfully initialised mcmc class')
+    with Pool(mcmcp.concurrency) as pool:
+        pool.starmap(work_func, args)
+    logging.info('Completed MCMC Sampling')
 
-    # optionally provide an index for a specific galaxy.
-    # index = 0
-    index = None
+    # # optionally provide an index for a specific galaxy.
+    # # index = 0
+    # index = None
 
-    # catalogue: pd.DataFrame = load_catalogue(ip.catalogue_loc, Filters.DES)
-    galaxy, idx = load_galaxy(ip.catalogue_loc, Filters.DES, index)
-    samples = mcmc.sample(galaxy, 10000)
-    print(samples)
+    # # catalogue: pd.DataFrame = load_catalogue(ip.catalogue_loc, Filters.DES)
+    # galaxy, idx = load_galaxy(ip.catalogue_loc, Filters.DES, index)
+    # samples = mcmc.sample(galaxy, 10000)
+    # print(samples)
 
-    logging.info('MCMC sampling')
+    # logging.info('MCMC sampling')

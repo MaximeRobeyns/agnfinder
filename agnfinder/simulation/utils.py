@@ -168,8 +168,8 @@ def join_partial_samples(sp: SamplingParams) -> None:
     """
     fp = FreeParams()
 
-    zmin_str = f'{sp.redshift_min:.4f}'.replace('.', 'p')
-    zmax_str = f'{sp.redshift_max:.4f}'.replace('.', 'p')
+    zmin_str = f'{fp.redshift[0]:.4f}'.replace('.', 'p')
+    zmax_str = f'{fp.redshift[1]:.4f}'.replace('.', 'p')
     save_name = 'photometry_simulation_{}n_z_{}_to_{}.hdf5'.format(
         sp.n_samples, zmin_str, zmax_str
     )

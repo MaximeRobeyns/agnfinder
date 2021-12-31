@@ -275,10 +275,19 @@ def normalise_phot_np(x: np.ndarray) -> np.ndarray:
     return x_log / mags[:,None]
 
 
+def whiten_phot_np(X: np.ndarray, eps=1e-14) -> np.ndarray:
+    """PCA whitening"""
+    cov = np.dot(X.T, X)
+    d, V = np.linalg.eigh(cov)
+    D = np.diag(1. / np.sqrt(d+eps))
+    W = np.dot(np.dot(V, D), V.T)
+    return np.dot(X, W)
+
+
 def maggies_to_colours(x: Tensor) -> Tensor:
     """Compute the 'colours' from maggies [f₁, f₂, …, fₙ]:
 
-        {(fᵢ - fⱼ) | i, j ∈ {1, …, N}, i < j}
+        {(fᵢ / fⱼ) | i, j ∈ {1, …, N}, i < j}
 
     Args:
         x: Matrix of N input points [N, D]; D filters per row
@@ -286,9 +295,9 @@ def maggies_to_colours(x: Tensor) -> Tensor:
     Returns:
         Tensor: an [N, C] array, for C = N(N-1)/2, the number of colours.
     """
-    tmp = x.unsqueeze(-1).transpose(-1,-2)-x.unsqueeze(-1)
+    tmp = x.unsqueeze(-1).transpose(-1,-2)/x.unsqueeze(-1)
     i = t.triu_indices(x.shape[-1], x.shape[-1], 1)
-    return tmp[...,i[0],i[1]].abs()
+    return tmp[...,i[0],i[1]] # .abs()
 
     # i = t.triu_indices(x.shape[-1]-1, x.shape[-1]-1)+1
     # mat = x[...,None].expand(*x.shape, x.shape[-1])

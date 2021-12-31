@@ -17,18 +17,21 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 """Loads filters and other data."""
 
+import os
 import random
 import logging
+import torch as t
 import numpy as np
 import pandas as pd
 
 from sedpy import observate
-from typing import Optional, Union
+from typing import Optional, Union, Any, Callable
 from astropy.io import fits
+from torch.utils.data import Dataset, DataLoader, random_split
 
 from . import columns
 
-from agnfinder.types import FilterSet, Filters
+from agnfinder.types import FilterSet, Filters, Tensor, tensor_like
 
 
 class Filter(object):
@@ -251,6 +254,141 @@ def load_catalogue(catalogue_loc: str, filters: FilterSet,
         return df_with_spectral_z
 
 
+class GalaxyDataset(Dataset):
+
+    def __init__(self, path: str, filters: FilterSet,
+                 transforms: list[Callable[[Any], Any]] = [],
+                 x_transforms: list[Callable[[Any], Any]] = [],
+                 y_transforms: list[Callable[[Any], Any]] = []) -> None:
+        """PyTorch Dataset for galaxy observations.
+
+        Args:
+            path: either the path of a hdf5 / fits file containing catalogue.
+            filters: filters to use with this dataset
+            transforms: any transformations to apply to the data now
+            x_transforms: photometry specific transforms
+            y_transforms: parameter specific transforms
+        """
+
+        self.transforms = transforms
+        self.x_transforms = x_transforms
+        self.y_transforms = y_transforms
+
+        xs, ys = self._get_x_y_from_file(path, filters)
+
+        # eagerly compute transformations (rather than during __getitem__)
+        for xtr in self.x_transforms:
+            xs = xtr(xs)
+        for ytr in self.y_transforms:
+            ys = ytr(ys)
+
+        self._x_dim, self._y_dim = xs.shape[-1], ys.shape[-1]
+        self.dataset = np.concatenate((xs, ys), -1)
+        logging.info('Galaxy dataset loaded')
+
+    def _get_x_y_from_file(self, path: str, filters: FilterSet
+                           ) -> tuple[np.ndarray, np.ndarray]:
+        assert os.path.exists(path)
+
+        df = load_catalogue(path, filters=filters, compute_maggies_cols=True)
+        assert df is not None
+
+        fs = get_filters(filters)
+        xs_cols = [f.maggie_col for f in fs]
+        ys_col = ['redshift']
+
+        xs, ys = df[xs_cols].to_numpy(), df[ys_col].to_numpy()
+
+        return xs, ys
+
+    def get_xs(self) -> Any:
+        """Just return all the xs (photometric observations) in the dataset"""
+        xs = self.dataset[:, :self._x_dim]
+        for tr in self.transforms:
+            xs = tr(xs)
+        return xs.squeeze()
+
+    def get_ys(self) -> Any:
+        """Return all the y values in the dataset"""
+        ys = self.dataset[:, self._x_dim:]
+        for tr in self.transforms:
+            ys = tr(ys)
+        return ys
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, idx: Union[int, list[int], Tensor]) -> tuple[
+            tensor_like, tensor_like]:
+
+        if isinstance(idx, Tensor):
+            idx = idx.to(dtype=t.int).tolist()
+
+        data = self.dataset[idx]
+        if data.ndim == 1:
+            data = np.expand_dims(data, 0)
+        xs, ys = data[:, :self._x_dim], data[:, self._x_dim:]
+
+        for tr in self.transforms:
+            xs, ys = tr(xs).squeeze(), tr(ys).squeeze()
+
+        # if ys.dim() < 2:
+        #     ys = ys.unsqueeze(-1)
+
+        return xs, ys
+
+
+def load_real_data(
+        path: str, filters: FilterSet, split_ratio: float=0.8,
+        batch_size: int=32, test_batch_size: Optional[int]=None,
+        transforms: list[Callable[[Any], Any]] = [t.from_numpy],
+        x_transforms: list[Callable[[Any], Any]] = [],
+        y_transforms: list[Callable[[Any], Any]] = [],
+        split_seed: int = 0
+        ) -> tuple[DataLoader, DataLoader]:
+    """Load real data as PyTorch DataLoaders.
+
+    Since we only usually have access to the redshift parameter and not any
+    other physical parameters, the xs are the photometric observations, and the
+    ys are just the redshift values.
+
+    Args:
+        path: file path to the .fits / .hdf5 file containing simulated data
+        filters: filters used in the catalogue (used to infer required columns)
+        split_ratio: train / test split ratio
+        batch_size: training batch size (default 32)
+        test_batch_size: optional different batch size for testing (defaults to
+            `batch_size`)
+        transforms: list of transformations to apply to data before returning
+        x_transforms: any photometry specific transformations
+        y_transforms: any parameter specific transformations
+        split_seed: PyTorch Generator Seed for reproducible train/test splits.
+
+    Returns:
+        tuple[DataLoader, DataLoader]: train and test DataLoaders, respectively
+    """
+    tbatch_size = test_batch_size if test_batch_size is not None else batch_size
+
+    cuda_kwargs = {'num_workers': 8, 'pin_memory': True}
+    train_kwargs: dict[str, Any] = {
+        'batch_size': batch_size, 'shuffle': True} | cuda_kwargs
+    test_kwargs: dict[str, Any] = {
+        'batch_size': tbatch_size, 'shuffle': True} | cuda_kwargs
+
+    dataset = GalaxyDataset(path, filters, transforms, x_transforms, y_transforms)
+
+    n_train = int(len(dataset) * split_ratio)
+    n_test = len(dataset) - n_train
+
+    rng = t.Generator().manual_seed(split_seed)
+    train_set, test_set = random_split(dataset, [n_train, n_test], rng)
+
+    train_loader = DataLoader(train_set, **train_kwargs)
+    test_loader = DataLoader(test_set, **test_kwargs)
+
+    return train_loader, test_loader
+
+
 def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
                 index: Optional[int] = None, forest_class: Optional[str] = None,
                 spectro_class: Optional[str] = None,
@@ -258,7 +396,7 @@ def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
     """Load a galaxy from a catalogue of real-world observations.
 
     Args:
-        catalogue_loc: the filepath to the .fits, .csv or .parquer file
+        catalogue_loc: the filepath to the .fits, .csv or .parquet file
         filters: the filters used in the survey
         index: the optional index of the galaxy to return. If omitted, index is
             random
@@ -288,6 +426,33 @@ def load_galaxy(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
     df_series = add_maggies_cols(df.iloc[index], filters)
     assert isinstance(df_series, pd.Series)
     return df_series, index
+
+
+def sample_galaxies(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
+                    n_samples: int = 1000, has_redshift: bool = True
+                    ) -> Union[pd.Series, pd.DataFrame]:
+    """Load a random sample of galaxies from a catalogue of real-world observations.
+
+    Args:
+        catalogue_loc: the filepath to the .fits, .csv or .parquet file
+            containing the observations.
+        filters: the filters used in the survey
+        n_samples: the number of galaxies to return.
+        has_redshift: only return galaxies with the redshift parameter present
+            (default True)
+
+    Returns:
+        np.ndarray: an n_samples x data_dim array of observations.
+    """
+    df = load_catalogue(catalogue_loc, filters=filters, compute_maggies_cols=False)
+    assert df is not None
+    if has_redshift:
+        df = df.loc[df.redshift >= 0]
+    df.reset_index(drop=True)
+    idxs = np.random.choice(len(df), n_samples, replace=False)
+    df_series = add_maggies_cols(df.iloc[idxs], filters)
+    assert isinstance(df_series, pd.DataFrame) or isinstance(df_series, pd.Series)
+    return df_series
 
 
 def filter_has_valid_data(f: Filter, galaxy: pd.Series) -> bool:

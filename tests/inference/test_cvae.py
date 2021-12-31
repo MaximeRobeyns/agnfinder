@@ -30,11 +30,13 @@ import pytest
 import torch as t
 import torch.nn as nn
 
+from typing import Type, Optional
+
 import agnfinder.inference as inf
 
 from agnfinder.types import arch_t, Tensor
 from agnfinder.inference import utils
-from agnfinder.inference.cvae import CVAE, CVAEParams
+from agnfinder.inference.cvae import CVAE, CVAEParams, CVAEPrior, CVAEEnc, CVAEDec
 from agnfinder.inference.inference import InferenceParams
 
 
@@ -42,30 +44,32 @@ from agnfinder.inference.inference import InferenceParams
 
 
 class MNIST_img_params(CVAEParams):
-    cond_dim = 10  # x; dimension of one-hot labels
-    data_dim = 28*28  # y; size of MNIST image
-    latent_dim = 2  # z
+    cond_dim: int = 10  # x; dimension of one-hot labels
+    data_dim: int = 28*28  # y; size of MNIST image
+    latent_dim: int = 2  # z
 
-    adam_lr = 1e-3
-    batch_size = 128
-    dtype = t.float64
-    epochs = 1
+    adam_lr: float = 1e-3
+    batch_size: float = 128
+    dtype: t.dtype = t.float64
+    epochs: int = 1
 
-    prior = inf.StandardGaussianPrior
-    prior_arch = None
+    prior: Type[CVAEPrior] = inf.StandardGaussianPrior
+    prior_arch: Optional[arch_t] = None
 
-    encoder = inf.FactorisedGaussianEncoder
-    enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
-                      nn.ReLU())
+    encoder: Type[CVAEEnc] = inf.FactorisedGaussianEncoder
+    enc_arch: arch_t = arch_t([data_dim + cond_dim, 256],
+                              [latent_dim, latent_dim],
+                              nn.ReLU())
 
-    decoder = inf.FactorisedGaussianDecoder
-    dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim, data_dim],
-                      nn.ReLU(), [nn.Sigmoid(), nn.ReLU()])
+    decoder: Type[CVAEDec] = inf.FactorisedGaussianDecoder
+    dec_arch: arch_t = arch_t([latent_dim + cond_dim, 256],
+                              [data_dim, data_dim],
+                              nn.ReLU(), [nn.Sigmoid(), nn.ReLU()])
 
 
 class MNIST_img_cvae(CVAE):
 
-    def fpath(self) -> str:
+    def fpath(self, ident: str='') -> str:
         return 'results/testresults/mnist_img_cvae.pt'
 
     def preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]:
@@ -80,25 +84,27 @@ class MNIST_img_cvae(CVAE):
 
 
 class MNIST_label_params(CVAEParams):
-    cond_dim = 28*28  # x; dimension of MNIST image pixel data
-    data_dim = 10  # y; size of one-hot encoded digit labels
-    latent_dim = 2  # z
+    cond_dim: int = 28*28  # x; dimension of MNIST image pixel data
+    data_dim: int = 10  # y; size of one-hot encoded digit labels
+    latent_dim: int = 2  # z
 
-    adam_lr = 1e-3
-    batch_size = 128
-    dtype = t.float64
-    epochs = 1
+    adam_lr: float = 1e-3
+    batch_size: int = 128
+    dtype: t.dtype = t.float64
+    epochs: int = 1
 
-    prior = inf.StandardGaussianPrior
-    prior_arch = None
+    prior: Type[CVAEPrior] = inf.StandardGaussianPrior
+    prior_arch: Optional[arch_t] = None
 
-    encoder = inf.FactorisedGaussianEncoder
-    enc_arch = arch_t([data_dim + cond_dim, 256], [latent_dim, latent_dim],
-                       nn.ReLU())
+    encoder: Type[CVAEEnc] = inf.FactorisedGaussianEncoder
+    enc_arch: arch_t = arch_t([data_dim + cond_dim, 256],
+                              [latent_dim, latent_dim],
+                              nn.ReLU())
 
-    decoder = inf.MultinomialDecoder
-    dec_arch = arch_t([latent_dim + cond_dim, 256], [data_dim],
-                       nn.ReLU(), [nn.Softmax(dim=1)])
+    decoder: Type[CVAEDec] = inf.MultinomialDecoder
+    dec_arch: arch_t = arch_t([latent_dim + cond_dim, 256], [data_dim],
+                              nn.ReLU(), [nn.Softmax(dim=1)])
+
 
 class MNIST_label_cvae(CVAE):
 

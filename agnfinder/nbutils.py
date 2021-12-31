@@ -28,14 +28,15 @@ import torch as t
 import numpy as np
 import matplotlib.pyplot as plt
 
-from typing import Optional, Any, Sized
+from typing import Optional, Any, Sized, Union
 from torch.utils.data import DataLoader, Dataset, random_split, Subset
 
 from agnfinder.types import Tensor, column_order
 from agnfinder.inference.cvae import CVAE
 
 
-def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
+def plot_corner(samples: Union[np.ndarray, list[np.ndarray]],
+                true_params: Optional[list[float]] = None,
                 lims: Optional[np.ndarray] = None, labels: list[str] = column_order,
                 title: str = "", description: str = ""):
     """Create a corner plot.
@@ -66,18 +67,29 @@ def plot_corner(samples: np.ndarray, true_params: Optional[list[float]] = None,
         kwargs['truth_color'] = '#F5274D'
     kwargs['labels'] = labels
     kwargs['label_kwargs'] = {'fontsize': 12, 'fontweight': 'normal'}
-    kwargs['color'] = '#0A1929'
+
+    colours = ["#025159", "#F28705", "#03A696", "#F25D27", "#F20505"]
 
     # D = 16
     # kwargs['fig'] = plt.figure(figsize=(D,D), dpi=300)
     if lims is not None:
         kwargs['range'] = lims
 
-    fig = corner.corner(samples, **kwargs)
+    if isinstance(samples, list):
+        kwargs['color'] = colours[0]
+        fig = corner.corner(samples[0], **kwargs)
+        for i in range(1, len(samples)):
+            kwargs['color'] = colours[i]
+            corner.corner(samples[i], fig=fig, **kwargs)
+    else:
+        kwargs['color'] = '#0A1929'
+        fig = corner.corner(samples, **kwargs)
+
     fig.text(0.05, 1.03, s=title, fontfamily='sans-serif',
              fontweight='demibold', fontsize=25)
     fig.text(0.05, 1.005, s=description, fontfamily='sans-serif',
              fontweight='normal', fontsize=14)
+    fig.patch.set_facecolor('white')
 
     log.setLevel(l)
 
@@ -168,8 +180,8 @@ def new_sample(dloader: DataLoader, n: int = 1) -> tuple[Tensor, Tensor]:
     xs, ys = [], []
     for i in rand_idxs:
         tmp_xs, tmp_ys = dset.__getitem__(i)
-        xs.append(tmp_xs[None,:])
-        ys.append(tmp_ys[None,:])
+        xs.append(tmp_xs.unsqueeze(0))
+        ys.append(tmp_ys.unsqueeze(0))
     return t.cat(xs, 0).squeeze(), t.cat(ys, 0).squeeze()
 
 

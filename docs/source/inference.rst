@@ -58,7 +58,11 @@ in ``agnfinder/inference/inference.py``).
    :param int logging_frequency: How often (in iterations) to output logs during training.
    :param str dataset_loc: Path to a ``hdf5`` file or directory of ``hdf5`` files.
    :param bool retrain_model: Whether to re-train an identically configured model.
+   :param bool use_existing_checkpoints: Whether to pick-up training from any existing model checkpoints or start from scratch.
    :param bool overwrite_results: Whether to overwrite results from identical model.
+   :param str ident: An optional string to identify a specific training run when saved to disk.
+   :param str catalogue_loc: Catalogue of (real) observations (for **prediction**)
+   :param FilterSet filters: Used for loading catalogue of real observations (for **prediction**)
 
    :Example:
 
@@ -69,6 +73,11 @@ in ``agnfinder/inference/inference.py``).
        ...     dataset_loc: str = './data/cubes/photometry_simulation.hdf5'
        ...     retrain_model: bool = True
        ...     overwrite_results: bool = False
+       ...     ident: str = 'an_informative_identifier'
+       ...
+       ...     # Prediction:
+       ...     catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
+       ...     filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
 Most argument names along with their corresponding type should be self-explanatory.
 
@@ -89,12 +98,22 @@ what to do when saving the resulting model---if set to ``True``, then the
 previously saved model will be overwritten. If set to ``False``, then a number
 is appended to the current model's name to make it unique.
 
+Since a number is not particularly informative, you can also set a unique and
+ideally informative identifier using the ``ident`` field to differentiate models
+which might have identical parameters (e.g. trained on different datasets etc.).
+
+When we want to use a (trained) model to predict galaxy parameters (e.g. median
+or mode), we can specify the catalogue of galaxy observations that we would like
+to run the model on using the ``catalogue_loc`` parameter. In order to load this
+successfully, you must also specify the ``filters`` used.
+
+
 Model Parameters
 ~~~~~~~~~~~~~~~~
 
-While each model has slightly different requirements for its parameterisation
-(for instance, the its architecture must be specified), there are some common
-parameters which are shared across all models in the codebase.
+In general, each different model will have a number of parameters which are
+unique to it. However, there are some common parameters which are shared across
+all the models in the codebase.
 
 To reflect this, model parameters inherit a base :class:`ModelParams` class, which
 specifies things such as the datatype, device memory to use and so forth.
@@ -158,10 +177,15 @@ You can now initialise a model by passing the initialised model parameters to
 your model's constructor. Finally the ``trainmodel`` method can be called to
 run the training procedure.
 
-Note that models are automatically saved to disk after a training run. If you
-are re-training an identical parametrised model, the code will first attempt to
-load an existing saved model before falling back to running the training
-procedure.
+During training, models will save checkpoints after every epoch. This means that
+you can interrupt training at any time, and only lose the progress made during
+the current checkpoint. You can also later check for overfitting by loading the
+model state from an earlier point during training.
+
+The checkpoints are saved in a directory with the same name as the final model
+results; which is saved with an additional ``.py`` extension. If you are
+re-training an identical parametrised model, the code will first attempt to load
+an existing saved model before falling back to running the training procedure.
 
 The following is a full example, using the `SAN <san_inference.html>`_ model::
 
@@ -180,9 +204,7 @@ The following is a full example, using the `SAN <san_inference.html>`_ model::
         split_ratio=ip.split_ratio,
         batch_size=sp.batch_size,
         normalise_phot=utils.normalise_phot_np,
-        transforms=[
-            transforms.ToTensor()
-        ])
+        transforms=[transforms.ToTensor()])
     logging.info('Created data loaders')
 
     # Initialise the model
@@ -207,7 +229,7 @@ benefit of users), and that common code is not duplicated between models (to the
 benefit of developers), all the models implemented in the codebase inherit from
 an abstract :class:`Model` class (found in ``agnfinder/inference/inference.py:Model``).
 
-Put simply, to create a new model, inherit the :class:`Model` class and ensure that
+To create a new model, inherit the :class:`Model` class and ensure that
 you have implemented all the abstract properties and methods.
 
 The following shows the constructor, and abstract methods of the :class:`Model`
@@ -240,8 +262,8 @@ class.
 
    .. py:method:: preprocess(self, x: Tensor, y: Tensor) -> tuple[Tensor, Tensor]
 
-        :param Tensor x: The input (usually photometric observations)
-        :param Tensor y: The output (usually physical galaxy parameters)
+        :param Tensor x: The inputs (usually photometric observations)
+        :param Tensor y: The targets (usually physical galaxy parameters)
         :returns: The pre-processed parameters (e.g. cast to a specific data type, re-ordered or placed on a specific device's memory.)
 
 
@@ -250,7 +272,8 @@ class.
         :param DataLoader train_loader: The PyTorch DataLoader containing the training data.
         :param InferenceParams ip: Inference parameters containing details of the training procedure.
 
-        Note that any additional model-specific arguments can also be provided.
+        Note that any additional model-specific arguments can also be provided
+        using the ``*args`` and ``**kwargs``.
 
         This method has a decorator applied in the superclass (which is
         inherited by all sub-classes) which takes care of saving the trained
@@ -272,3 +295,26 @@ class.
         This is the only function pertaining to the actual use of the models
         which is required to be consistent across models. Individual models may
         provide different methods to use them.
+
+
+Estimating Parameters
+~~~~~~~~~~~~~~~~~~~~~
+
+The final stage is to estimate (statistics of) the parameters for real
+observations. For example, we might be interested in the (principle) mode and
+median of a parameter's distribution.
+
+The code for doing this is in ``agnfinder/inference/parameter_estimation.py``.
+This will use the model specified in ``InferenceParams.model``, and that model's
+corresponding configuration as defined in ``config.py``.
+
+
+You can run this with ``make params``.
+
+
+
+
+
+
+
+

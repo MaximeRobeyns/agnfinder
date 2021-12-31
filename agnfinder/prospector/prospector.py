@@ -42,6 +42,7 @@ class Prospector(object):
         """
         logging.debug('initialising prospector class')
 
+        # TODO try to remove these
         self.obs = cpz_builders.build_cpz_obs(filter_selection, galaxy)
         logging.debug(f'Created obs dict: {self.obs}')
 

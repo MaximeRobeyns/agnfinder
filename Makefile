@@ -17,7 +17,7 @@
 
 SHELL := bash
 .ONESHELL:
-.SHELLFLAGS := -eu -o pipefail -c
+# .SHELLFLAGS := -eu -o pipefail -c
 .DELETE_ON_ERROR:
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
@@ -42,70 +42,52 @@ endif
 default: test
 
 sim: ## To run the main sampling / simulation program
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/simulation/simulation.py
 
 saveparams:
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python bin/to_hdf.py
 
 params: ## Parameter estimation (median and mode) for real world observations
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/parameter_estimation.py
 
 inf: ## To run the main inference code
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/inference.py
 
 made: ## To run the MADE inference code specifically
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/made.py
 
 san: ## To run the SAN inference code specifically
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/san.py
 
 mcmc: ## To run the MCMC inference code specifically
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/mcmc.py
 
 
 cvae: ## To run the CVAE inference code specifically
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python agnfinder/inference/cvae.py
 
 mypy: ## To run mypy only (this is usually done with test / alltest)
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@mypy
 
+santest:  ## To run only the tests relating to the SAN model
+	@source setup.sh
+	@python -m pytest -k test_san tests
+
 test: mypy  ## To run the program's fast tests (e.g. to verify an installation)
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python -m pytest -s tests
 
 alltest: mypy ## To run all the program's tests (including slow running ones)
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python -m pytest tests --runslow
 
 docs: ## To compile the documentation (requires Docker)
@@ -121,22 +103,16 @@ install: ./data/clumpy_models_201410_tvavg.hdf5 ## To install everything (warnin
 	@./bin/install_with_venv.sh $(PYTHON)
 
 qt: ## To re-create the quasar templates (quasar and torus models)
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	@python ./agnfinder/quasar_templates.py
 
 kernel:  ## To setup a Jupyter kernel to run notebooks in AGNFinder virtual env
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	python -m ipykernel install --user --name agnvenv \
 		--display-name "agnvenv (Python 3.9)"
 
 lab: ## To start a Jupyter Lab server
-ifndef SPS_HOME
-		@source setup.sh
-endif
+	@source setup.sh
 	jupyter lab --notebook-dir=. --ip=0.0.0.0 # --collaborative --no-browser
 
 help:

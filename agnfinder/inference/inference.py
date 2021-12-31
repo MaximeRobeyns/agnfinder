@@ -30,7 +30,6 @@ from torch.utils.data import DataLoader
 from agnfinder import config as cfg
 from agnfinder.types import Tensor, tensor_like
 from agnfinder.utils import ConfigClass
-from agnfinder.inference import utils
 
 
 # Abstract inference parameters ------------------------------------------------
@@ -397,6 +396,7 @@ if __name__ == '__main__':
     load from disk, as appropriate), then draw samples for a galaxy, outputting
     the plot in the results directory.
     """
+    from agnfinder.inference import utils
 
     cfg.configure_logging()
 

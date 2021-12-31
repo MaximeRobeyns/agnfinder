@@ -27,14 +27,13 @@ from typing import Type, Any
 from multiprocessing import Pool, cpu_count
 
 from agnfinder import config as cfg
-from agnfinder.types import Tensor
 from agnfinder.types import Filters, FilterSet, column_order
 from agnfinder.prospector.load_photometry import load_catalogue, get_filters
 from agnfinder.simulation.utils import denormalise_theta
 
 from agnfinder.inference import san
 from agnfinder.inference.inference import InferenceParams, model_t
-from agnfinder.inference import utils, SAN
+from agnfinder.inference import utils, SAN, MADE, CVAE
 
 
 if __name__ == '__main__':
@@ -43,39 +42,51 @@ if __name__ == '__main__':
     """
     cfg.configure_logging()
 
+    ip = cfg.InferenceParams()
+    if ip.model == SAN:
+        mp = cfg.SANParams()
+    elif ip.model == MADE:
+        mp = cfg.MADEParams()
+    elif ip.model == CVAE:
+        mp = cfg.CVAEParams()
+    else:
+        raise ValueError(f'Unrecognized model {ip.model}')
+
+    model = ip.model(mp)
+
     # local configurations for reference
-    class IP(InferenceParams):
-        model: model_t = SAN
-        logging_frequency: int = 10000
-        dataset_loc: str = './data/cubes/des_sample/photometry_simulation_40000000n_z_0p0000_to_6p0000.hdf5'
-        retrain_model: bool = False
-        use_existing_checkpoints: bool = True
-        overwrite_results: bool = True
-        ident: str = 'unit_norm'
+    # class IP(InferenceParams):
+    #     model: model_t = SAN
+    #     logging_frequency: int = 10000
+    #     dataset_loc: str = './data/cubes/des_sample/photometry_simulation_40000000n_z_0p0000_to_6p0000.hdf5'
+    #     retrain_model: bool = False
+    #     use_existing_checkpoints: bool = True
+    #     overwrite_results: bool = True
+    #     ident: str = 'unit_norm'
 
-        # The catalogue of real observations
-        catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
-        filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
-
-
-    class MoGSANParams(san.SANParams):
-        epochs: int = 20
-        batch_size: int = 1024
-        dtype: t.dtype = t.float32
-
-        cond_dim: int = 7  # dimensions of conditioning info (e.g. photometry)
-        data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
-        module_shape: list[int] = [512, 512]  # shape of the network 'modules'
-        sequence_features: int = 8  # features passed between sequential blocks
-        likelihood: Type[san.SAN_Likelihood] = san.MoG
-        likelihood_kwargs: dict[str, Any] = {'K': 10, 'mult_eps': 1e-4, 'abs_eps': 1e-3}
-        batch_norm: bool = True  # use batch normalisation in network?
+    #     # The catalogue of real observations
+    #     catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
+    #     filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
 
-    ip = IP()
-    sp = MoGSANParams()
+    # class MoGSANParams(san.SANParams):
+    #     epochs: int = 20
+    #     batch_size: int = 1024
+    #     dtype: t.dtype = t.float32
 
-    model = san.SAN(sp)
+    #     cond_dim: int = 7  # dimensions of conditioning info (e.g. photometry)
+    #     data_dim: int = 9  # dimensions of data of interest (e.g. physical params)
+    #     module_shape: list[int] = [512, 512]  # shape of the network 'modules'
+    #     sequence_features: int = 8  # features passed between sequential blocks
+    #     likelihood: Type[san.SAN_Likelihood] = san.MoG
+    #     likelihood_kwargs: dict[str, Any] = {'K': 10, 'mult_eps': 1e-4, 'abs_eps': 1e-3}
+    #     batch_norm: bool = True  # use batch normalisation in network?
+
+
+    # ip = IP()
+    # sp = MoGSANParams()
+    # model = san.SAN(sp)
+
     savepath: str = model.fpath(ip.ident)
     try:
         logging.info(
@@ -110,9 +121,9 @@ if __name__ == '__main__':
         sbatch = sub_batch.shape[0]
         histbins = 1000
         binwidth = 1/histbins
-        results = t.empty((sbatch, sp.data_dim), dtype=sp.dtype)
+        results = t.empty((sbatch, mp.data_dim), dtype=mp.dtype)
         for b in range(sub_batch.shape[0]):
-            for d in range(sp.data_dim):
+            for d in range(mp.data_dim):
                 hist = t.histc(sub_batch[b, :, d], histbins, min=0., max=1.)
                 mode = hist.argmax() * binwidth + binwidth/2.
                 results[b, d] = mode
@@ -127,26 +138,26 @@ if __name__ == '__main__':
 
     # i: int = 0  # index for checkpointing
     for subset in tqdm(batched_xs):
-        subset = subset.to(sp.device, sp.dtype)
+        subset = subset.to(mp.device, mp.dtype)
 
         # i = idx * batch
-        # subset = xs[i:i+batch].to(sp.device, sp.dtype)
+        # subset = xs[i:i+batch].to(mp.device, mp.dtype)
         with t.inference_mode():
             subset, _ = model.preprocess(subset, t.empty(subset.shape))
             tmp_samples = model.forward(subset.repeat_interleave(N, 0))
 
             # 'reshaped samples'
-            r_samples = tmp_samples.reshape(-1, N, sp.data_dim).cpu()
+            r_samples = tmp_samples.reshape(-1, N, mp.data_dim).cpu()
 
             # compute median
             median = r_samples.median(1)[0]
             medianlist.append(median)
-            # assert median.shape == (batch, sp.data_dim)
+            # assert median.shape == (batch, mp.data_dim)
 
             work = r_samples.split(math.ceil(r_samples.size(0)/workers))
             mode = t.cat(pool.map(modes, work, 1), 0)
             modelist.append(mode)
-            # assert mode.shape == (batch, sp.data_dim)
+            # assert mode.shape == (batch, mp.data_dim)
 
         # # save checkpoint once every 100 subsets
         # i += 1
@@ -167,11 +178,11 @@ if __name__ == '__main__':
             [f'{c}_mode' for c in column_order]
 
     fp = cfg.FreeParams()
-    sp.data_dim
-    assert len(fp) == sp.data_dim
+    mp.data_dim
+    assert len(fp) == mp.data_dim
 
-    denorm_median = denormalise_theta(values[:, :sp.data_dim], fp)
-    denorm_mode = denormalise_theta(values[:, sp.data_dim], fp)
+    denorm_median = denormalise_theta(values[:, :mp.data_dim], fp)
+    denorm_mode = denormalise_theta(values[:, mp.data_dim], fp)
     denorm_params = t.cat((denorm_median, denorm_mode), 1)
 
     save_path = f'./results/params/{ip.ident}.h5'
@@ -191,7 +202,7 @@ if __name__ == '__main__':
 
     Model parameter configuration used:
 
-    {sp}
+    {mp}
 
     Free parameter configuration used:
 

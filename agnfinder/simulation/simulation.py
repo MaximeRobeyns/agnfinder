@@ -303,12 +303,13 @@ if __name__ == '__main__':
 
     # Get the sampling parameters from config.py
     sp = cfg.SamplingParams()
+    fp = cfg.FreeParams()
 
     # Ensure temporary save location is created and empty
     utils.ensure_partials_dir(sp.save_dir)
 
     # prepare job list
-    inc: float = (sp.redshift_max - sp.redshift_min) / sp.concurrency
+    inc: float = (fp.redshift[1] - fp.redshift[0]) / sp.concurrency
     zrange: list[float] = [i  * inc for i in range(sp.concurrency+1)]
     zlims: list[tuple[float, float]] = list(zip(zrange[:-1], zrange[1:]))
     p_args: list[tuple[float, float, int]] = \

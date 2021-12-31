@@ -84,6 +84,7 @@ def test_load_galaxy():
     assert(isinstance(galaxy, pd.Series))
 
 
+# TODO test loading from .fits not just .parquet
 def test_load_galaxy_for_prospector():
     catalogue_loc = './data/cpz_paper_sample_week3.parquet'
     galaxy, _ = load_photometry.load_galaxy(catalogue_loc)

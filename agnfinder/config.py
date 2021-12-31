@@ -192,7 +192,6 @@ class InferenceParams(inference.InferenceParams):
     # The model to use for estimating PDFs
     model: model_t = san.SAN
     logging_frequency: int = 10000
-    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
     # Training Inference Models -----------------------------------------------
     # Note: not all methods (e.g. MCMC) will need this
@@ -206,9 +205,9 @@ class InferenceParams(inference.InferenceParams):
     ident: str = ''  # identifier for this training run
 
     # Predicting PDFs ---------------------------------------------------------
-
     # The catalogue of real observations
     catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
+    filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
 
 # ======================= Inference (MCMC) Parameters =========================
@@ -236,8 +235,7 @@ class DynestyParams(ConfigClass):
 class EMCEEParams(ConfigClass):
     nwalkers: int = 128
     nburn: list[int] = [512]
-    # niter: int = 1024
-    niter: int = 4
+    niter: int = 10000
     interval: float = 0.25
     initial_disp: float = 0.1
 
@@ -251,8 +249,11 @@ class MCMCParams(mcmc_util.MCMCParams):
     cond_dim: int = InferenceParams().filters.dim
     data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
     filters: FilterSet = InferenceParams.filters  # {Euclid, DES, Reliable, All}
-    inference_procedure: Type[MCMCMethod] = Dynesty # or Dynesty
+    inference_procedure: Type[MCMCMethod] = EMCEE # or Dynesty
     catalogue_loc: str = InferenceParams.catalogue_loc
+
+    n_galaxies: int = 24
+    concurrency: int = 12
 
     # TODO ensure that we are using these measurements in fit_model, or get rid of them.
     # do_powell: bool = False
@@ -355,6 +356,7 @@ class SANParams(san.SANParams):
     likelihood_kwargs: typing.Optional[dict[str, Any]] = {
             'K': 10, 'mult_eps': 1e-4, 'abs_eps': 1e-4}
     batch_norm: bool = True  # use batch normalisation in network?
+    opt_lr: float = 1e-4
 
     # Simple alternative Gaussian likelihood (retained for reference)
     # likelihood: Type[san.SAN_Likelihood] = san.Gaussian

@@ -29,7 +29,6 @@ import agnfinder.config as cfg
 import agnfinder.inference.cvae_dist as dist
 
 from agnfinder.types import Tensor, DistParams, arch_t, tensor_like
-from agnfinder.inference import utils
 from agnfinder.inference.inference import Model, ModelParams, InferenceParams
 from agnfinder.inference.cvae_base import CVAEPrior, CVAEEnc, CVAEDec, \
                                           _CVAE_Dist, _CVAE_RDist
@@ -546,6 +545,7 @@ class MyCVAE(CVAE):
 """
 
 if __name__ == '__main__':
+    from agnfinder.inference import utils
 
     cfg.configure_logging()
 
