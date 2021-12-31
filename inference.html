@@ -51,7 +51,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#training-the-models">3.1.3. Training the models</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#creating-new-models">3.2. Creating New Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-new-models">3.2. Creating New Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#estimating-parameters">3.2.1. Estimating Parameters</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a></li>
@@ -132,7 +135,11 @@ in <code class="docutils literal notranslate"><span class="pre">agnfinder/infere
 <li><p><strong>logging_frequency</strong> (<em>int</em>) – How often (in iterations) to output logs during training.</p></li>
 <li><p><strong>dataset_loc</strong> (<em>str</em>) – Path to a <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> file or directory of <code class="docutils literal notranslate"><span class="pre">hdf5</span></code> files.</p></li>
 <li><p><strong>retrain_model</strong> (<em>bool</em>) – Whether to re-train an identically configured model.</p></li>
+<li><p><strong>use_existing_checkpoints</strong> (<em>bool</em>) – Whether to pick-up training from any existing model checkpoints or start from scratch.</p></li>
 <li><p><strong>overwrite_results</strong> (<em>bool</em>) – Whether to overwrite results from identical model.</p></li>
+<li><p><strong>ident</strong> (<em>str</em>) – An optional string to identify a specific training run when saved to disk.</p></li>
+<li><p><strong>catalogue_loc</strong> (<em>str</em>) – Catalogue of (real) observations (for <strong>prediction</strong>)</p></li>
+<li><p><strong>filters</strong> (<em>FilterSet</em>) – Used for loading catalogue of real observations (for <strong>prediction</strong>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Example</dt>
@@ -143,6 +150,11 @@ in <code class="docutils literal notranslate"><span class="pre">agnfinder/infere
 <span class="gp">... </span>    <span class="n">dataset_loc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/photometry_simulation.hdf5&#39;</span>
 <span class="gp">... </span>    <span class="n">retrain_model</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="gp">... </span>    <span class="n">overwrite_results</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="gp">... </span>    <span class="n">ident</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;an_informative_identifier&#39;</span>
+<span class="gp">...</span>
+<span class="gp">... </span>    <span class="c1"># Prediction:</span>
+<span class="gp">... </span>    <span class="n">catalogue_loc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/DES_VIDEO_v1.0.1.fits&#39;</span>
+<span class="gp">... </span>    <span class="n">filters</span><span class="p">:</span> <span class="n">FilterSet</span> <span class="o">=</span> <span class="n">Filters</span><span class="o">.</span><span class="n">DES</span>  <span class="c1"># {Euclid, DES, Reliable, All}</span>
 </pre></div>
 </div>
 </dd>
@@ -164,12 +176,19 @@ then training proceeds as normal.</p>
 what to do when saving the resulting model—if set to <code class="docutils literal notranslate"><span class="pre">True</span></code>, then the
 previously saved model will be overwritten. If set to <code class="docutils literal notranslate"><span class="pre">False</span></code>, then a number
 is appended to the current model’s name to make it unique.</p>
+<p>Since a number is not particularly informative, you can also set a unique and
+ideally informative identifier using the <code class="docutils literal notranslate"><span class="pre">ident</span></code> field to differentiate models
+which might have identical parameters (e.g. trained on different datasets etc.).</p>
+<p>When we want to use a (trained) model to predict galaxy parameters (e.g. median
+or mode), we can specify the catalogue of galaxy observations that we would like
+to run the model on using the <code class="docutils literal notranslate"><span class="pre">catalogue_loc</span></code> parameter. In order to load this
+successfully, you must also specify the <code class="docutils literal notranslate"><span class="pre">filters</span></code> used.</p>
 </section>
 <section id="model-parameters">
 <h3><span class="section-number">3.1.2. </span>Model Parameters<a class="headerlink" href="#model-parameters" title="Permalink to this headline"></a></h3>
-<p>While each model has slightly different requirements for its parameterisation
-(for instance, the its architecture must be specified), there are some common
-parameters which are shared across all models in the codebase.</p>
+<p>In general, each different model will have a number of parameters which are
+unique to it. However, there are some common parameters which are shared across
+all the models in the codebase.</p>
 <p>To reflect this, model parameters inherit a base <a class="reference internal" href="#ModelParams" title="ModelParams"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelParams</span></code></a> class, which
 specifies things such as the datatype, device memory to use and so forth.</p>
 <dl class="py class">
@@ -235,10 +254,14 @@ anywhere in the code.</p>
 <p>You can now initialise a model by passing the initialised model parameters to
 your model’s constructor. Finally the <code class="docutils literal notranslate"><span class="pre">trainmodel</span></code> method can be called to
 run the training procedure.</p>
-<p>Note that models are automatically saved to disk after a training run. If you
-are re-training an identical parametrised model, the code will first attempt to
-load an existing saved model before falling back to running the training
-procedure.</p>
+<p>During training, models will save checkpoints after every epoch. This means that
+you can interrupt training at any time, and only lose the progress made during
+the current checkpoint. You can also later check for overfitting by loading the
+model state from an earlier point during training.</p>
+<p>The checkpoints are saved in a directory with the same name as the final model
+results; which is saved with an additional <code class="docutils literal notranslate"><span class="pre">.py</span></code> extension. If you are
+re-training an identical parametrised model, the code will first attempt to load
+an existing saved model before falling back to running the training procedure.</p>
 <p>The following is a full example, using the <a class="reference external" href="san_inference.html">SAN</a> model:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">agnfinder.nbutils</span> <span class="k">as</span> <span class="nn">nbu</span>
 
@@ -255,9 +278,7 @@ procedure.</p>
     <span class="n">split_ratio</span><span class="o">=</span><span class="n">ip</span><span class="o">.</span><span class="n">split_ratio</span><span class="p">,</span>
     <span class="n">batch_size</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
     <span class="n">normalise_phot</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">normalise_phot_np</span><span class="p">,</span>
-    <span class="n">transforms</span><span class="o">=</span><span class="p">[</span>
-        <span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">()</span>
-    <span class="p">])</span>
+    <span class="n">transforms</span><span class="o">=</span><span class="p">[</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">()])</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created data loaders&#39;</span><span class="p">)</span>
 
 <span class="c1"># Initialise the model</span>
@@ -282,7 +303,7 @@ procedure.</p>
 benefit of users), and that common code is not duplicated between models (to the
 benefit of developers), all the models implemented in the codebase inherit from
 an abstract <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> class (found in <code class="docutils literal notranslate"><span class="pre">agnfinder/inference/inference.py:Model</span></code>).</p>
-<p>Put simply, to create a new model, inherit the <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> class and ensure that
+<p>To create a new model, inherit the <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a> class and ensure that
 you have implemented all the abstract properties and methods.</p>
 <p>The following shows the constructor, and abstract methods of the <a class="reference internal" href="#Model" title="Model"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></a>
 class.</p>
@@ -331,8 +352,8 @@ every different parametrisation of the model.</p>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>Tensor</em>) – The input (usually photometric observations)</p></li>
-<li><p><strong>y</strong> (<em>Tensor</em>) – The output (usually physical galaxy parameters)</p></li>
+<li><p><strong>x</strong> (<em>Tensor</em>) – The inputs (usually photometric observations)</p></li>
+<li><p><strong>y</strong> (<em>Tensor</em>) – The targets (usually physical galaxy parameters)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -352,7 +373,8 @@ every different parametrisation of the model.</p>
 </ul>
 </dd>
 </dl>
-<p>Note that any additional model-specific arguments can also be provided.</p>
+<p>Note that any additional model-specific arguments can also be provided
+using the <code class="docutils literal notranslate"><span class="pre">*args</span></code> and <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code>.</p>
 <p>This method has a decorator applied in the superclass (which is
 inherited by all sub-classes) which takes care of saving the trained
 model to disk (using <a class="reference internal" href="#Model.fpath" title="Model.fpath"><code class="xref py py-class docutils literal notranslate"><span class="pre">Model.fpath</span></code></a>), as well as loading up an
@@ -382,6 +404,16 @@ provide different methods to use them.</p>
 
 </dd></dl>
 
+<section id="estimating-parameters">
+<h3><span class="section-number">3.2.1. </span>Estimating Parameters<a class="headerlink" href="#estimating-parameters" title="Permalink to this headline"></a></h3>
+<p>The final stage is to estimate (statistics of) the parameters for real
+observations. For example, we might be interested in the (principle) mode and
+median of a parameter’s distribution.</p>
+<p>The code for doing this is in <code class="docutils literal notranslate"><span class="pre">agnfinder/inference/parameter_estimation.py</span></code>.
+This will use the model specified in <code class="docutils literal notranslate"><span class="pre">InferenceParams.model</span></code>, and that model’s
+corresponding configuration as defined in <code class="docutils literal notranslate"><span class="pre">config.py</span></code>.</p>
+<p>You can run this with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">params</span></code>.</p>
+</section>
 </section>
 </section>
 

@@ -16,6 +16,7 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -42,7 +43,14 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">2. Photometry Sampling</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">2. Photometry Sampling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#running-the-sampling-procedure">2.1. Running the Sampling Procedure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#free-parameter-configurations">2.1.1. Free Parameter Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sampling-parameters">2.1.2. Sampling Parameters</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
@@ -74,12 +82,82 @@
              
   <section id="photometry-sampling">
 <span id="sampling"></span><h1><span class="section-number">2. </span>Photometry Sampling<a class="headerlink" href="#photometry-sampling" title="Permalink to this headline"></a></h1>
+<p>This section repeatedly runs a forward model on various physical parameters
+(redshift, agn_mass, inclination, tage etc.) to simulate photometric
+observations, which we use in the <a class="reference external" href="inference.html">inference</a> section to train a model to
+produce the <em>reverse</em> mapping: from photometric observations back to
+distributions over physical parameters.</p>
+<p>The code for the sampling procedure is in the <cite>agnfinder/simulation</cite> directory.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>This page is incomplete. For information about the sampling
-process, please read the <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021ApJS..254...22J/abstract">Prospector</a> paper, or
+<p>Documentation about the sampling procedure itself is missing. For now,
+you can find information about the sampling process, in the <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021ApJS..254...22J/abstract">Prospector</a> paper, or
 consult their <a class="reference external" href="https://prospect.readthedocs.io/_/downloads/en/latest/pdf/">documentation</a>.</p>
 </div>
+<section id="running-the-sampling-procedure">
+<h2><span class="section-number">2.1. </span>Running the Sampling Procedure<a class="headerlink" href="#running-the-sampling-procedure" title="Permalink to this headline"></a></h2>
+<p>Running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">sim</span></code> will run the simulation code in the <code class="docutils literal notranslate"><span class="pre">__main__</span></code> section of
+<code class="docutils literal notranslate"><span class="pre">agnfinder/inference/inference.py</span></code>, using the configurations in
+<code class="docutils literal notranslate"><span class="pre">agnfinder/config.py</span></code>.</p>
+<p>This is a multi-threaded program which runs on CPUs only. We use processes
+rather than threads due to Python’s GIL. With <span class="math notranslate nohighlight">\(P\)</span> processes used to
+produce <span class="math notranslate nohighlight">\(N\)</span> mock photometric observations from using parameters drawn
+uniformly at random from the parameter space, each process works to produce
+<span class="math notranslate nohighlight">\(\frac{N}{P}\)</span> ‘observations’, with the parameter space partitioned among
+processes along the redshift dimension.</p>
+<p>Each process writes its samples to a ‘partial’ results file before exiting. All
+of these partial results are finally combined (and shuffled) into a final hdf5
+file, ready for use in training a model. Generating 1M samples will result in
+approximatly 125Mb of data. Since this combination step is run in-memory, do
+bear the memory requirements in mind if you are simulating large catalogues
+(e.g. 100M samples).</p>
+<section id="free-parameter-configurations">
+<h3><span class="section-number">2.1.1. </span>Free Parameter Configurations<a class="headerlink" href="#free-parameter-configurations" title="Permalink to this headline"></a></h3>
+<p>The <em>free parameters</em> are the physical parameters that are allowed to vary. The
+default configuration is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">FreeParams</span><span class="p">(</span><span class="n">FreeParameters</span><span class="p">):</span>
+    <span class="n">redshift</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">6.</span><span class="p">)</span>
+    <span class="n">log_mass</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span>
+    <span class="n">log_agn_mass</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">7</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">15</span><span class="p">))</span>
+    <span class="n">log_agn_torus_mass</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">7</span><span class="p">,</span> <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">15</span><span class="p">))</span>
+    <span class="n">dust2</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">)</span>
+    <span class="n">tage</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">13.8</span><span class="p">)</span>
+    <span class="n">log_tau</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mf">.1</span><span class="p">),</span> <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span>
+    <span class="n">agn_eb_v</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+    <span class="n">inclination</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">90.</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This defines our prior assumptions about the reasonable range of values that
+these parameters may take, and hence the (in this case) 9-dimensional hyper-cube
+from which parameters are uniformly sampled during the simulation process.</p>
+<p>Parameters whose names begin with <code class="docutils literal notranslate"><span class="pre">log_</span></code> are exponentiated before use. For
+example, above the <code class="docutils literal notranslate"><span class="pre">log_agn_mass</span></code> parameter constrains the brightness of the
+galaxy, from <span class="math notranslate nohighlight">\(10^{-7}\)</span> to <span class="math notranslate nohighlight">\(15\)</span>.</p>
+</section>
+<section id="sampling-parameters">
+<h3><span class="section-number">2.1.2. </span>Sampling Parameters<a class="headerlink" href="#sampling-parameters" title="Permalink to this headline"></a></h3>
+<p>These are parameters relating to the sampling or simulation procedure itself:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">SamplingParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">):</span>
+    <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40000000</span>
+    <span class="n">concurrency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+    <span class="n">save_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/my_simulation_results&#39;</span>
+    <span class="n">noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># deprecated; ignore</span>
+    <span class="n">filters</span><span class="p">:</span> <span class="n">FilterSet</span> <span class="o">=</span> <span class="n">Filters</span><span class="o">.</span><span class="n">DES</span>  <span class="c1"># {Euclid, DES, Reliable, All}</span>
+    <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># whether to shuffle final samples</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">n_samples</span></code> determines the number of samples generated across all the
+processes. The <code class="docutils literal notranslate"><span class="pre">concurrency</span></code> parameter is best set according to how much RAM
+you have on a particular host: since we use <em>processes</em> and not <em>threads</em>, the
+entire model is re-created for each worker and must be stored in memory.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">filters</span></code> parameter selects between pre-defined sets of filters, defined
+in <code class="docutils literal notranslate"><span class="pre">agnfinder/prospector/load_photometry</span></code>. To use a different set of filters,
+you should edit this file, and add a new filter to the <code class="docutils literal notranslate"><span class="pre">Filters</span></code> class in
+<code class="docutils literal notranslate"><span class="pre">agnfinder/types.py</span></code>.</p>
+<p>You can find various other parameters relating to the model used to simulate the
+photometric observations in the <code class="docutils literal notranslate"><span class="pre">agnfinder/config.py</span></code> file.</p>
+</section>
+</section>
 </section>
 
 
