@@ -33,7 +33,7 @@ from agnfinder.simulation.utils import denormalise_theta
 
 from agnfinder.inference import san
 from agnfinder.inference.inference import InferenceParams, model_t
-from agnfinder.inference import utils, SAN, MADE, CVAE
+from agnfinder.inference import utils, SAN, CMADE, CVAE, ModelParams
 
 
 if __name__ == '__main__':
@@ -43,9 +43,11 @@ if __name__ == '__main__':
     cfg.configure_logging()
 
     ip = cfg.InferenceParams()
+    mp: ModelParams
+
     if ip.model == SAN:
         mp = cfg.SANParams()
-    elif ip.model == MADE:
+    elif ip.model == CMADE:
         mp = cfg.MADEParams()
     elif ip.model == CVAE:
         mp = cfg.CVAEParams()
