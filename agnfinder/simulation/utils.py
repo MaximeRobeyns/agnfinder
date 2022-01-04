@@ -103,6 +103,24 @@ def denormalise_theta(norm_theta: Tensor, limits: FreeParams) -> Tensor:
     return t.where(limits.log, 10**t.clip(theta, -10, 20), theta)
 
 
+def denormalise_theta_np(norm_theta: np.ndarray, limits: FreeParams) -> np.ndarray:
+    """NumPy version of the above.
+    """
+    s_init = norm_theta.shape
+
+    if norm_theta.ndim == 1:
+        norm_theta = np.expand_dims(norm_theta, 0)
+    assert norm_theta.shape[1] == len(limits)
+
+    # rescale parameters
+    theta = limits.params[:,0] + \
+            (limits.params[:,1]-limits.params[:,0]) * norm_theta
+
+    # exponentiate log parameters
+    exp = np.where(limits.log, 10**np.clip(theta, -10, 20), theta)
+    return exp.reshape(s_init)
+
+
 def normalise_theta(params: Tensor, limits: FreeParams) -> Tensor:
     """Normalise galaxy parameters to lie in range [0, 1]
 

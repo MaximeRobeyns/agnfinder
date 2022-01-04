@@ -96,6 +96,10 @@ class Dynesty(MCMCMethod):
     def __init__(self) -> None:
         self.name = 'Dynesty'
 
+class UltraNest(MCMCMethod):
+    def __init__(self) -> None:
+        self.name = 'UltraNest'
+
 
 # Maybe 'monad' ---------------------------------------------------------------
 # Monad for safer and more explicit CPz model parameter definitions.
@@ -177,7 +181,7 @@ class OptionalValue(Optional):
 # Free Parameter Configuration ------------------------------------------------
 
 
-# default column order
+# default column order. Overridden by FreeParams.column_order.
 column_order: list[str] = ['redshift', 'log_mass', 'dust2', 'tage', 'log_tau',
         'log_agn_mass', 'agn_eb_v', 'log_agn_torus_mass', 'inclination']
 

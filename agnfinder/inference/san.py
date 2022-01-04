@@ -434,7 +434,7 @@ class SAN(Model):
                 x, y = self.preprocess(x, y)
 
                 # The following implicitly updates self.last_params, and
-                # returns y_hat (a sapmle from p(y | x))
+                # returns y_hat (a sample from p(y | x))
                 r = self.forward(x)
                 assert (self.last_params is not None)
 
@@ -454,6 +454,11 @@ class SAN(Model):
                         .format(e+1, self.epochs, i, len(train_loader)-1,
                                 loss.item()))
             self.checkpoint(ip.ident)
+
+        # Pre-emptively put model in evaluation mode.
+        # This is very important to ensure that batch norm (among other model
+        # features) work as expected.
+        self.eval()
 
     def sample(self, x: tensor_like, n_samples: int = 1000, errs: Optional[tensor_like] = None,
                *args, **kwargs) -> Tensor:

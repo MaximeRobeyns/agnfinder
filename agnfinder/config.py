@@ -42,7 +42,7 @@ from agnfinder.types import FreeParameters, ConfigClass, arch_t, \
         MaybeFloat, Free, Just, \
         Optional, OptionalValue, Nothing, \
         FilterSet, Filters, \
-        MCMCMethod, EMCEE, Dynesty
+        MCMCMethod, EMCEE, Dynesty, UltraNest
 from agnfinder.inference.inference import model_t
 from agnfinder.inference.utils import get_colours_length
 
@@ -209,11 +209,27 @@ class InferenceParams(inference.InferenceParams):
     catalogue_loc: str = './data/DES_VIDEO_v1.0.1.fits'
     filters: FilterSet = Filters.DES  # {Euclid, DES, Reliable, All}
 
+    # MCMC 'gold standard' comparison -----------------------------------------
+    mcmc_method: Type[MCMCMethod] = UltraNest # {EMCEE, Dynesty, UltraNest}
+    mcmc_concurrency: int = 1  # number of galaxies to process concurrently
+    mcmc_galaxies: int = 1  # number of galaxies to infer (-1 = all)
+
+
 
 # ======================= Inference (MCMC) Parameters =========================
 
+# some base parameters common to all MCMC procedures
 
-class DynestyParams(ConfigClass):
+class MCMCBase(mcmc_util.MCMCParams):
+
+    cond_dim: int = InferenceParams().filters.dim
+    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
+    filters: FilterSet = InferenceParams.filters  # {Euclid, DES, Reliable, All}
+    catalogue_loc: str = InferenceParams.catalogue_loc
+
+# Dynesty
+
+class DynestyParams(mcmc_util.DynestyParams, MCMCBase):
     method: str = 'rwalk'
     bound: str = 'multi'  # bounding method TODO make enum
     bootstrap: int = 0  # TODO make bool?
@@ -232,7 +248,10 @@ class DynestyParams(ConfigClass):
     min_method: str = ''  # 'lm' | 'powell'
 
 
-class EMCEEParams(ConfigClass):
+# EMCEE
+
+
+class EMCEEParams(mcmc_util.EMCEEParams, MCMCBase):
     nwalkers: int = 128
     nburn: list[int] = [512]
     niter: int = 10000
@@ -244,23 +263,32 @@ class EMCEEParams(ConfigClass):
     min_method: str = 'powell'  # 'lm' | 'powell'
 
 
-class MCMCParams(mcmc_util.MCMCParams):
+# UltraNest
 
-    cond_dim: int = InferenceParams().filters.dim
-    data_dim: int = 9  # y; len(FreeParameters()); dimensions of physical params
-    filters: FilterSet = InferenceParams.filters  # {Euclid, DES, Reliable, All}
-    inference_procedure: Type[MCMCMethod] = EMCEE # or Dynesty
-    catalogue_loc: str = InferenceParams.catalogue_loc
 
-    n_galaxies: int = 24
-    concurrency: int = 12
+class UltraNestParams(mcmc_util.UltraNestParams, MCMCBase):
+    """See inference/mcmc_utils.py for more about these parameters.
+    Better yet, consult the UltraNest documentation:
+    https://johannesbuchner.github.io/UltraNest/ultranest.html#module-ultranest.integrator
+    """
+    ndraw_min: int = 128
+    ndraw_max: int = 65536
 
-    # TODO ensure that we are using these measurements in fit_model, or get rid of them.
-    # do_powell: bool = False
-    # ftol: float = 0.5e-5
-    # maxfev: int = 5000
-    # do_levenberg: bool = True
-    # nmin: int = 10
+    # run specific parameters -------------------------------------------------
+
+    update_interval_volume_fraction: float = 0.8
+    show_status: bool = True
+    viz_callback: Any = 'auto' # set to False for quiet output
+    dlogz: float = 0.5
+    dKL: float = 0.5
+    frac_remain: float = 1e-1
+    Lepsilon: float = 0.001
+    min_ess: int = 2000
+    max_iters: typing.Optional[int] = None
+    max_ncalls: typing.Optional[int] = None
+    max_num_improvement_loops: int = -1
+    min_num_live_points: int = 400
+    cluster_num_live_points: int = 40
 
 
 # ======================= Inference (CVAE) Parameters =========================

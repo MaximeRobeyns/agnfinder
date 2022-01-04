@@ -437,7 +437,7 @@ def sample_galaxies(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
         catalogue_loc: the filepath to the .fits, .csv or .parquet file
             containing the observations.
         filters: the filters used in the survey
-        n_samples: the number of galaxies to return.
+        n_samples: the number of galaxies to return. If -1, return all from catalogue.
         has_redshift: only return galaxies with the redshift parameter present
             (default True)
 
@@ -449,7 +449,13 @@ def sample_galaxies(catalogue_loc: str, filters: FilterSet = Filters.Euclid,
     if has_redshift:
         df = df.loc[df.redshift >= 0]
     df.reset_index(drop=True)
-    idxs = np.random.choice(len(df), n_samples, replace=False)
+    if n_samples == -1:
+        # random permutation of indices
+        idxs = np.random.choice(len(df), len(df), replace=False)
+    elif n_samples > 0:
+        idxs = np.random.choice(len(df), n_samples, replace=False)
+    else:
+        raise ValueError(f'n_samples ({n_samples})cannot be negative!')
     df_series = add_maggies_cols(df.iloc[idxs], filters)
     assert isinstance(df_series, pd.DataFrame) or isinstance(df_series, pd.Series)
     return df_series
