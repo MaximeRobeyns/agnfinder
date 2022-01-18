@@ -18,6 +18,8 @@
 """Loads filters and other data."""
 
 import os
+import sys
+import h5py
 import random
 import logging
 import torch as t
@@ -185,6 +187,90 @@ def mags_to_maggies(mags):
 def calculate_maggie_uncertainty(mag_error, maggie):
     # http://slittlefair.staff.shef.ac.uk/teaching/phy217/lectures/stats/L18/index.html#magnitudes
     return maggie * mag_error / 1.09
+
+
+def get_simulated_galaxy(path: str, filters: FilterSet, index: int = -1,
+        add_unc: bool = True, compute_maggies_cols: bool = True
+        ) -> tuple[Union[pd.DataFrame, pd.Series], tensor_like]:
+    """Get a (single) simulated galaxy from a cube.
+
+    Args:
+        path: path to the .hdf5 file containing the simulations or a directory
+            of hdf5 files containing sub-cubes.
+        filters: the filters used to generate the samples
+        index: the required index. If this is < 0, a random galaxy is chosen.
+        add_unc: Whether to add in some simulated uncertainties (e.g. as
+            required for some MCMC methods).
+        compute_maggies_cols: whether to compute maggie_* columns from the
+            mag_* columns. Set to true by default as required in most mcmc
+            methods.
+
+    Returns:
+        tuple[pd.Series, np.ndarray]: simulated galaxy photometry and 'true'
+            parameters.
+    """
+
+    def _dsets_from_file(f: h5py.File) -> tuple[h5py.Dataset, h5py.Dataset]:
+        samples = f.get('samples')
+        assert isinstance(samples, h5py.Group)
+        sim_y = samples.get('simulated_y')
+        norm_theta = samples.get('normalised_theta')
+        assert isinstance(sim_y, h5py.Dataset)
+        assert isinstance(norm_theta, h5py.Dataset)
+        return sim_y, norm_theta
+
+    simulated_obs = norm_theta = None
+
+    # In case of random index for directory of hdf5 files:
+    if os.path.isdir(path) and index < 0:
+        files = [f for f in os.listdir(path) if f.endswith(".hdf5")]
+        assert len(files), f'No hdf5 files found in {path}!'
+        path = random.choice(files)
+
+    if os.path.isdir(path):
+        ii = jj = 0
+        for file in filter(lambda x: x.endswith('.hdf5'), os.listdir(path)):
+            y, theta = _dsets_from_file(h5py.File(file))
+            ii += len(y)
+            if index < ii:
+                simulated_obs = y[index - jj]
+                norm_theta = theta[index - jj]
+                ii = -1; break
+            else:
+                jj = ii
+        if ii < 0:
+            raise ValueError(f'Provided index ({index}) > samples ({jj})')
+    elif os.path.isfile(path):
+        y, theta = _dsets_from_file(h5py.File(path, 'r'))
+        if index > len(y):
+            raise ValueError(f'Provided index ({index}) > samples ({len(y)})')
+        if index >= 0 and index < len(y):
+            simulated_obs = y[index]
+            norm_theta = theta[index]
+    else:
+        logging.error((f'Provided path ({path}) is neither a directory or '
+                       f'path to hdf5 file.'))
+        sys.exit()
+
+    # Get the filters
+    fs = get_filters(filter_selection=filters)
+
+    phot = pd.Series(simulated_obs, [f.mag_col for f in fs])
+
+    if add_unc:
+        # add initial 'uncertainties' to photometry.
+        unc = pd.Series(map (lambda x: x*0.00001, phot.values),
+                       [f.mag_error_col for f in fs])
+        phot = phot.combine_first(unc)
+
+    if compute_maggies_cols:
+        # MCMC requires maggies and maggie uncertainties.
+        phot = add_maggies_cols(phot, filters)
+
+    assert isinstance(norm_theta, np.ndarray)
+    assert isinstance(phot, pd.Series) or isinstance(phot, pd.DataFrame)
+
+    return phot, norm_theta
 
 
 def load_catalogue(catalogue_loc: str, filters: FilterSet,

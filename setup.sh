@@ -18,6 +18,7 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # This file should be sourced to begin development.
+module load mpi
 export SPS_HOME=$(pwd)/deps/fsps
 
 source agnvenv/bin/activate

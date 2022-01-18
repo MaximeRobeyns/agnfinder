@@ -19,16 +19,19 @@
 import os
 import sys
 import h5py
+import random
 import logging
 import warnings
 import torch as t
-import torch.nn as nn
 import numpy as np
+import pandas as pd
+import torch.nn as nn
 
 from torchvision import datasets, transforms
 from typing import Any, Callable, Optional, Union
 from torch.utils.data import Dataset, DataLoader, random_split
 from agnfinder.types import Tensor, tensor_like, column_order
+# from agnfinder.prospector.load_photometry import get_filters
 
 
 class InMemoryGalaxyDataset(Dataset):

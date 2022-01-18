@@ -69,7 +69,6 @@ mcmc: ## To run the MCMC inference code specifically
 	@source setup.sh
 	@python agnfinder/inference/mcmc.py
 
-
 cvae: ## To run the CVAE inference code specifically
 	@source setup.sh
 	@python agnfinder/inference/cvae.py
@@ -77,10 +76,6 @@ cvae: ## To run the CVAE inference code specifically
 mypy: ## To run mypy only (this is usually done with test / alltest)
 	@source setup.sh
 	@mypy
-
-santest:  ## To run only the tests relating to the SAN model
-	@source setup.sh
-	@python -m pytest -k test_san tests
 
 test: mypy  ## To run the program's fast tests (e.g. to verify an installation)
 	@source setup.sh

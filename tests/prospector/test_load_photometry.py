@@ -102,3 +102,15 @@ def test_load_dummy_galaxy():
 
     filters, _, _ = load_photometry.load_dummy_galaxy('all')
     assert all([isinstance(f, observate.Filter) for f in filters])
+
+
+def test_get_simulated_galaxy():
+    path = './data/testdata/testcube.hdf5'
+
+    # test index out of range:
+    with pytest.raises(ValueError):
+        _ = load_photometry.get_simulated_galaxy(path, Filters.Euclid, 1001)
+
+    phot, theta = load_photometry.get_simulated_galaxy(path, Filters.Euclid, 42)
+    print(phot)
+    print(theta)
