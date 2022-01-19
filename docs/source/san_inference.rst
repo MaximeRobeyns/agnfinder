@@ -31,11 +31,11 @@ model (usually indexed by `time`) depends on the previously outputted values of
 the model and some stochastic term. For example, they are commonly employed to
 predict the next value(s) in a time series.
 
-In this context, we use a model with this `autoregressive property` to
+In this context however, we use a model with this `autoregressive property` to
 estimate a multivariate distribution, one dimension at a time. That is, rather
-than specifying the value of a stochastic process at a given timestep, each
-iteration of the autoregressive model outputs the next dimension of the
-multivariate distribution.
+than specifying the value of a stochastic process at a given timestep (or
+*index*), each iteration of the autoregressive model outputs the next dimension
+of the multivariate distribution.
 
 Usually, when estimating / learning distributions over data, we must be careful
 to make sure that the distribution normalises. For example, if we observe a set
@@ -51,9 +51,9 @@ Even for small :math:`d`, this can be an expensive procedure unless this
 normalisation consideration is explicitly thought about when designing the
 model.
 
-Autoregressive models can be used to do just this (i.e. side-step the need to
-compute or even approximate high dimensional integrals) by simply factorising
-the desired multivariate distribution as a product of its nested conditionals:
+Autoregressive models side-step the need to compute or even approximate high
+dimensional integrals) by simply factorising the desired multivariate
+distribution as a product of its nested conditionals:
 
 .. math::
 
@@ -88,8 +88,8 @@ That is, so long as we can ensure that the output for the :math:`d^{\text{th}}`
 dimension :math:`y_{d}` only depends on the previous dimensions
 :math:`\mathbf{y}_{<d}` as well as the conditioning information
 :math:`\mathbf{x}`, then the density :math:`p(\mathbf{y} \vert \mathbf{x})` can
-be efficiently computed as the product of terms. We will refer to this property
-as the `autoregressive property`.
+be efficiently computed as the product of factorised terms. We will refer to
+this property as the `autoregressive property` going forward.
 
 For instance, we could compute the negatively log likelihood as:
 
@@ -112,13 +112,13 @@ we call a `Sequential Autoregressive Network`.
    :alt: SAN architecture
    :target: _images/san.svg
 
-   Click the image to view the SVG in a new tab if it is too small.
+   Click the image to zoom into the SVG in a new tab if it is too small.
 
 The network is composed of :math:`D` `sequential blocks`. These are repeated
 sequences of layers (which do not share weights), which accept as input the
 conditioning information :math:`\mathbf{x}`, a set of :math:`F` `sequence
-features` from the previous block (if applicable), as well as all the stochastic
-outputs :math:`\hat{y}_{d} \sim p(y_{d} \vert \hat{\mathbf{y}}_{<d},
+features` from the previous block (excluding the first), as well as all the
+stochastic outputs :math:`\hat{y}_{d} \sim p(y_{d} \vert \hat{\mathbf{y}}_{<d},
 \mathbf{x})` from previous blocks.
 
 This combination of features is somewhat unusual:
@@ -141,8 +141,9 @@ and mixture weights :math:`\{\varphi_{d,i}\}_{i=1}^{K}` such that
 :math:`\sum_{i=1}^K \varphi_{d,i} = 1`.
 
 This model architecture was found to satisfy the desiderata of fast sampling (one
-can draw 10,000 posterior samples from :math:`p(\mathbf{y} \vert \mathbf{x})` in
-the order of 10ms), and reasonable accuracy:
+can draw 10,000 posterior samples from :math:`p(\mathbf{y} \vert \mathbf{x})`
+for a single source :math:`\mathbf{x}` in the order of 10ms), and reasonable
+accuracy:
 
 .. figure:: ./_static/san_result.png
    :alt: SAN results

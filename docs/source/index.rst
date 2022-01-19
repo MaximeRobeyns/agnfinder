@@ -7,9 +7,12 @@ AGN Finder documentation
 
 Welcome to the agnfinder documentation!
 
-For instructions on how to install the project, please see the `installation
-<installation.html>`_ page. This page contains information for both users and
-developers.
+-------------------------------------------------------------------------------
+
+If you're looking for installation instructions, please see the `installation
+<installation.html>`_ page.
+
+-------------------------------------------------------------------------------
 
 This is a fork of the original AGNFinder project by Mike Walmsey and
 collaborators, which aims to use (conditional) generative modelling techniques to
@@ -66,8 +69,8 @@ this is the case, you are welcome to modify your ``config.py`` to, for instance,
 call ``argparse`` and accept command line arguments.
 
 
-Miscellaneous Considerations
-----------------------------
+Miscellaneous
+-------------
 
 We use `type hints <https://www.python.org/dev/peps/pep-0484/>`_ throughout the
 code to allow for static type checking using `mypy <http://mypy-lang.org/>`_. In
@@ -82,6 +85,7 @@ Tests are written using `pytest <https://pytest.org>`_.
    :numbered:
 
    installation
+   basic_usage
    sampling
    inference
    san_inference
