@@ -3,79 +3,87 @@
 Installation Guide
 ##################
 
-If you are just interested in using this project (i.e. not developing it), then
-follow the instructions in the quickstart section. For development, read on to
-the following sections.
-
 Quickstart
 ----------
 
+To install the project, run::
+
+    git clone https://github.com/maximerobeyns/agnfinder
+    cd agnfinder
+    make install
+
+Then, to make sure everything works, run::
+
+    make test
+
+If everything worked well, you can now take a look at the `basic usage guide
+</basic_usage.html>`_.
+
+If something went wrong, consult the `Troubleshooting`_ section below for common
+issues. If things went *very* wrong or you're installing on an unconventional
+setup, see the `Manual Installation`_ guide.
+
+Troubleshooting
+===============
+
+Some common issues
+
 1. **Python 3.9**
 
-   Please make sure that you have Python 3.9 or later installed on your system.
+   The project needs Python 3.9 or later to run.
 
-   You can check your version by running::
+   You can check your currently installed version by running::
 
        python --version
 
    Follow the instructions in the `Building Python 3.9`_ section for help if
    you have an older version.
 
-2. **Standard Installation**
 
-   The standard installation process is::
+2 **Specific Python Path**
 
-    git clone https://github.com/maximerobeyns/agnfinder
-    cd agnfinder
-    make install
+  If the standard python executable (i.e. the result of running ``which
+  python``) is different from the Python >= 3.9 executable that you want to
+  use, then update the ``PYTHON`` variable in the ``Makefile`` to point to
+  your desired python path, before running ``make install``::
 
-   The above will only modify files within the ``agnfinder`` directory (and therefore
-   doesn't require root privileges).
+    # Makefile, around line 28
+    PYTHON = /absolute/path/to/your/python3.9
 
-   2.1 **Specific Python Path**
+3 **Issues with GPy**
 
-      If the standard python executable (i.e. the result of running ``which
-      python``) is different from the Python >= 3.9 executable that you want to
-      use, then update the ``PYTHON`` variable in the ``Makefile`` to point to
-      your desired python path, before running ``make install``::
+  The GPy package requires the Python3 development libraries to build.
+  These can be found under ``python3-dev`` on Debian based Linux distros,
+  or ``python3-devel`` for others (e.g. Arch, Fedora, RedHat). If you
+  encounter issues with the GPy wheel, use your package manager to install
+  the Python3 development libraries.
 
-        # Makefile, around line 28
-        PYTHON = /absolute/path/to/your/python3.9
+Optional Steps
+==============
 
-   2.2 **Issues with GPy**
+Shell Setup
+~~~~~~~~~~~
 
-       The GPy package requires the Python3 development libraries to build.
-       These can be found under ``python3-dev`` on Debian based Linux distros,
-       or ``python3-devel`` for others (e.g. Arch, Fedora, RedHat). If you
-       encounter issues with the GPy wheel, use your package manager to install
-       the Python3 development libraries.
+Every time you run the project, or want to develop using linters and type
+checkers, you should activate the virtual environment and set some necessary
+environment variables (such as ``SPS_HOME``).
 
-   If you encounter an error during the ``make install`` step, please see the
-   `Manual Installation`_ section for guidance.
+This will be done automatically for you when running targets through the
+``Makefile``, but if you're running things directly, then you can easily
+setup your shell by running::
 
-3. **Shell Setup**
+source setup.sh
 
-   Every time you run the project, or want to develop using linters and type
-   checkers, you should activate the virtual environment and set some necessary
-   environment variables (such as ``SPS_HOME``).
+To deactivate the virtual environment, either exit your terminal, or type
+``deactivate``.
 
-   This will be done automatically for you when running targets through the
-   ``Makefile``, but if you're running things directly, then you can easily
-   setup your shell by running::
+Full tests
+~~~~~~~~~~
 
-    source setup.sh
+Running ``make test`` after installation only runs a subset of the tests which
+don't take too long to run. If you want to run the slow running tests too, then
+you can do this with ``make alltest``.
 
-   To deactivate the virtual environment, either exit your terminal, or type
-   ``deactivate``.
-
-4. **(optional)**
-
-   You can test whether the installation was successful by running::
-
-     make test
-
-   The above will skip some slow(er)-running tests. If you would like to run
-   these slow tests too, then you can ``make alltest``.
 
 Manual Installation
 -------------------

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4. Inferring Galaxy Parameters (SAN) &mdash; AGN Finder Documentation 0.1 documentation</title>
+  <title>5. Inferring Galaxy Parameters (SAN) &mdash; AGN Finder Documentation 0.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
     <link rel="shortcut icon" href="_static/favicon-32x32.png"/>
@@ -20,8 +20,8 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="5. Inferring Galaxy Parameters (CVAE)" href="cvae_inference.html" />
-    <link rel="prev" title="3. Inference Overview" href="inference.html" /> 
+    <link rel="next" title="6. Inferring Galaxy Parameters (CVAE)" href="cvae_inference.html" />
+    <link rel="prev" title="4. Inference Overview" href="inference.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,18 +43,19 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">4. Inferring Galaxy Parameters (SAN)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#autoregressive-models-for-distribution-estimation">4.1. Autoregressive Models for Distribution Estimation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#the-sequential-autoregressive-network">4.2. The Sequential Autoregressive Network</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#using-the-san-model">4.2.1. Using the SAN Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">2. Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">4. Inference Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">5. Inferring Galaxy Parameters (SAN)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#autoregressive-models-for-distribution-estimation">5.1. Autoregressive Models for Distribution Estimation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-sequential-autoregressive-network">5.2. The Sequential Autoregressive Network</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-the-san-model">5.2.1. Using the SAN Model</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#references">4.3. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">5.3. References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">6. Inferring Galaxy Parameters (CVAE)</a></li>
 </ul>
 
         </div>
@@ -71,7 +72,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-      <li><span class="section-number">4. </span>Inferring Galaxy Parameters (SAN)</li>
+      <li><span class="section-number">5. </span>Inferring Galaxy Parameters (SAN)</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/san_inference.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -83,7 +84,7 @@
              
   <p id="san-inference"><em>Section author: Maxime Robeyns &lt;<a class="reference external" href="mailto:maximerobeyns&#37;&#52;&#48;gmail&#46;com">maximerobeyns<span>&#64;</span>gmail<span>&#46;</span>com</a>&gt;</em></p>
 <section id="inferring-galaxy-parameters-san">
-<h1><span class="section-number">4. </span>Inferring Galaxy Parameters (SAN)<a class="headerlink" href="#inferring-galaxy-parameters-san" title="Permalink to this headline"></a></h1>
+<h1><span class="section-number">5. </span>Inferring Galaxy Parameters (SAN)<a class="headerlink" href="#inferring-galaxy-parameters-san" title="Permalink to this headline"></a></h1>
 <p>The method described in this page, the <em>Sequential Autoregressive Network</em>,
 (SAN) is currently the best performing method in the codebase.
 As a reminder, we wish to estimate the distribution of physical galaxy
@@ -99,18 +100,18 @@ p_{\text{SAN}}(\mathbf{y}_{i}\vert \mathbf{x}_{i})\)</span> for pairs of points 
 testing dataset <span class="math notranslate nohighlight">\(\mathcal{D}_{\text{test}} = \big\{(\mathbf{x}_{i},
 \mathbf{y}_{i})\big\}_{i=1}^{N}\)</span>.</p>
 <section id="autoregressive-models-for-distribution-estimation">
-<h2><span class="section-number">4.1. </span>Autoregressive Models for Distribution Estimation<a class="headerlink" href="#autoregressive-models-for-distribution-estimation" title="Permalink to this headline"></a></h2>
+<h2><span class="section-number">5.1. </span>Autoregressive Models for Distribution Estimation<a class="headerlink" href="#autoregressive-models-for-distribution-estimation" title="Permalink to this headline"></a></h2>
 <p>Before considering the full details of the SAN model, we first review
 autoregressive models.</p>
 <p>Strictly speaking, an ‘autoregressive model’ is one where the output of the
 model (usually indexed by <cite>time</cite>) depends on the previously outputted values of
 the model and some stochastic term. For example, they are commonly employed to
 predict the next value(s) in a time series.</p>
-<p>In this context, we use a model with this <cite>autoregressive property</cite> to
+<p>In this context however, we use a model with this <cite>autoregressive property</cite> to
 estimate a multivariate distribution, one dimension at a time. That is, rather
-than specifying the value of a stochastic process at a given timestep, each
-iteration of the autoregressive model outputs the next dimension of the
-multivariate distribution.</p>
+than specifying the value of a stochastic process at a given timestep (or
+<em>index</em>), each iteration of the autoregressive model outputs the next dimension
+of the multivariate distribution.</p>
 <p>Usually, when estimating / learning distributions over data, we must be careful
 to make sure that the distribution normalises. For example, if we observe a set
 of points <span class="math notranslate nohighlight">\(\{\mathbf{x}_{i}\}_{i=1}^{N} \in \mathcal{X}
@@ -121,9 +122,9 @@ we must make sure that</p>
 <p>Even for small <span class="math notranslate nohighlight">\(d\)</span>, this can be an expensive procedure unless this
 normalisation consideration is explicitly thought about when designing the
 model.</p>
-<p>Autoregressive models can be used to do just this (i.e. side-step the need to
-compute or even approximate high dimensional integrals) by simply factorising
-the desired multivariate distribution as a product of its nested conditionals:</p>
+<p>Autoregressive models side-step the need to compute or even approximate high
+dimensional integrals) by simply factorising the desired multivariate
+distribution as a product of its nested conditionals:</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}\begin{align*}
 p(\mathbf{x}) &amp;= \prod^d_{i=1}p(x_i \vert \mathbf{x}_{&lt;i}) \\
@@ -150,8 +151,8 @@ p(\mathbf{y} \vert \mathbf{x}) &amp;= \prod^D_{d=1}p(y_d \vert \mathbf{y}_{&lt;d
 dimension <span class="math notranslate nohighlight">\(y_{d}\)</span> only depends on the previous dimensions
 <span class="math notranslate nohighlight">\(\mathbf{y}_{&lt;d}\)</span> as well as the conditioning information
 <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>, then the density <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> can
-be efficiently computed as the product of terms. We will refer to this property
-as the <cite>autoregressive property</cite>.</p>
+be efficiently computed as the product of factorised terms. We will refer to
+this property as the <cite>autoregressive property</cite> going forward.</p>
 <p>For instance, we could compute the negatively log likelihood as:</p>
 <div class="math notranslate nohighlight">
 \[- \log p(\mathbf{y} \vert \mathbf{x}) = - \sum^D_{d=1} \log p(y_d \vert
@@ -161,20 +162,20 @@ should be no more than about 10), and the individual dimensions are modelled
 with an easily computed distribution, then the above should remain quick to compute.</p>
 </section>
 <section id="the-sequential-autoregressive-network">
-<h2><span class="section-number">4.2. </span>The Sequential Autoregressive Network<a class="headerlink" href="#the-sequential-autoregressive-network" title="Permalink to this headline"></a></h2>
+<h2><span class="section-number">5.2. </span>The Sequential Autoregressive Network<a class="headerlink" href="#the-sequential-autoregressive-network" title="Permalink to this headline"></a></h2>
 <p>The following shows the architecture of our proposed autoregressive model, which
 we call a <cite>Sequential Autoregressive Network</cite>.</p>
 <figure class="align-default" id="id2">
 <a class="reference external image-reference" href="_images/san.svg"><img alt="SAN architecture" src="_images/san.svg" /></a>
 <figcaption>
-<p><span class="caption-text">Click the image to view the SVG in a new tab if it is too small.</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
+<p><span class="caption-text">Click the image to zoom into the SVG in a new tab if it is too small.</span><a class="headerlink" href="#id2" title="Permalink to this image"></a></p>
 </figcaption>
 </figure>
 <p>The network is composed of <span class="math notranslate nohighlight">\(D\)</span> <cite>sequential blocks</cite>. These are repeated
 sequences of layers (which do not share weights), which accept as input the
 conditioning information <span class="math notranslate nohighlight">\(\mathbf{x}\)</span>, a set of <span class="math notranslate nohighlight">\(F\)</span> <cite>sequence
-features</cite> from the previous block (if applicable), as well as all the stochastic
-outputs <span class="math notranslate nohighlight">\(\hat{y}_{d} \sim p(y_{d} \vert \hat{\mathbf{y}}_{&lt;d},
+features</cite> from the previous block (excluding the first), as well as all the
+stochastic outputs <span class="math notranslate nohighlight">\(\hat{y}_{d} \sim p(y_{d} \vert \hat{\mathbf{y}}_{&lt;d},
 \mathbf{x})\)</span> from previous blocks.</p>
 <p>This combination of features is somewhat unusual:</p>
 <ul class="simple">
@@ -195,13 +196,14 @@ show a Gaussian mixture with <span class="math notranslate nohighlight">\(K\)</s
 and mixture weights <span class="math notranslate nohighlight">\(\{\varphi_{d,i}\}_{i=1}^{K}\)</span> such that
 <span class="math notranslate nohighlight">\(\sum_{i=1}^K \varphi_{d,i} = 1\)</span>.</p>
 <p>This model architecture was found to satisfy the desiderata of fast sampling (one
-can draw 10,000 posterior samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span> in
-the order of 10ms), and reasonable accuracy:</p>
+can draw 10,000 posterior samples from <span class="math notranslate nohighlight">\(p(\mathbf{y} \vert \mathbf{x})\)</span>
+for a single source <span class="math notranslate nohighlight">\(\mathbf{x}\)</span> in the order of 10ms), and reasonable
+accuracy:</p>
 <figure class="align-default">
 <a class="reference external image-reference" href="_images/san_results.png"><img alt="SAN results" src="_images/san_result.png" /></a>
 </figure>
 <section id="using-the-san-model">
-<h3><span class="section-number">4.2.1. </span>Using the SAN Model<a class="headerlink" href="#using-the-san-model" title="Permalink to this headline"></a></h3>
+<h3><span class="section-number">5.2.1. </span>Using the SAN Model<a class="headerlink" href="#using-the-san-model" title="Permalink to this headline"></a></h3>
 <p>The configurations for this model (see the <a class="reference external" href="inference.html">inference overview</a> for general configuration information) are defined in
 <code class="docutils literal notranslate"><span class="pre">config.py</span></code>.</p>
 <dl class="py class">
@@ -252,7 +254,7 @@ the order of 10ms), and reasonable accuracy:</p>
 </section>
 </section>
 <section id="references">
-<h2><span class="section-number">4.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h2>
+<h2><span class="section-number">5.3. </span>References<a class="headerlink" href="#references" title="Permalink to this headline"></a></h2>
 <dl class="citation">
 <dt class="label" id="made2015"><span class="brackets"><a class="fn-backref" href="#id1">MADE2015</a></span></dt>
 <dd><p>Germain, Mathieu, Karol Gregor, Iain Murray, and Hugo Larochelle.
@@ -268,8 +270,8 @@ the order of 10ms), and reasonable accuracy:</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="inference.html" class="btn btn-neutral float-left" title="3. Inference Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="cvae_inference.html" class="btn btn-neutral float-right" title="5. Inferring Galaxy Parameters (CVAE)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="inference.html" class="btn btn-neutral float-left" title="4. Inference Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cvae_inference.html" class="btn btn-neutral float-right" title="6. Inferring Galaxy Parameters (CVAE)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

@@ -3,12 +3,12 @@
 Inference Overview
 ##################
 
-The task of inferring physical galaxy parameters from photometric observations
-can be seen as that of learning a mapping :math:`f : \mathcal{X} \to
-\Theta`, where :math:`\mathcal{X}` is the space of
-:math:`n`-dimensional photometric observations (corresponding to :math:`n`
-filters), and :math:`\Theta` is the space of physical parameters, such
-as mass, star formation, E(B-V), AGN disk inclination and so forth.
+Inferring physical galaxy parameters from photometric observations
+can be seen as the task of learning a mapping :math:`f : \mathcal{X} \to
+\Theta`, from the space of :math:`n`-dimensional photometric observations
+:math:`\mathcal{X}` (corresponding to :math:`n` filters), to the space of
+physical parameters :math:`\Theta` (such as mass, star formation, E(B-V), AGN
+disk inclination and so forth).
 
 Since the photometric observations :math:`\mathbf{x}\in\mathcal{X}` alone are
 unlikely to be sufficient to constrain the full range of physical parameters
@@ -44,10 +44,10 @@ There are two main classes to bear in mind:
 General Inference Parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Models in this program are equipped with a ``trainmodel`` method, which provides
-a consistent way to train different models. This method's parameters are
-contained in the ``InferenceParams`` class (the base class for this is defined
-in ``agnfinder/inference/inference.py``).
+.. Models in this program are equipped with a ``trainmodel`` method, which provides a consistent way to train different models.
+
+This method's parameters are contained in the ``InferenceParams`` class (the
+base class for this is defined in ``agnfinder/inference/inference.py``).
 
 .. py:class:: InferenceParams(ConfigClass)
 
@@ -165,17 +165,13 @@ Since all models are concerned with learning a distribution :math:`p(\mathbf{y} 
 Training the models
 ~~~~~~~~~~~~~~~~~~~
 
-To train a model, first ensure that you have correctly set the model and
-inference parameters. Note that these configuration classes needn't necessarily
-be the ones in ``config.py``---you are free to define new configuration classes
-anywhere in the code.
+Having configured the inference parameters, you will also need a dataset loaded
+to train the model on. A utility function (``utils.load_simulated_data``) is
+available to help with this.
 
-You will also need a dataset loaded to train the model on. A utility function
-(``utils.load_simulated_data``) is available to help with this.
-
-You can now initialise a model by passing the initialised model parameters to
-your model's constructor. Finally the ``trainmodel`` method can be called to
-run the training procedure.
+To initialise a model, we pass an initialised model parameter class to the
+model's constructor. Now the ``trainmodel`` method can be called to run the
+training procedure.
 
 During training, models will save checkpoints after every epoch. This means that
 you can interrupt training at any time, and only lose the progress made during
@@ -308,13 +304,5 @@ The code for doing this is in ``agnfinder/inference/parameter_estimation.py``.
 This will use the model specified in ``InferenceParams.model``, and that model's
 corresponding configuration as defined in ``config.py``.
 
-
 You can run this with ``make params``.
-
-
-
-
-
-
-
 

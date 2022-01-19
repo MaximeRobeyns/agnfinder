@@ -42,10 +42,11 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a></li>
-<li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">2. Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">4. Inference Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="san_inference.html">5. Inferring Galaxy Parameters (SAN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">6. Inferring Galaxy Parameters (CVAE)</a></li>
 </ul>
 
         </div>
@@ -76,8 +77,9 @@
 <section id="agn-finder-documentation">
 <h1>AGN Finder documentation<a class="headerlink" href="#agn-finder-documentation" title="Permalink to this headline"></a></h1>
 <p>Welcome to the agnfinder documentation!</p>
-<p>For instructions on how to install the project, please see the <a class="reference external" href="installation.html">installation</a> page. This page contains information for both users and
-developers.</p>
+<hr class="docutils" />
+<p>If you’re looking for installation instructions, please see the <a class="reference external" href="installation.html">installation</a> page.</p>
+<hr class="docutils" />
 <p>This is a fork of the original AGNFinder project by Mike Walmsey and
 collaborators, which aims to use (conditional) generative modelling techniques to
 map from photometry to distributions over physical parameters <span class="math notranslate nohighlight">\(\theta\)</span>.</p>
@@ -124,8 +126,8 @@ this is a security risk, but not for this application.)</p></li>
 this is the case, you are welcome to modify your <code class="docutils literal notranslate"><span class="pre">config.py</span></code> to, for instance,
 call <code class="docutils literal notranslate"><span class="pre">argparse</span></code> and accept command line arguments.</p>
 </section>
-<section id="miscellaneous-considerations">
-<h2>Miscellaneous Considerations<a class="headerlink" href="#miscellaneous-considerations" title="Permalink to this headline"></a></h2>
+<section id="miscellaneous">
+<h2>Miscellaneous<a class="headerlink" href="#miscellaneous" title="Permalink to this headline"></a></h2>
 <p>We use <a class="reference external" href="https://www.python.org/dev/peps/pep-0484/">type hints</a> throughout the
 code to allow for static type checking using <a class="reference external" href="http://mypy-lang.org/">mypy</a>. In
 general this helps to catch bugs, and makes it clearer to folks unfamiliar with
@@ -135,60 +137,70 @@ the code what an object is, or what a function is doing.</p>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#quickstart">1.1. Quickstart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#quickstart">1.1. Quickstart</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#troubleshooting">1.1.1. Troubleshooting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="installation.html#optional-steps">1.1.2. Optional Steps</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#manual-installation">1.2. Manual Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#writing-documentation">1.3. Writing Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#building-python-3-9">1.4. Building Python 3.9</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="sampling.html">2. Photometry Sampling</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="sampling.html#running-the-sampling-procedure">2.1. Running the Sampling Procedure</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="sampling.html#free-parameter-configurations">2.1.1. Free Parameter Configurations</a></li>
-<li class="toctree-l3"><a class="reference internal" href="sampling.html#sampling-parameters">2.1.2. Sampling Parameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">2. Basic Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="basic_usage.html#generating-a-training-dataset">2.1. Generating a Training Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic_usage.html#training-a-model-san">2.2. Training a Model (SAN)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="basic_usage.html#inferring-parameters">2.3. Inferring Parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sampling.html#running-the-sampling-procedure">3.1. Running the Sampling Procedure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="sampling.html#free-parameter-configurations">3.1.1. Free Parameter Configurations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sampling.html#sampling-parameters">3.1.2. Sampling Parameters</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="inference.html">3. Inference Overview</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="inference.html#using-the-models">3.1. Using the Models</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="inference.html#general-inference-parameters">3.1.1. General Inference Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inference.html#model-parameters">3.1.2. Model Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inference.html#training-the-models">3.1.3. Training the models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">4. Inference Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="inference.html#using-the-models">4.1. Using the Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="inference.html#general-inference-parameters">4.1.1. General Inference Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inference.html#model-parameters">4.1.2. Model Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inference.html#training-the-models">4.1.3. Training the models</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="inference.html#creating-new-models">3.2. Creating New Models</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="inference.html#estimating-parameters">3.2.1. Estimating Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inference.html#creating-new-models">4.2. Creating New Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="inference.html#estimating-parameters">4.2.1. Estimating Parameters</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="san_inference.html">4. Inferring Galaxy Parameters (SAN)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="san_inference.html#autoregressive-models-for-distribution-estimation">4.1. Autoregressive Models for Distribution Estimation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="san_inference.html#the-sequential-autoregressive-network">4.2. The Sequential Autoregressive Network</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="san_inference.html#using-the-san-model">4.2.1. Using the SAN Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="san_inference.html">5. Inferring Galaxy Parameters (SAN)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="san_inference.html#autoregressive-models-for-distribution-estimation">5.1. Autoregressive Models for Distribution Estimation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="san_inference.html#the-sequential-autoregressive-network">5.2. The Sequential Autoregressive Network</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="san_inference.html#using-the-san-model">5.2.1. Using the SAN Model</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="san_inference.html#references">4.3. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="san_inference.html#references">5.3. References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">5. Inferring Galaxy Parameters (CVAE)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#conditional-variational-autoencoders">5.1. (Conditional) Variational Autoencoders</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#latent-variable-models">5.1.1. Latent Variable Models</a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#lvm-objective">5.1.2. LVM Objective</a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#sgd-elbo-optimisation">5.1.3. SGD ELBO Optimisation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#likelihood">5.1.4. Likelihood</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">6. Inferring Galaxy Parameters (CVAE)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#conditional-variational-autoencoders">6.1. (Conditional) Variational Autoencoders</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#latent-variable-models">6.1.1. Latent Variable Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#lvm-objective">6.1.2. LVM Objective</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#sgd-elbo-optimisation">6.1.3. SGD ELBO Optimisation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#likelihood">6.1.4. Likelihood</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#implementation">5.2. Implementation</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#architecture-description-types-py">5.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#base-cvae-classes-base-py">5.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#cvae-distributions-distributions-py">5.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#agnfinder-cvae-classes-inference-py">5.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#utility-classes-utils-py">5.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#cvae-configuration-config-py">5.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#implementation">6.2. Implementation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#architecture-description-types-py">6.2.1. Architecture Description <code class="docutils literal notranslate"><span class="pre">types.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#base-cvae-classes-base-py">6.2.2. Base CVAE Classes <code class="docutils literal notranslate"><span class="pre">base.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#cvae-distributions-distributions-py">6.2.3. CVAE Distributions <code class="docutils literal notranslate"><span class="pre">distributions.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#agnfinder-cvae-classes-inference-py">6.2.4. AGNFinder CVAE Classes <code class="docutils literal notranslate"><span class="pre">inference.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#utility-classes-utils-py">6.2.5. Utility Classes <code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cvae_inference.html#cvae-configuration-config-py">6.2.6. CVAE Configuration <code class="docutils literal notranslate"><span class="pre">config.py</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#references">5.3. References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cvae_inference.html#references">6.3. References</a></li>
 </ul>
 </li>
 </ul>

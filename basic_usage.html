@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2. Basic Usage &mdash; AGN Finder Documentation 0.1 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon-32x32.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="3. Photometry Sampling" href="sampling.html" />
+    <link rel="prev" title="1. Installation Guide" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #FFFFFF" >
+            <a href="index.html" class="icon icon-home"> AGN Finder Documentation
+            <img src="_static/base_logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation Guide</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">2. Basic Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#generating-a-training-dataset">2.1. Generating a Training Dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#training-a-model-san">2.2. Training a Model (SAN)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inferring-parameters">2.3. Inferring Parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sampling.html">3. Photometry Sampling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="inference.html">4. Inference Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="san_inference.html">5. Inferring Galaxy Parameters (SAN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cvae_inference.html">6. Inferring Galaxy Parameters (CVAE)</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu"  style="background: #FFFFFF" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">AGN Finder Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><span class="section-number">2. </span>Basic Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/basic_usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="basic-usage">
+<span id="id1"></span><h1><span class="section-number">2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline"></a></h1>
+<p>This section gives a series of <a href="#id2"><span class="problematic" id="id3">`</span></a>recipes’ for doing common tasks. To see more
+details about a specific task, find the corresponding section in the sidebar.</p>
+<p>In general, most tasks can be accomplished by</p>
+<ol class="arabic simple">
+<li><p>Updating the relevant parameter class in <code class="docutils literal notranslate"><span class="pre">agnfinder/config.py</span></code>.</p></li>
+<li><p>Running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">&lt;task&gt;</span></code>. (See <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">help</span></code> for a list of targets.)</p></li>
+</ol>
+<section id="generating-a-training-dataset">
+<h2><span class="section-number">2.1. </span>Generating a Training Dataset<a class="headerlink" href="#generating-a-training-dataset" title="Permalink to this headline"></a></h2>
+<p>The relevant parameter class for this task is <code class="docutils literal notranslate"><span class="pre">SamplingParams</span></code>, whose default
+values are as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">SamplingParams</span><span class="p">(</span><span class="n">ConfigClass</span><span class="p">):</span>
+    <span class="n">n_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40000000</span>
+    <span class="n">concurrency</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span>  <span class="c1"># set this to os.cpu_count() (or slightly less)</span>
+    <span class="n">redshift_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.</span>
+    <span class="n">redshift_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">6.</span>
+    <span class="n">save_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;./data/cubes/my_cube_sample/dir&#39;</span>
+    <span class="n">noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">filters</span><span class="p">:</span> <span class="n">FilterSet</span> <span class="o">=</span> <span class="n">Filters</span><span class="o">.</span><span class="n">DES</span>  <span class="c1"># {Euclid, DES, Reliable, All}</span>
+    <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># whether to shuffle final samples</span>
+</pre></div>
+</div>
+<p>Now, the sampling (or <em>simulation</em>) procedure can be run as configured with
+<code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">sim</span></code>. To understand what this is doing, a single worker runs something
+like the following (which you could run yourself in a notebook):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">agnfinder</span> <span class="kn">import</span> <span class="n">config</span> <span class="k">as</span> <span class="n">cfg</span>
+<span class="kn">from</span> <span class="nn">agnfinder.simulation</span> <span class="kn">import</span> <span class="n">Simulator</span>
+
+<span class="c1"># Configure the logger (defaults to INFO-level logs)</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">configure_logging</span><span class="p">()</span>
+
+<span class="c1"># Load the sampling parameters defined in config.py</span>
+<span class="n">sp</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">SamplingParams</span><span class="p">()</span>
+
+<span class="c1"># Initialise a `Simulator` object</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">Simulator</span><span class="p">(</span><span class="n">rshift_min</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">redshift_min</span><span class="p">,</span> <span class="n">rshift_max</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">redshift_max</span><span class="p">)</span>
+
+<span class="c1"># Use Latin hypercube sampling for the galaxy parameters</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">sample_theta</span><span class="p">()</span>
+
+<span class="c1"># Create the forward model using Prospector</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">create_forward_model</span><span class="p">()</span>
+
+<span class="c1"># Simulate the photometry</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="c1"># Save the sample results to disk (hdf5 file in sp.save_dir)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">save_samples</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To see more information about the sampling procedure, please consult the
+<a class="reference external" href="/sampling.html">sampling section</a>.</p>
+</section>
+<section id="training-a-model-san">
+<h2><span class="section-number">2.2. </span>Training a Model (SAN)<a class="headerlink" href="#training-a-model-san" title="Permalink to this headline"></a></h2>
+<p>The relevant configuration classes are <code class="docutils literal notranslate"><span class="pre">SANParams</span></code> as well as
+<code class="docutils literal notranslate"><span class="pre">InferenceParams</span></code>. The variable names in the configuration classes are
+hopefully descriptive of the configuration option—if not, see the <a class="reference external" href="/inference.html">inference
+overview</a> for an overview of the inference process in
+<code class="docutils literal notranslate"><span class="pre">agnfinder</span></code>, and in particular see the <a class="reference external" href="/san_inference.html">SAN</a> page for a
+description of our architecture.</p>
+<p>You can run the training from the command line with <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">san</span></code>. Alternatively,
+you could run the following code from a notebook:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">agnfinder.config</span> <span class="k">as</span> <span class="nn">cfg</span>
+<span class="kn">import</span> <span class="nn">agnfinder.nbutils</span> <span class="k">as</span> <span class="nn">nbu</span>
+
+<span class="kn">from</span> <span class="nn">torchvision</span> <span class="kn">import</span> <span class="n">transforms</span>
+<span class="kn">from</span> <span class="nn">agnfinder.inference</span> <span class="kn">import</span> <span class="n">SAN</span>
+<span class="kn">from</span> <span class="nn">agnfinder.inference</span> <span class="kn">import</span> <span class="n">utils</span>
+
+<span class="c1"># Configure the logger (defaults to INFO-level logs)</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">configure_logging</span><span class="p">()</span>
+
+<span class="c1"># Initialise the inference, and model parameters; defined in config.py</span>
+<span class="n">ip</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">InferenceParams</span><span class="p">()</span>
+<span class="n">sp</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">SANParams</span><span class="p">()</span>
+
+<span class="c1"># Get the dataloaders for training and testing</span>
+<span class="n">train_loader</span><span class="p">,</span> <span class="n">test_loader</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">load_simulated_data</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">ip</span><span class="o">.</span><span class="n">dataset_loc</span><span class="p">,</span>
+    <span class="n">split_ratio</span><span class="o">=</span><span class="n">ip</span><span class="o">.</span><span class="n">split_ratio</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="n">sp</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+    <span class="n">normalise_phot</span><span class="o">=</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+    <span class="n">transforms</span><span class="o">=</span><span class="p">[</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">()])</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Created data loaders&#39;</span><span class="p">)</span>
+
+<span class="c1"># Initialise the model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SAN</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initialised SAN model&#39;</span><span class="p">)</span>
+
+<span class="c1"># Run the training procedure</span>
+<span class="n">model</span><span class="o">.</span><span class="n">trainmodel</span><span class="p">(</span><span class="n">train_loader</span><span class="p">,</span> <span class="n">ip</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Trained SAN model&#39;</span><span class="p">)</span>
+
+<span class="c1"># (Example: use the model for something)</span>
+<span class="n">x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nbu</span><span class="o">.</span><span class="n">new_sample</span><span class="p">(</span><span class="n">test_loader</span><span class="p">)</span>
+<span class="n">posterior_samples</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully sampled from model&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="inferring-parameters">
+<h2><span class="section-number">2.3. </span>Inferring Parameters<a class="headerlink" href="#inferring-parameters" title="Permalink to this headline"></a></h2>
+<div class="admonition-todo admonition" id="id4">
+<p class="admonition-title">Todo</p>
+<p>simplify the API for doing this and provide a succinct example here.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="1. Installation Guide" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sampling.html" class="btn btn-neutral float-right" title="3. Photometry Sampling" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021.</p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
