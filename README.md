@@ -1,3 +1,7 @@
+**NOTE: this repository is outdated and deprecated. Please refer to [mwalmsley/agnfinder](https://github.com/mwalmsley/agnfinder) for the original version, or [maximerobeyns/spitorch](https://github.com/maximerobeyns/spitorch) for an updated version.** 
+
+<hr>
+
 <div align="center">
 <h1>AGNFinder</h1>
 </div>
